@@ -49,10 +49,14 @@ export function teamTokens(name: string | null | undefined): string[] {
 
   const cleaned = name
     .normalize('NFD')
-    // Drop combining accent marks. Written as explicit escapes so the range
-    // survives tooling that would otherwise mangle literal combining marks.
+    // Drop combining accent marks (the U+0300-U+036F block), so `Atlético`
+    // and `Atletico` tokenise identically.
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    // Periods are removed rather than replaced with a space, so `F.C.`
+    // collapses to the single noise token `fc` instead of splitting into
+    // two meaningless one-letter tokens.
+    .replace(/\./g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
