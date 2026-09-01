@@ -128,22 +128,27 @@ function calendarDate(date: string): Date | null {
   return Number.isNaN(instant.getTime()) ? null : instant;
 }
 
-/** `2026-09-01` -> `{ weekday: 'TUE', label: 'SEP 1' }` for the day selector. */
+function part(instant: Date, options: Intl.DateTimeFormatOptions, locale = 'en-GB'): string {
+  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(instant);
+}
+
+/**
+ * `2026-09-01` -> `{ weekday: 'TUE', label: 'SEP 1' }` for the day selector.
+ *
+ * Composed from parts rather than one format call: `en-GB` renders a combined
+ * month/day as `1 Sept`, which is both the wrong order for this design and
+ * locale-brittle. `en-US` is used only for the three-letter abbreviations.
+ */
 export function formatDayTab(date: string): { weekday: string; label: string } {
   const instant = calendarDate(date);
   if (!instant) return { weekday: '--', label: date };
 
+  const month = part(instant, { month: 'short' }, 'en-US').toUpperCase();
+  const day = part(instant, { day: 'numeric' }, 'en-US');
+
   return {
-    weekday: new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' })
-      .format(instant)
-      .toUpperCase(),
-    label: new Intl.DateTimeFormat('en-GB', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'UTC',
-    })
-      .format(instant)
-      .toUpperCase(),
+    weekday: part(instant, { weekday: 'short' }, 'en-US').toUpperCase(),
+    label: `${month} ${day}`,
   };
 }
 
@@ -151,12 +156,11 @@ export function formatDayTab(date: string): { weekday: string; label: string } {
 export function formatDateHeading(date: string): string {
   const instant = calendarDate(date);
   if (!instant) return date;
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  }).format(instant);
+
+  const weekday = part(instant, { weekday: 'long' });
+  const day = part(instant, { day: 'numeric' });
+  const month = part(instant, { month: 'long' });
+  return `${weekday}, ${day} ${month}`;
 }
 
 /** Kick-off time in the schedule's timezone. */

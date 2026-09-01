@@ -225,7 +225,7 @@ const week: Game[] = [
           strAwayTeam: 'Kansas City Chiefs',
           strVenue: 'Highmark Stadium',
           strCity: 'Orchard Park',
-          strTimestamp: '2026-09-01T23:00:00',
+          strTimestamp: '2026-09-01T18:00:00',
         }),
       ],
     },
