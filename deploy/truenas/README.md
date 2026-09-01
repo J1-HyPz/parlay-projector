@@ -6,12 +6,12 @@ application you push to GitHub; TrueNAS only pulls a newer image.
 
 | | |
 |---|---|
-| Custom App name | `parlay-projector` |
+| Custom App name | `parlayprojector` (TrueNAS strips the hyphen) |
 | Image | `ghcr.io/j1-hypz/parlay-projector:latest` |
 | Container port | `3000` |
 | Host port | `3000` (change in the YAML if taken) |
 | Compose file | [`deploy/truenas/compose.yaml`](compose.yaml) |
-| Persistent storage | none — the app is stateless |
+| Persistent storage | none — the app is stateless ([see section 9](#9-storage-for-future-phases)) |
 | URL once running | `http://<TRUENAS-IP>:3000` |
 
 ---
@@ -22,10 +22,12 @@ The image must exist in GHCR first. Push to `main` and let the
 **Build and Publish** workflow finish, then confirm the package appears under
 `https://github.com/j1-hypz?tab=packages`.
 
-Because the source repository is private, the package is private too by
-default. Pick one of the two options in
-[section 4](#4-private-ghcr-access) before installing, or the image pull will
-fail with `unauthorized` / `manifest unknown`.
+**The GHCR package is currently public**, so TrueNAS pulls it anonymously and
+needs no registry credentials. The source repository remains private.
+
+If the package is ever made private again, follow
+[section 4](#4-private-ghcr-access) before installing, or the pull will fail
+with `unauthorized`.
 
 ---
 
@@ -36,7 +38,9 @@ fail with `unauthorized` / `manifest unknown`.
 3. Click **Custom App** (top right).
 4. Choose **Install via YAML**.
 5. Paste the entire contents of [`compose.yaml`](compose.yaml).
-6. Set the application name to **`parlay-projector`**.
+6. Set the application name to **`parlay-projector`**. TrueNAS stores it as
+   **`parlayprojector`** — hyphens are stripped. That stored name is what
+   `TRUENAS_APP_NAME` must match.
 7. Before saving, edit these values in the YAML if needed:
    - `SITE_URL` — set to the URL you will actually reach the app on, e.g.
      `http://truenas.lan:3000` or `https://parlay.example.com`. This is only
@@ -87,7 +91,9 @@ TrueNAS app environment values — **not** to the repository.
 
 ## 4. Private GHCR access
 
-The repository is private, so the container package is private by default.
+> **Not currently needed.** The package is public, so TrueNAS pulls it without
+> credentials. This section applies only if you make the package private again.
+
 Choose one:
 
 ### Option A — make the package public (simplest)
@@ -137,7 +143,7 @@ GitHub Actions file.
 push to main -> GitHub Actions builds + publishes :latest -> you redeploy on TrueNAS
 ```
 
-On TrueNAS: **Apps → Installed → `parlay-projector` → ⋮ → Update** (or
+On TrueNAS: **Apps → Installed → `parlayprojector` → ⋮ → Update** (or
 **Redeploy**). TrueNAS re-pulls `:latest` and restarts the container.
 
 Nothing on the NAS needs editing. The new version is whatever `main` built.
@@ -179,7 +185,7 @@ of these — it uses the built-in `GITHUB_TOKEN`.
 | `TRUENAS_HOST` | yes | `192.168.1.50` or `truenas.lan` | Hostname or IP, **no scheme** |
 | `TRUENAS_API_KEY` | yes | — | API key with the `APPS_WRITE` role |
 | `TRUENAS_USERNAME` | no | `admin` | Log output only; the API key carries identity |
-| `TRUENAS_APP_NAME` | no | `parlay-projector` | Defaults to `parlay-projector` |
+| `TRUENAS_APP_NAME` | no | `parlayprojector` | Must match the name TrueNAS stored |
 
 Optional repository **variables** (not secrets):
 
@@ -259,7 +265,7 @@ To roll back:
 
 1. Find the good commit's short SHA — in the Actions run summary, or with
    `git log --oneline`.
-2. **Apps → Installed → `parlay-projector` → Edit**.
+2. **Apps → Installed → `parlayprojector` → Edit**.
 3. Change the image line from `:latest` to that SHA:
 
    ```yaml
@@ -275,7 +281,104 @@ Old images are never deleted automatically, so previous SHAs remain available.
 
 ---
 
-## 9. Reverse proxy (optional, later)
+## 9. Storage for future phases
+
+The application is **stateless today**: no database, no uploads, no writable
+paths. It needs no dataset and no `volumes:` entry, which is why a failed
+deploy loses nothing.
+
+That changes when a database or cached sports data arrives. The rule to keep:
+
+> **The web container is disposable. Data lives in datasets that outlive it.**
+
+Every push replaces the container. Anything written *inside* it is gone on the
+next redeploy — by design. Persistent data belongs in ZFS datasets mounted into
+the services that own it.
+
+### Dataset layout
+
+Create these under your apps pool (**Storage → pool → Add Dataset**, then add
+children beneath the parent):
+
+```
+/mnt/<pool>/parlay-projector/
+├── postgres/     database files
+├── redis/        cache
+└── data/         app-writable files, cached API responses
+```
+
+Use **datasets**, not plain directories — independent snapshots, quotas and
+per-workload tuning. Cheap now, awkward to retrofit later.
+
+### Settings worth getting right at creation
+
+| Dataset | Setting | Why |
+|---|---|---|
+| `postgres` | Record Size **16K** | The 128K default causes heavy write amplification against Postgres' 8K pages |
+| `postgres` | Access Time **Off** | Removes a metadata write on every read |
+| `redis` | Record Size **16K** | Same reasoning; append-heavy workload |
+| `data` | defaults | General file storage |
+
+Add a snapshot task on `postgres` once a real database exists. That is the
+rollback path for *data*, in the same way SHA-tagged images are the rollback
+path for *code*.
+
+### Ownership — the common failure
+
+Containers write as a numeric UID. If the dataset is not owned by that UID the
+container starts and then fails on first write, usually with an error that does
+not obviously read as "permissions".
+
+| Service | UID |
+|---|---|
+| `parlay-projector` (this app) | **1000** (`node`) |
+| `postgres` official image | **999** |
+
+Set it in **Storage → dataset → Edit Permissions**, or over SSH:
+
+```bash
+sudo chown -R 999:999 /mnt/<pool>/parlay-projector/postgres
+```
+
+Match the UID to the image that uses the dataset — not to your login user.
+
+### Shape to preserve
+
+Illustrative only. **Do not add this yet** — the application has no database.
+
+```yaml
+services:
+  parlay-projector:
+    image: ghcr.io/j1-hypz/parlay-projector:latest
+    environment:
+      DATABASE_URL: "postgres://parlay:PASSWORD@db:5432/parlay"
+    depends_on:
+      - db
+    # still no volumes - the web container stays stateless
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: parlay
+      POSTGRES_USER: parlay
+      POSTGRES_PASSWORD: PASSWORD
+    volumes:
+      - /mnt/<pool>/parlay-projector/postgres:/var/lib/postgresql/data
+```
+
+Note that only the database gets a volume. The web container never does.
+
+**Never mount anything at `/app`** — that is where the application lives inside
+the container; a volume there hides it and the container fails to start. Mount
+to an unused path such as `/data`.
+
+When that time comes, the database password is a real secret: it belongs in the
+TrueNAS app configuration, never in the repository. `.env.example` already
+reserves `DATABASE_URL` as a blank placeholder for exactly this.
+
+---
+
+## 10. Reverse proxy (optional, later)
 
 The container serves plain HTTP on one port and holds no state, so it sits
 behind Nginx Proxy Manager, Nginx, Traefik or a Cloudflare Tunnel without
@@ -286,7 +389,7 @@ Nothing here installs or configures a proxy.
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
@@ -294,6 +397,6 @@ Nothing here installs or configures a proxy.
 | App stuck `DEPLOYING` | Image pull failing or health check never passing — check the app logs in TrueNAS |
 | Port already allocated | Change the host side of `ports:` in the app config |
 | Deploy workflow queued forever | No runner with all three labels is online |
-| `app 'parlay-projector' is not installed` | The app name on TrueNAS does not match `TRUENAS_APP_NAME` |
+| `app 'parlayprojector' is not installed` | The app name on TrueNAS does not match `TRUENAS_APP_NAME` — check for the stripped hyphen |
 | `TLS verification failed` | Self-signed certificate — set `TRUENAS_CA_BUNDLE` |
 | OpenGraph links point at localhost | `SITE_URL` not set to the real URL |

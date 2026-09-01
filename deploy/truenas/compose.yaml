@@ -4,7 +4,8 @@
 # Paste the contents of this file into:
 #   Apps -> Discover Apps -> Custom App -> Install via YAML
 #
-# App name: parlay-projector
+# TrueNAS Custom App name: parlayprojector
+# (TrueNAS strips the hyphen; the service name below is unaffected.)
 #
 # This consumes the image already built and published by GitHub Actions.
 # There is deliberately no `build:` key — TrueNAS never compiles the app, and

@@ -17,7 +17,7 @@ Required:
   TRUENAS_API_KEY     API key with the APPS_WRITE role
 
 Optional:
-  TRUENAS_APP_NAME    default: parlay-projector
+  TRUENAS_APP_NAME    default: parlayprojector
   TRUENAS_PORT        default: 443
   TRUENAS_API_PATH    default: /api/current  (use /websocket for TrueNAS <= 24.10)
   TRUENAS_USERNAME    recorded in log output only; the API key carries identity
@@ -56,7 +56,9 @@ except ImportError:  # pragma: no cover
 # Configuration
 # --------------------------------------------------------------------------
 
-DEFAULT_APP_NAME = "parlay-projector"
+# TrueNAS strips hyphens from Custom App names, so the app installed from
+# an app named "parlay-projector" is addressed as "parlayprojector".
+DEFAULT_APP_NAME = "parlayprojector"
 TERMINAL_JOB_STATES = {"SUCCESS", "FAILED", "ABORTED"}
 POLL_INTERVAL_SECONDS = 3
 

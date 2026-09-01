@@ -202,19 +202,19 @@ Full instructions: **[`deploy/truenas/README.md`](deploy/truenas/README.md)**
 Short version:
 
 1. Push to `main` and let **Build and Publish** finish.
-2. Make the GHCR package accessible to the NAS — either publish the package
-   or `docker login ghcr.io` on TrueNAS. See the deployment README.
+2. Ensure the NAS can pull the image. The GHCR package is currently public,
+   so no credentials are needed. See the deployment README if that changes.
 3. TrueNAS → **Apps → Discover Apps → Custom App → Install via YAML**.
 4. Paste [`deploy/truenas/compose.yaml`](deploy/truenas/compose.yaml).
-5. Name the app `parlay-projector`.
+5. Name the app `parlay-projector` — TrueNAS stores it as `parlayprojector`.
 6. Open `http://<TRUENAS-IP>:3000`.
 
 | | |
 |---|---|
-| App name | `parlay-projector` |
+| TrueNAS app name | `parlayprojector` (hyphen stripped by TrueNAS) |
 | Image | `ghcr.io/j1-hypz/parlay-projector:latest` |
 | Port | `3000` |
-| Storage | none — stateless |
+| Storage | none — stateless ([layout for later](deploy/truenas/README.md#9-storage-for-future-phases)) |
 
 ### Two deployment modes
 
@@ -341,3 +341,8 @@ scheduled data collection, caching, authentication, a reverse proxy and HTTPS.
 
 None of these are implemented. The container is stateless with a single HTTP
 port, which keeps those options open.
+
+When persistent data does arrive, keep the web container disposable and put the
+data in ZFS datasets owned by the services that use it. The dataset layout,
+recordsize tuning and container-UID ownership rules are documented in
+[deploy/truenas/README.md § 9](deploy/truenas/README.md#9-storage-for-future-phases).

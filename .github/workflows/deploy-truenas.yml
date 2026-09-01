@@ -88,7 +88,7 @@ jobs:
           TRUENAS_HOST: ${{ secrets.TRUENAS_HOST }}
           TRUENAS_API_KEY: ${{ secrets.TRUENAS_API_KEY }}
           TRUENAS_USERNAME: ${{ secrets.TRUENAS_USERNAME }}
-          TRUENAS_APP_NAME: ${{ secrets.TRUENAS_APP_NAME || 'parlay-projector' }}
+          TRUENAS_APP_NAME: ${{ secrets.TRUENAS_APP_NAME || 'parlayprojector' }}
           # Optional overrides — set as repository variables if needed.
           TRUENAS_PORT: ${{ vars.TRUENAS_PORT }}
           TRUENAS_API_PATH: ${{ vars.TRUENAS_API_PATH }}
@@ -102,7 +102,7 @@ jobs:
           {
             echo "### TrueNAS deployment"
             echo
-            echo "- App: \`${{ secrets.TRUENAS_APP_NAME || 'parlay-projector' }}\`"
+            echo "- App: \`${{ secrets.TRUENAS_APP_NAME || 'parlayprojector' }}\`"
             echo "- Trigger: \`${{ github.event_name }}\`"
             echo "- Result: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
