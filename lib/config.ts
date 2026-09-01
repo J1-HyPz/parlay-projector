@@ -46,6 +46,23 @@ export const newsConfig = {
   maxLimit: 20,
 };
 
+export const liveConfig = {
+  /**
+   * Server-side cache for the live scoreboard.
+   *
+   * Short enough that scores stay current, long enough that simultaneous
+   * clients share one provider refresh rather than each triggering their own.
+   */
+  cacheTtlMs: envInt('LIVE_CACHE_TTL_SECONDS', 20) * 1000,
+  /**
+   * How often the browser re-polls `/api/live`.
+   *
+   * Sent to the client in the response, so no build-time public variable is
+   * needed. Floored at 10s so misconfiguration cannot hammer the provider.
+   */
+  refreshIntervalMs: Math.max(10_000, envInt('LIVE_REFRESH_INTERVAL_MS', 30_000)),
+};
+
 /**
  * Directory for persistent application data.
  *

@@ -224,6 +224,30 @@ jobs:
           fi
           echo "schedule response contains no betting fields"
 
+          # Live must respond with the documented shape whether or not any
+          # games are in progress.
+          live=$(curl -s --max-time 60 http://127.0.0.1:3000/api/live) || {
+            echo "::error::/api/live did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          printf '%s' "$live" | head -c 200
+          echo
+          for field in '"updated_at"' '"refresh_interval_ms"' '"games"'; do
+            if ! printf '%s' "$live" | grep -q "$field"; then
+              echo "::error::/api/live response missing $field"
+              docker rm -f pp-ci
+              exit 1
+            fi
+          done
+          if printf '%s' "$live" | grep -q '"odds"\|"moneyline"\|"spread"\|"bookmaker"\|"prediction"'; then
+            echo "::error::live response contained betting or prediction fields"
+            docker rm -f pp-ci
+            exit 1
+          fi
+          echo "live response shape ok, no betting or prediction fields"
+
+          livepage=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 http://127.0.0.1:3000/live)
+          echo "GET /live -> HTTP $livepage"
+          [ "$livepage" = "200" ]             || { echo "::error::live page failed, got $livepage"; docker rm -f pp-ci; exit 1; }
+
           # An unknown or malformed id is a 404, not a crash.
           for bad_id in 99999999999 not-a-number; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/api/games/$bad_id")

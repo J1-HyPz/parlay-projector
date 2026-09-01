@@ -101,7 +101,9 @@ export function normaliseStatus(
   if (['CANC', 'CANCELLED', 'CANCELED', 'ABD', 'ABANDONED'].includes(value)) {
     return 'cancelled';
   }
-  if (['HT', 'HALF TIME', 'LIVE', 'IN PLAY', 'BT', 'ET'].includes(value)) return 'live';
+  // `P` is a penalty shootout in progress on the live feed; `PEN` above is the
+  // finished result after one.
+  if (['HT', 'HALF TIME', 'LIVE', 'IN PLAY', 'BT', 'ET', 'P'].includes(value)) return 'live';
 
   // Period markers: 1H/2H (soccer), Q1-Q4 (NFL/NBA), P1-P3 (NHL), 1I-9I (MLB).
   if (/^(\d+H|Q\d|P\d|\d+(ST|ND|RD|TH)?I?)$/.test(value)) return 'live';

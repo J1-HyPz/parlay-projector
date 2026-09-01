@@ -25,7 +25,7 @@ Every figure on screen is a placeholder.
 |---|---|
 | `/` | Dashboard |
 | `/schedule` | Eight-day fixture schedule ([docs](#schedule-api)) |
-| `/live` | Live scoreboard |
+| `/live` | Live scoreboard ([docs](#live-api)) |
 | `/parlays` | Projection workspace |
 | `/profile` | Profile placeholder |
 | `/games/:gameId` | Individual game detail ([docs](#game-detail-api)) |
@@ -36,6 +36,7 @@ Every figure on screen is a placeholder.
 | `/api/home/accuracy` | Prediction accuracy |
 | `/api/games/:gameId` | Detail for one game |
 | `/api/schedule` | Eight-day fixture window |
+| `/api/live` | Games currently in progress |
 
 ---
 
@@ -440,6 +441,88 @@ tennis fixtures on this tier, so it shows an empty state.
 **No betting data.** No odds, spreads, totals, bookmakers, markets or parlay
 controls appear in the schedule contract, services or UI. CI asserts the
 response contains none.
+
+---
+
+## Live API
+
+The Live page is a scoreboard: only games whose normalised status is `live`
+appear. Scheduled, finished, postponed and cancelled games are excluded, so a
+game joins the board on the first refresh after kick-off and leaves it on the
+first refresh after it ends.
+
+### `GET /api/live`
+
+No parameters. Sport and league filtering happens client-side against the
+loaded set.
+
+```json
+{
+  "updated_at": "2026-09-01T20:24:30.000Z",
+  "timezone": "Europe/London",
+  "refresh_interval_ms": 30000,
+  "games": [
+    {
+      "id": "2481672",
+      "sport": "football",
+      "league": "Peruvian Primera Division",
+      "status": "live",
+      "start_time": "2026-09-01T20:00:00.000Z",
+      "home_team": { "id": "138313", "name": "Atletico Grau", "logo": "..." },
+      "away_team": { "id": "138323", "name": "Melgar", "logo": "..." },
+      "score": { "home": 1, "away": 0 },
+      "game_state": { "display": "26' • First Half", "period": "First Half", "clock": "26'" },
+      "venue": { "name": "...", "city": "...", "country": "..." }
+    }
+  ]
+}
+```
+
+A missing score is `null` and renders as `--`; a genuine 0-0 is preserved. Game
+ids are the same provider event ids used by Home and Schedule, so every card
+links to the existing `/games/:id` page.
+
+### Refresh and caching
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `LIVE_REFRESH_INTERVAL_MS` | `30000` | Browser poll interval, sent to the client in the response. Floored at 10s |
+| `LIVE_CACHE_TTL_SECONDS` | `20` | Server-side cache, so simultaneous clients share one provider refresh |
+
+The client pauses polling while the browser tab is hidden and refreshes
+immediately on return, never runs two refreshes at once, and keeps the previous
+scoreboard on screen with a warning if a refresh fails rather than blanking the
+page.
+
+### Provider calls
+
+One request per sport (`livescore.php?s=<Sport>`), run concurrently — six per
+refresh, not a per-date fan-out. One sport failing does not empty the board.
+Venue and round are filled in from today's fixtures, which Home and Schedule
+have usually already cached, so they cost no extra provider calls.
+
+### Provider limitations — what is *not* available
+
+TheSportsDB's live feed supplies status, scores and, for football, a match
+minute. It does **not** supply the richer per-sport state, so these are absent
+rather than invented:
+
+| Sport | Live feed status | What is missing |
+|---|---|---|
+| Football / Soccer | **Good** — half, match minute, score | possession, cards, shots |
+| NHL | Feed exists; status and score only | game clock, shots, power play |
+| MLB | Feed exists; status and score only | top/bottom, outs, R-H-E |
+| NBA | Feed exists; status and score only | game clock, fouls, timeouts |
+| NFL | **Feed returns no rows** on this tier | everything, including down and distance |
+| Tennis | **Feed returns no rows** on this tier | set and game scores, serving indicator |
+
+Where a game state cannot be determined, the card shows the league and score
+without a state line. No down-and-distance, outs, possession or tennis set score
+is ever fabricated.
+
+**No betting or prediction data.** No odds, spreads, totals, bookmakers,
+markets, projected winners or confidence figures appear in the contract, the
+services or the UI. CI asserts the response contains none.
 
 ---
 
