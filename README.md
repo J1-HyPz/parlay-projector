@@ -173,13 +173,18 @@ a TrueNAS SCALE Custom App or a reverse proxy.
 | other branches | yes | yes | no |
 | manual dispatch | yes | yes | only from `main` |
 
-Stages, in order — a failure at any stage stops the pipeline and leaves the
-currently deployed version untouched:
+Stages, in order — every one is a hard gate. A failure at any stage stops the
+pipeline and leaves the currently deployed version untouched:
 
 ```
 Install dependencies → Lint → Type check → Production build
-  → Verify dist/standalone/server.js → Docker build → Publish GHCR
+  → Verify dist/standalone/server.js → Docker build
+  → Smoke test container → Publish GHCR
 ```
+
+The smoke test starts the built image and checks that `/health` responds, that
+`GET /` returns 200 and renders, and that the container is not running as root.
+An image that does not serve traffic never reaches GHCR.
 
 Every successful build from `main` publishes two tags:
 
