@@ -85,7 +85,6 @@ async function mapWithConcurrency<T, R>(
  */
 export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResult> {
   const range = scheduleRange(APP_TIMEZONE);
-  const definitions = definitionsFor(sport);
 
   // One request per league covers the whole window.
   const tasks = leaguesFor(sport);
