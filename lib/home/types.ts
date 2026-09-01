@@ -6,7 +6,7 @@
  */
 
 /** Sport identifiers accepted by the homepage API. */
-export const SPORT_IDS = ['all', 'nfl', 'nba', 'mlb', 'nhl', 'football'] as const;
+export const SPORT_IDS = ['all', 'nfl', 'nba', 'mlb', 'nhl', 'football', 'tennis'] as const;
 export type SportId = (typeof SPORT_IDS)[number];
 
 /** Sport identifiers that map to an actual sport (i.e. everything except `all`). */
@@ -33,6 +33,7 @@ export interface Team {
 export interface Venue {
   name: string | null;
   city: string | null;
+  country: string | null;
 }
 
 export interface Game {
@@ -40,6 +41,10 @@ export interface Game {
   sport: ConcreteSportId;
   league: string | null;
   league_badge: string | null;
+  /** Competition season, e.g. `2026`. Present in the provider's day feed. */
+  season: string | null;
+  /** Round or week number, e.g. `7`. Present in the provider's day feed. */
+  round: string | null;
   /** ISO-8601 UTC instant, or null when the provider gave no usable time. */
   start_time: string | null;
   status: GameStatus;

@@ -287,6 +287,7 @@ export function normaliseGameDetail(input: GameDetailInput): GameDetail | null {
     venue: {
       name: str(event.strVenue),
       city: str(event.strCity) ?? str(event.strCountry),
+      country: str(event.strCountry),
     },
     score: normaliseScore(event, status),
     game_state: normaliseGameState(status, providerStatus),

@@ -14,7 +14,7 @@ import { newsConfig } from '@/lib/config';
 import { resolveLimit } from '@/lib/home/news/normalise';
 import { resolveRange } from '@/lib/home/predictions/accuracy';
 import { getHome } from '@/lib/home/service';
-import { badRequest, json, parseSport } from '@/lib/home/api';
+import { invalidSport, json, parseSport } from '@/lib/home/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const sport = parseSport(params.get('sport'));
   if (sport === null) {
-    return badRequest('sport must be one of: all, nfl, nba, mlb, nhl, football');
+    return invalidSport();
   }
 
   const body = await getHome({

@@ -24,7 +24,7 @@ Every figure on screen is a placeholder.
 | Path | Description |
 |---|---|
 | `/` | Dashboard |
-| `/schedule` | Seven-day schedule view |
+| `/schedule` | Eight-day fixture schedule ([docs](#schedule-api)) |
 | `/live` | Live scoreboard |
 | `/parlays` | Projection workspace |
 | `/profile` | Profile placeholder |
@@ -35,6 +35,7 @@ Every figure on screen is a placeholder.
 | `/api/home/news` | Recent sports news |
 | `/api/home/accuracy` | Prediction accuracy |
 | `/api/games/:gameId` | Detail for one game |
+| `/api/schedule` | Eight-day fixture window |
 
 ---
 
@@ -363,6 +364,82 @@ directory must be writable by UID 1000 (the container's `node` user).
 
 Prediction *generation* is not implemented — that is a future task. This backend
 only reads existing records and scores them.
+
+---
+
+## Schedule API
+
+The Schedule page shows fixtures from **today through today + 7 inclusive** —
+eight calendar dates, in `APP_TIMEZONE` (default `Europe/London`). "This week"
+means today + 7, deliberately not Monday to Sunday.
+
+### `GET /api/schedule`
+
+| Parameter | Values | Default |
+|---|---|---|
+| `sport` | `all` `nfl` `nba` `mlb` `nhl` `football` `tennis` | `all` |
+
+There are **no caller-supplied date parameters**. The window is derived
+server-side and fixed at 8 dates, so no request can widen the range and burn the
+provider allowance.
+
+```json
+{
+  "start_date": "2026-09-01",
+  "end_date": "2026-09-08",
+  "dates": ["2026-09-01", "...", "2026-09-08"],
+  "timezone": "Europe/London",
+  "games": []
+}
+```
+
+`games` uses the same shared `Game` model as the Home page, so a schedule row
+and a Home card are the same shape and both open `/games/:id` with the provider
+event id. An unrecognised `sport` returns `400`; a total provider failure
+returns `200` with `"error": "schedule_data_unavailable"`.
+
+### Timezone correctness
+
+Both the window and each game's day are computed from the calendar date **in the
+application timezone**, never from UTC. At 00:30 on a Tuesday in London during
+BST the UTC date is still Monday; deriving the window from UTC would show a
+Monday-to-Monday week to someone already on Tuesday. This case is covered by
+tests.
+
+### Filtering
+
+The endpoint returns the whole window once. Day, sport, league and search
+filtering all happen client-side against that dataset, so switching a day or
+typing in the search box issues no further requests. League options are
+generated from the loaded games, so the filter never offers a competition with
+no fixtures in range.
+
+### Provider cost and caching
+
+TheSportsDB has no date-range endpoint, so the window costs **one request per
+(date, sport)** — up to 8 × 6 = 48. These run with a concurrency cap of 4,
+tolerate partial failure, and are cached for **15 minutes** under the same keys
+`/api/home/games` uses, so today's fixtures are fetched once and shared by both
+pages in either direction.
+
+If a refresh fails, the cache serves the previous value for a short grace period
+rather than dropping the page to empty.
+
+> **A real `SPORTS_API_KEY` matters here.** TheSportsDB's public test key (`3`)
+> rate-limits well below 48 requests in a burst, so a cold Schedule load on the
+> test key will return partial data or none at all. The page degrades honestly
+> rather than breaking, but a proper key is needed for full fixtures.
+
+### Sports
+
+`nfl`, `nba`, `mlb`, `nhl`, `football`, `tennis`. Provider values are mapped to
+these identifiers inside the adapter — the frontend never sees a provider name.
+Tennis is registered and filterable, but the provider currently returns no
+tennis fixtures on this tier, so it shows an empty state.
+
+**No betting data.** No odds, spreads, totals, bookmakers, markets or parlay
+controls appear in the schedule contract, services or UI. CI asserts the
+response contains none.
 
 ---
 

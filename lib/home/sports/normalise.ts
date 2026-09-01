@@ -63,6 +63,10 @@ export const SPORT_DEFINITIONS: readonly SportDefinition[] = [
   { id: 'mlb', providerSport: 'Baseball', leagueFilter: 'MLB', label: 'MLB' },
   { id: 'nhl', providerSport: 'Ice Hockey', leagueFilter: 'NHL', label: 'NHL' },
   { id: 'football', providerSport: 'Soccer', label: 'Football' },
+  // The provider exposes Tennis but currently returns no fixtures for it on
+  // the configured tier. Kept so the filter is honest and data appears if the
+  // provider starts publishing it.
+  { id: 'tennis', providerSport: 'Tennis', label: 'Tennis' },
 ];
 
 function str(value: unknown): string | null {
@@ -141,7 +145,13 @@ function team(name: unknown, id: unknown, badge: unknown): Team {
 }
 
 function venue(event: RawEvent): Venue {
-  return { name: str(event.strVenue), city: str(event.strCountry) };
+  return {
+    name: str(event.strVenue),
+    // The day feed usually omits strCity, so country stands in for locality
+    // rather than leaving the line blank.
+    city: str(event.strCity) ?? str(event.strCountry),
+    country: str(event.strCountry),
+  };
 }
 
 /**
@@ -165,6 +175,8 @@ export function normaliseEvent(
     sport,
     league: str(event.strLeague),
     league_badge: str(event.strLeagueBadge),
+    season: str(event.strSeason),
+    round: str(event.intRound),
     start_time: normaliseStartTime(event),
     status: normaliseStatus(event.strStatus, event.strPostponed),
     provider_status: str(event.strStatus),

@@ -10,6 +10,9 @@
  * a cold cache produce one provider call rather than ten.
  */
 
+/** How long a stale value is served after a failed refresh. */
+const STALE_GRACE_MS = 60_000;
+
 interface Entry<T> {
   value: T;
   expiresAt: number;
@@ -48,6 +51,16 @@ export async function cached<T>(
       const ttl = typeof ttlMs === 'function' ? ttlMs(value) : ttlMs;
       store.set(key, { value, expiresAt: Date.now() + ttl });
       return value;
+    })
+    .catch((error: unknown) => {
+      // Serve the previous value when a refresh fails. Against a rate-limited
+      // provider, slightly stale data beats an empty page. Re-thrown when
+      // there is nothing cached, so callers still see the failure.
+      if (existing) {
+        store.set(key, { value: existing.value, expiresAt: Date.now() + STALE_GRACE_MS });
+        return existing.value as T;
+      }
+      throw error;
     })
     .finally(() => {
       inFlight.delete(key);

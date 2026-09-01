@@ -197,6 +197,33 @@ jobs:
           grep -q "Parlay Projector" /tmp/game.html \
             || { echo "::error::game page did not render the app shell"; docker rm -f pp-ci; exit 1; }
 
+          # Schedule renders on a direct request and always reports an
+          # eight-date window, even when every provider call is rate limited.
+          sched=$(curl -s -o /tmp/sched.html -w '%{http_code}' --max-time 90 http://127.0.0.1:3000/schedule)
+          echo "GET /schedule -> HTTP $sched"
+          [ "$sched" = "200" ]             || { echo "::error::schedule page failed, got $sched"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+
+          api=$(curl -s --max-time 90 http://127.0.0.1:3000/api/schedule) || {
+            echo "::error::/api/schedule did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          # `|| true`: a grep with no matches exits 1, which under `set -o
+          # pipefail` would abort here instead of reporting the real problem.
+          dates=$(printf '%s' "$api" | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | sort -u | wc -l || true)
+          echo "/api/schedule -> $dates distinct dates"
+          if [ "$dates" != "8" ]; then
+            echo "::error::expected an 8-date schedule window, got $dates"
+            docker rm -f pp-ci
+            exit 1
+          fi
+
+          # An `if` rather than `grep && {...}`: under `set -e` the && form
+          # aborts the script on the success path, when grep finds nothing.
+          if printf '%s' "$api" | grep -q '"odds"\|"moneyline"\|"spread"\|"bookmaker"'; then
+            echo "::error::schedule response contained betting fields"
+            docker rm -f pp-ci
+            exit 1
+          fi
+          echo "schedule response contains no betting fields"
+
           # An unknown or malformed id is a 404, not a crash.
           for bad_id in 99999999999 not-a-number; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/api/games/$bad_id")

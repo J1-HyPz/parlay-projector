@@ -11,14 +11,14 @@
 import { APP_TIMEZONE } from '@/lib/config';
 import { getGamesToday } from '@/lib/home/sports/service';
 import type { GamesResponse } from '@/lib/home/types';
-import { badRequest, json, parseSport } from '@/lib/home/api';
+import { invalidSport, json, parseSport } from '@/lib/home/api';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request): Promise<Response> {
   const sport = parseSport(new URL(request.url).searchParams.get('sport'));
   if (sport === null) {
-    return badRequest('sport must be one of: all, nfl, nba, mlb, nhl, football');
+    return invalidSport();
   }
 
   const { date, games, failed } = await getGamesToday(sport);

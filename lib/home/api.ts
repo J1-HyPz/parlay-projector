@@ -29,3 +29,13 @@ export function parseSport(raw: string | null): SportId | null {
 export function badRequest(message: string): Response {
   return json({ error: 'invalid_request', message }, 400);
 }
+
+/**
+ * Rejection message for an unrecognised sport.
+ *
+ * Derived from SPORT_IDS so it cannot drift out of step with the registry when
+ * a sport is added.
+ */
+export function invalidSport(): Response {
+  return badRequest(`sport must be one of: ${SPORT_IDS.join(', ')}`);
+}
