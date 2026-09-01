@@ -90,6 +90,8 @@ jobs:
           TRUENAS_USERNAME: ${{ secrets.TRUENAS_USERNAME }}
           TRUENAS_APP_NAME: ${{ secrets.TRUENAS_APP_NAME || 'parlayprojector' }}
           # Optional overrides — set as repository variables if needed.
+          TRUENAS_IMAGE: ${{ vars.TRUENAS_IMAGE }}
+          TRUENAS_SKIP_PULL: ${{ vars.TRUENAS_SKIP_PULL }}
           TRUENAS_PORT: ${{ vars.TRUENAS_PORT }}
           TRUENAS_API_PATH: ${{ vars.TRUENAS_API_PATH }}
           TRUENAS_CA_BUNDLE: ${{ vars.TRUENAS_CA_BUNDLE }}

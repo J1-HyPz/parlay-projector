@@ -5,9 +5,14 @@ Trigger a redeploy of the Parlay Projector Custom App on TrueNAS SCALE.
 Uses the documented JSON-RPC 2.0 over WebSocket API:
   - endpoint  wss://<host>/api/current   (TrueNAS 25.04+; /websocket on <= 24.10)
   - auth      auth.login_with_api_key
-  - redeploy  app.redeploy(app_name)     -- a job; pulls the newest image and
-                                            restarts the app
+  - pull      app.image.pull(image)      -- a job
+  - redeploy  app.redeploy(app_name)     -- a job
   - status    core.get_jobs / app.query
+
+The image is pulled explicitly before redeploying. TrueNAS redeploys with
+`docker compose up --force-recreate`, which recreates containers but does not
+re-pull a tag it already has locally -- so on a moving tag like `:latest` a
+redeploy alone can silently restart the previous image.
 
 Configuration comes from environment variables only. Nothing is hardcoded and
 no secret is ever printed.
@@ -18,6 +23,9 @@ Required:
 
 Optional:
   TRUENAS_APP_NAME    default: parlayprojector
+  TRUENAS_IMAGE       image to pull before redeploying
+                      (default: ghcr.io/j1-hypz/parlay-projector:latest)
+  TRUENAS_SKIP_PULL   set to "true" to redeploy without pulling first
   TRUENAS_PORT        default: 443
   TRUENAS_API_PATH    default: /api/current  (use /websocket for TrueNAS <= 24.10)
   TRUENAS_USERNAME    recorded in log output only; the API key carries identity
@@ -59,6 +67,7 @@ except ImportError:  # pragma: no cover
 # TrueNAS strips hyphens from Custom App names, so the app installed from
 # an app named "parlay-projector" is addressed as "parlayprojector".
 DEFAULT_APP_NAME = "parlayprojector"
+DEFAULT_IMAGE = "ghcr.io/j1-hypz/parlay-projector:latest"
 TERMINAL_JOB_STATES = {"SUCCESS", "FAILED", "ABORTED"}
 POLL_INTERVAL_SECONDS = 3
 
@@ -247,6 +256,10 @@ def main() -> int:
         host = _require_env("TRUENAS_HOST")
         api_key = _require_env("TRUENAS_API_KEY")
         app_name = (os.environ.get("TRUENAS_APP_NAME") or DEFAULT_APP_NAME).strip()
+        image = (os.environ.get("TRUENAS_IMAGE") or DEFAULT_IMAGE).strip()
+        skip_pull = (
+            os.environ.get("TRUENAS_SKIP_PULL") or ""
+        ).strip().lower() == "true"
         port = _env_int("TRUENAS_PORT", 443)
         api_path = (os.environ.get("TRUENAS_API_PATH") or "/api/current").strip()
         timeout = _env_int("TRUENAS_TIMEOUT", 600)
@@ -290,6 +303,25 @@ def main() -> int:
                 )
                 return 1
             log(f"found app {app_name!r} in state {existing[0].get('state')}")
+
+            # Pull first. `app.redeploy` runs `docker compose up
+            # --force-recreate`, which will happily reuse a stale `:latest`
+            # already present on the NAS.
+            if skip_pull:
+                log("skipping image pull (TRUENAS_SKIP_PULL=true)")
+            else:
+                log(f"pulling {image}")
+                pull_job = client.call("app.image.pull", [{"image": image}])
+                if isinstance(pull_job, int):
+                    job = wait_for_job(client, pull_job, timeout)
+                    if job.get("state") != "SUCCESS":
+                        error = job.get("error") or "no error detail reported"
+                        sys.stderr.write(
+                            f"ERROR: image pull job {pull_job} finished as "
+                            f"{job.get('state')}: {error}\n"
+                        )
+                        return 1
+                log("image pulled")
 
             log(f"triggering app.redeploy({app_name!r})")
             job_id = client.call("app.redeploy", [app_name])

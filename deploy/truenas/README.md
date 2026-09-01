@@ -143,8 +143,21 @@ GitHub Actions file.
 push to main -> GitHub Actions builds + publishes :latest -> you redeploy on TrueNAS
 ```
 
-On TrueNAS: **Apps → Installed → `parlayprojector` → ⋮ → Update** (or
-**Redeploy**). TrueNAS re-pulls `:latest` and restarts the container.
+> **Pull before you redeploy.** TrueNAS redeploys with
+> `docker compose up --force-recreate`, which recreates containers but does
+> **not** re-pull a tag it already has locally. On a moving tag like `:latest`,
+> a redeploy on its own can silently restart the previous image.
+
+Over SSH — reliable on every TrueNAS version:
+
+```bash
+sudo docker pull ghcr.io/j1-hypz/parlay-projector:latest
+sudo midclt call app.redeploy parlayprojector
+```
+
+Or in the web interface: **Apps → Installed → `parlayprojector`**, use the
+image/update action to pull, then **⋮ → Update**. If the app restarts on the
+old build, the pull did not happen — use the SSH sequence above.
 
 Nothing on the NAS needs editing. The new version is whatever `main` built.
 
@@ -194,6 +207,8 @@ Optional repository **variables** (not secrets):
 | `ENABLE_TRUENAS_AUTO_DEPLOY` | unset | `true` enables automatic deploys |
 | `TRUENAS_PORT` | `443` | Management interface port |
 | `TRUENAS_API_PATH` | `/api/current` | Use `/websocket` on TrueNAS ≤ 24.10 |
+| `TRUENAS_IMAGE` | `ghcr.io/j1-hypz/parlay-projector:latest` | Image pulled before redeploy |
+| `TRUENAS_SKIP_PULL` | unset | `true` redeploys without pulling first |
 | `TRUENAS_CA_BUNDLE` | unset | Path on the runner to a trusted CA for a self-signed cert |
 | `TRUENAS_TIMEOUT` | `600` | Seconds to wait for redeploy |
 
@@ -395,6 +410,7 @@ Nothing here installs or configures a proxy.
 |---|---|
 | `unauthorized` / `manifest unknown` on pull | Private package with no credentials — see [section 4](#4-private-ghcr-access) |
 | App stuck `DEPLOYING` | Image pull failing or health check never passing — check the app logs in TrueNAS |
+| Redeploy ran but the old version is still served | The image was not re-pulled; `:latest` was already present locally. Pull explicitly first |
 | Port already allocated | Change the host side of `ports:` in the app config |
 | Deploy workflow queued forever | No runner with all three labels is online |
 | `app 'parlayprojector' is not installed` | The app name on TrueNAS does not match `TRUENAS_APP_NAME` — check for the stripped hyphen |
