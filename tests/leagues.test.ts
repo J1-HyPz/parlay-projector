@@ -35,10 +35,20 @@ describe('league catalogue', () => {
     }
   });
 
-  it('covers the major football leagues', () => {
-    for (const id of ['epl', 'ucl', 'uel', 'laliga', 'bundesliga', 'seriea', 'ligue1']) {
+  it('covers exactly the requested football competitions', () => {
+    for (const id of [
+      'epl', 'championship', 'league-one', 'ucl', 'uel', 'uecl',
+      'laliga', 'bundesliga', 'seriea',
+    ]) {
       assert.ok(findLeague(id), `${id} must be in the catalogue`);
     }
+  });
+
+  it('excludes football leagues that were not requested', () => {
+    // A sport-wide query returned every league on earth; the catalogue is the
+    // allow-list that keeps the schedule to competitions anyone wants.
+    assert.equal(findLeague('ligue1'), null);
+    assert.equal(findLeague('mls'), null);
   });
 
   it('separates college competitions from their professional equivalents', () => {
@@ -55,7 +65,7 @@ describe('league catalogue', () => {
   it('groups leagues usefully', () => {
     assert.equal(leaguesInGroup('basketball').length, 4);
     assert.equal(leaguesInGroup('american-football').length, 2);
-    assert.ok(leaguesInGroup('football').length >= 7);
+    assert.equal(leaguesInGroup('football').length, 9);
   });
 
   it('has unique ids and non-empty provider paths', () => {

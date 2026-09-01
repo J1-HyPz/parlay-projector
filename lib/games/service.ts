@@ -11,6 +11,8 @@ import { logger } from '../logger';
 import { bootstrapProviders } from '../providers';
 import { enrichGameDetail } from '../providers/enrichment';
 import { isValidGameId } from './normalise';
+import { isEspnGameId } from '../providers/espn/fixtures';
+import { espnGameDetail } from './espn-detail';
 import { createTheSportsDbGameProvider } from './thesportsdb';
 import type { GameDetail } from './types';
 import type { GameDetailProvider } from './provider';
@@ -47,7 +49,11 @@ export async function getGameDetail(gameId: string): Promise<GameDetailOutcome> 
       `game:${provider.name}:${id}`,
       (game) => (game ? ttlForStatus(game.status) : 60_000),
       async () => {
-        const base = await provider.gameById(id);
+        // Dispatch on the id namespace: ESPN-sourced fixtures resolve against
+        // ESPN, everything else against the primary provider.
+        const base = isEspnGameId(id)
+          ? await espnGameDetail(id)
+          : await provider.gameById(id);
         if (!base) return null;
 
         // Enrichment is lazy by design: it runs here, for one game page, and

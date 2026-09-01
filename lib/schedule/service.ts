@@ -1,29 +1,34 @@
 /**
  * Schedule service — games for today through today + 7.
  *
- * Reuses the Home page sports provider and game normalisation rather than
- * introducing a second integration. Crucially it reuses the *same cache keys*
- * as `getGamesToday`, so today's fixtures are fetched once and shared by both
- * pages in either direction.
+ * Driven by the league catalogue rather than a sport-wide query, and served by
+ * ESPN, which accepts a date range: one request per league covers the whole
+ * window. Fifteen leagues cost fifteen requests, against the forty-eight the
+ * previous per-sport-per-day approach needed.
  *
- * The provider has no date-range endpoint, so the window costs one request per
- * (date, sport). Those run with bounded concurrency, tolerate partial failure,
- * and fall back to stale data when a refresh is rate limited.
+ * Requests run with bounded concurrency, tolerate partial failure, and fall
+ * back to stale data when a refresh fails.
  */
 
-import { cached } from '../cache';
 import { APP_TIMEZONE, sportsConfig } from '../config';
 import { logger } from '../logger';
-import { SPORT_DEFINITIONS, sortGames } from '../home/sports/normalise';
-import type { SportDefinition } from '../home/sports/normalise';
-import { createTheSportsDbProvider } from '../home/sports/thesportsdb';
-import type { SportsProvider } from '../home/sports/provider';
+import { sortGames } from '../home/sports/normalise';
+import { LEAGUES } from '../leagues/registry';
+import type { League } from '../leagues/registry';
+import { fixturesForLeague } from '../providers/espn/fixtures';
 import type { Game, SportId } from '../home/types';
 import { scheduleRange } from './range';
 import type { ScheduleRange } from './range';
 
-// The same provider the Home page uses. Not a second integration.
-const provider: SportsProvider = createTheSportsDbProvider();
+/**
+ * Fixtures come from the league catalogue rather than a sport-wide query.
+ *
+ * Two reasons. The primary provider returns no NFL games at all, so an NFL
+ * filter matched nothing; and a sport-wide soccer query returns every league on
+ * earth, burying the competitions anyone wants. Asking per league fixes both,
+ * and costs fewer requests because the provider accepts a date range.
+ */
+const PROVIDER_ID = 'espn';
 
 /**
  * Cache lifetime and concurrency both come from the tuning profile, which is
@@ -40,9 +45,9 @@ export interface ScheduleResult {
   partialFailures: number;
 }
 
-function definitionsFor(sport: SportId): SportDefinition[] {
-  if (sport === 'all') return [...SPORT_DEFINITIONS];
-  return SPORT_DEFINITIONS.filter((definition) => definition.id === sport);
+function leaguesFor(sport: SportId): League[] {
+  if (sport === 'all') return [...LEAGUES];
+  return LEAGUES.filter((league) => league.sport === sport);
 }
 
 /**
@@ -82,28 +87,25 @@ export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResul
   const range = scheduleRange(APP_TIMEZONE);
   const definitions = definitionsFor(sport);
 
-  // One unit of work per (date, sport).
-  const tasks = range.dates.flatMap((date) =>
-    definitions.map((definition) => ({ date, definition })),
-  );
+  // One request per league covers the whole window.
+  const tasks = leaguesFor(sport);
 
   const outcomes = await mapWithConcurrency(
     tasks,
     sportsConfig.scheduleConcurrency,
-    async ({ date, definition }) => {
+    async (league) => {
       try {
-        // Same key shape as getGamesToday, so the two features share entries.
-        const { value } = await cached(
-          `games:${provider.name}:${date}:${definition.id}`,
+        const games = await fixturesForLeague(
+          league,
+          range.start,
+          range.end,
           Math.max(sportsConfig.cacheTtlMs, sportsConfig.scheduleTtlMs),
-          () => provider.gamesOnDate(date, definition),
         );
-        return { games: value, failed: false };
+        return { games, failed: false };
       } catch (error) {
         logger.warn('schedule_fetch_failed', {
-          provider: provider.name,
-          date,
-          sport: definition.id,
+          provider: PROVIDER_ID,
+          league: league.id,
           reason: error instanceof Error ? error.message : 'unknown',
         });
         return { games: [] as Game[], failed: true };
@@ -116,12 +118,12 @@ export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResul
   const failed = outcomes.length > 0 && partialFailures === outcomes.length;
 
   logger.info('schedule_refreshed', {
-    provider: provider.name,
+    provider: PROVIDER_ID,
     tuning: sportsConfig.tuningProfile,
     concurrency: sportsConfig.scheduleConcurrency,
     start: range.start,
     end: range.end,
-    requests: tasks.length,
+    leagues: tasks.length,
     games: games.length,
     partial_failures: partialFailures,
   });

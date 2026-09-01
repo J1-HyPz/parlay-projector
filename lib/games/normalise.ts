@@ -304,8 +304,17 @@ export function normaliseGameDetail(input: GameDetailInput): GameDetail | null {
   };
 }
 
-/** Provider ids are digit strings; reject anything else before making a call. */
+/**
+ * Accepted game id shapes.
+ *
+ * Bare digits are the primary provider's event ids, kept so every link created
+ * before ESPN fixtures existed still resolves. `espn-<leagueId>-<eventId>`
+ * marks an ESPN-sourced fixture. Anything else is rejected before a provider is
+ * called.
+ */
 export function isValidGameId(raw: string | null | undefined): boolean {
   if (typeof raw !== 'string') return false;
-  return /^[0-9]{1,20}$/.test(raw.trim());
+  const id = raw.trim();
+  // `espn-<leagueId>-<eventId>`; the exact split is validated when parsed.
+  return /^[0-9]{1,20}$/.test(id) || /^espn-[a-z0-9-]{3,48}$/.test(id);
 }
