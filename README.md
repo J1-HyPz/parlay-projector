@@ -37,6 +37,10 @@ Every figure on screen is a placeholder.
 | `/api/games/:gameId` | Detail for one game |
 | `/api/schedule` | Eight-day fixture window |
 | `/api/live` | Games currently in progress |
+| `/api/leagues` | League catalogue |
+| `/api/leagues/:id/standings` | Standings by conference/division |
+| `/api/leagues/:id/teams` | Teams in a league |
+| `/api/leagues/:id/teams/:teamId/roster` | Players on a team |
 | `/api/internal/providers` | Provider health diagnostics |
 
 ---
@@ -184,6 +188,85 @@ degrades cleanly without it.
 
 Full audit, priority table, conflict rules, matching strategy, cache durations
 and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
+
+---
+
+## Leagues, teams and players
+
+A league catalogue covering the professional and collegiate competitions, with
+standings, team lists and rosters. All served by ESPN, which needs no
+credentials.
+
+Leagues are first class rather than implied by a sport id: "basketball" is not
+one thing, and a request for college basketball must not return NBA fixtures.
+
+| Group | Leagues |
+|---|---|
+| American football | `nfl`, `ncaaf` |
+| Basketball | `nba`, `wnba`, `ncaam`, `ncaaw` |
+| Football | `epl`, `ucl`, `uel`, `laliga`, `bundesliga`, `seriea`, `ligue1`, `mls` |
+
+Every path was verified against live data before being listed — nothing
+speculative is offered.
+
+### `GET /api/leagues`
+
+The catalogue: id, label, group, sport, whether it is collegiate and whether
+standings are published.
+
+### `GET /api/leagues/:leagueId/standings`
+
+Grouped by conference or division. NCAA Football returns eleven conferences,
+the NBA two.
+
+```json
+{
+  "league": { "id": "nba", "label": "NBA" },
+  "groups": [
+    {
+      "id": "5", "name": "Eastern Conference", "abbreviation": "East",
+      "rows": [
+        {
+          "team_id": "8", "team_name": "Detroit Pistons", "abbreviation": "DET",
+          "rank": 1, "wins": 41, "losses": 12, "win_percent": 0.774,
+          "points_for": 4828, "points_against": 4494,
+          "record": "41-12", "streak": "W3"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Statistics a league does not publish are `null` — basketball has no `ties`, and
+nothing is fabricated to fill a column.
+
+### `GET /api/leagues/:leagueId/teams`
+
+Every team with logo, abbreviation, location and primary colour.
+
+### `GET /api/leagues/:leagueId/teams/:teamId/roster`
+
+Players with jersey, position, height, weight, age, headshot and years of
+experience. Both roster shapes the provider uses — flat, and grouped by
+position — are handled.
+
+An unknown league id is a `404`; so is a non-numeric team id, which is rejected
+before any provider call.
+
+### Caching
+
+| Data | TTL |
+|---|---|
+| Standings | 1 hour |
+| Team lists | 12 hours |
+| Rosters | 6 hours |
+
+### Not yet surfaced in the UI
+
+These endpoints are backend-only for now. Wiring the new leagues into the
+Schedule and Live filters is the next step — see
+[docs/data-providers.md](docs/data-providers.md).
 
 ---
 

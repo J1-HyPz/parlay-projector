@@ -61,9 +61,18 @@ unreachable. Do not make it load-bearing.
 `lib/providers/espn/normalise.ts` before anything enters the application, and a
 test asserts no odds terms survive.
 
+ESPN also backs the **league catalogue** (`lib/leagues/`): NFL, NCAA Football,
+NBA, WNBA, NCAA Men's and Women's Basketball, and the major football
+competitions — with standings, team lists and rosters. Every path was verified
+against live data; an uncovered competition is simply not listed.
+
 Football competitions covered: Premier League, Champions League, Europa League,
 La Liga, Bundesliga, Serie A, Ligue 1, Championship, MLS. An uncovered
 competition simply gets no enrichment.
+
+Two base paths are used: `/apis/site/v2/sports/...` for scoreboards, teams,
+rosters and summaries, and `/apis/v2/sports/...` for standings — the site path
+returns only a link stub with no table.
 
 ### RSS — news
 

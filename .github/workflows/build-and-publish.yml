@@ -248,6 +248,27 @@ jobs:
           echo "GET /live -> HTTP $livepage"
           [ "$livepage" = "200" ]             || { echo "::error::live page failed, got $livepage"; docker rm -f pp-ci; exit 1; }
 
+          # League catalogue must list the professional and collegiate leagues.
+          lg=$(curl -s --max-time 30 http://127.0.0.1:3000/api/leagues) || {
+            echo "::error::/api/leagues did not respond"; docker rm -f pp-ci; exit 1; }
+          for id in nfl ncaaf nba wnba ncaam ncaaw epl; do
+            if ! printf '%s' "$lg" | grep -q "\"$id\""; then
+              echo "::error::league '$id' missing from the catalogue"
+              docker rm -f pp-ci
+              exit 1
+            fi
+          done
+          echo "league catalogue lists all requested competitions"
+
+          # An unknown league is a 404, not a passthrough to the provider.
+          code=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/leagues/nope/standings')
+          echo "GET /api/leagues/nope/standings -> HTTP $code"
+          if [ "$code" != "404" ]; then
+            echo "::error::an unknown league must return 404, got $code"
+            docker rm -f pp-ci
+            exit 1
+          fi
+
           # Provider diagnostics must report the registry and leak no secrets.
           prov=$(curl -s --max-time 30 http://127.0.0.1:3000/api/internal/providers) || {
             echo "::error::/api/internal/providers did not respond"; docker rm -f pp-ci; exit 1; }
