@@ -248,13 +248,27 @@ jobs:
           echo "GET /live -> HTTP $livepage"
           [ "$livepage" = "200" ]             || { echo "::error::live page failed, got $livepage"; docker rm -f pp-ci; exit 1; }
 
-          # An unknown or malformed id is a 404, not a crash.
-          for bad_id in 99999999999 not-a-number; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/api/games/$bad_id")
-            echo "GET /api/games/$bad_id -> HTTP $code"
-            [ "$code" = "404" ] \
-              || { echo "::error::expected 404 for game id '$bad_id', got $code"; docker rm -f pp-ci; exit 1; }
-          done
+          # A malformed id is rejected before any provider call, so it is
+          # always a 404.
+          code=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/games/not-a-number')
+          echo "GET /api/games/not-a-number -> HTTP $code"
+          if [ "$code" != "404" ]; then
+            echo "::error::a malformed game id must return 404, got $code"
+            docker rm -f pp-ci
+            exit 1
+          fi
+
+          # A well-formed but unknown id does reach the provider, so 503 is a
+          # legitimate answer when the provider is rate limited or down. Both
+          # are correct; a 200 or a crash is not.
+          code=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/games/99999999999')
+          echo "GET /api/games/99999999999 -> HTTP $code"
+          if [ "$code" != "404" ] && [ "$code" != "503" ]; then
+            echo "::error::expected 404 (unknown) or 503 (provider unavailable), got $code"
+            docker logs pp-ci
+            docker rm -f pp-ci
+            exit 1
+          fi
 
           # Confirm the container is not running as root.
           whoami_out=$(docker exec pp-ci id -un)
