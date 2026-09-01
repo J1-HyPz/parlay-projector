@@ -17,7 +17,7 @@ import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
 import { fixturesForLeague } from '../providers/espn/fixtures';
 import type { Game, SportId } from '../home/types';
-import { scheduleRange } from './range';
+import { gameDate, isWithinRange, scheduleRange } from './range';
 import type { ScheduleRange } from './range';
 
 /**
@@ -112,7 +112,16 @@ export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResul
     },
   );
 
-  const games = sortGames(outcomes.flatMap((outcome) => outcome.games));
+  // A date-range request can return a fixture whose local date falls just
+  // outside the window, so the result is clamped to the dates on offer.
+  const games = sortGames(
+    outcomes
+      .flatMap((outcome) => outcome.games)
+      .filter((game) => {
+        const date = gameDate(game.start_time, APP_TIMEZONE);
+        return date !== null && isWithinRange(date, range);
+      }),
+  );
   const partialFailures = outcomes.filter((outcome) => outcome.failed).length;
   const failed = outcomes.length > 0 && partialFailures === outcomes.length;
 

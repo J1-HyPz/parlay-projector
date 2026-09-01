@@ -205,10 +205,12 @@ jobs:
 
           api=$(curl -s --max-time 90 http://127.0.0.1:3000/api/schedule) || {
             echo "::error::/api/schedule did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          # Count the `dates` array specifically, not every date-shaped string
+          # in the payload - game start times are dates too.
           # `|| true`: a grep with no matches exits 1, which under `set -o
           # pipefail` would abort here instead of reporting the real problem.
-          dates=$(printf '%s' "$api" | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | sort -u | wc -l || true)
-          echo "/api/schedule -> $dates distinct dates"
+          dates=$(printf '%s' "$api"             | grep -o '"dates":\[[^]]*\]'             | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}'             | sort -u | wc -l || true)
+          echo "/api/schedule -> $dates dates in the window"
           if [ "$dates" != "8" ]; then
             echo "::error::expected an 8-date schedule window, got $dates"
             docker rm -f pp-ci
