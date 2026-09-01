@@ -20,13 +20,14 @@ import { json } from '@/lib/home/api';
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
-  const { games, updatedAt, failed } = await getLive();
+  const { games, upcoming, updatedAt, failed } = await getLive();
 
   const body: LiveResponse = {
     updated_at: updatedAt,
     timezone: liveTimezone,
     refresh_interval_ms: liveConfig.refreshIntervalMs,
     games,
+    upcoming,
     ...(failed ? { error: 'live_data_unavailable' as const } : {}),
   };
 

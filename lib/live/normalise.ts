@@ -14,6 +14,7 @@
 // Explicit .ts extension: runtime import, resolved as a real path by the
 // type-stripping test runner. See lib/games/normalise.ts.
 import { normaliseStatus } from '../home/sports/normalise.ts';
+import { gameDate } from '../schedule/range.ts';
 import type { ConcreteSportId, Game } from '../home/types';
 import type { GameState, LiveGame, LiveScore } from './types';
 
@@ -268,4 +269,49 @@ export function sortLiveGames(games: LiveGame[]): LiveGame[] {
 
     return a.id.localeCompare(b.id);
   });
+}
+
+/**
+ * Grace period for a fixture whose kick-off has passed but which the provider
+ * has not yet flipped to live.
+ *
+ * Without it a game briefly vanishes from both lists in the gap between its
+ * start time and the provider updating its status.
+ */
+const KICKOFF_GRACE_MS = 15 * 60_000;
+
+/**
+ * Games still to start *today*.
+ *
+ * Deliberately today-only: the Live page is a scoreboard with a short "what's
+ * next" tail, not a second Schedule. Anything beyond today belongs on
+ * /schedule.
+ *
+ * A fixture with no start time is excluded — it cannot be placed on a day, and
+ * showing it with no kick-off time would be worse than omitting it.
+ */
+export function selectUpcomingToday(
+  games: readonly Game[],
+  timezone: string,
+  now: Date = new Date(),
+): Game[] {
+  const today = gameDate(now.toISOString(), timezone);
+  if (!today) return [];
+
+  const cutoff = now.getTime() - KICKOFF_GRACE_MS;
+
+  return games
+    .filter((game) => {
+      if (game.status !== 'scheduled') return false;
+      // A null start_time yields a null date here, so it is filtered out and
+      // `game.start_time` is known to be present below.
+      if (gameDate(game.start_time, timezone) !== today) return false;
+
+      const start = new Date(game.start_time as string).getTime();
+      return Number.isNaN(start) ? true : start >= cutoff;
+    })
+    .sort((a, b) => {
+      const start = (a.start_time ?? '').localeCompare(b.start_time ?? '');
+      return start !== 0 ? start : a.id.localeCompare(b.id);
+    });
 }

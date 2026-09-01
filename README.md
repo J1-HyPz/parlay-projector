@@ -482,6 +482,14 @@ A missing score is `null` and renders as `--`; a genuine 0-0 is preserved. Game
 ids are the same provider event ids used by Home and Schedule, so every card
 links to the existing `/games/:id` page.
 
+`upcoming` carries games still to start **today only** — the Live page is a
+scoreboard with a short "what's next" tail, not a second Schedule. It is
+derived from today's fixtures that the venue enrichment already fetches, so it
+costs no extra provider calls, and a game already live never appears in both
+lists. A fixture whose kick-off has just passed stays in `upcoming` for 15
+minutes so it does not vanish from both lists while the provider updates its
+status. The page shows at most 12 and links to `/schedule` for the rest.
+
 ### Refresh and caching
 
 | Setting | Default | Purpose |

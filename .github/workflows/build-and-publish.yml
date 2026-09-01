@@ -230,7 +230,7 @@ jobs:
             echo "::error::/api/live did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
           printf '%s' "$live" | head -c 200
           echo
-          for field in '"updated_at"' '"refresh_interval_ms"' '"games"'; do
+          for field in '"updated_at"' '"refresh_interval_ms"' '"games"' '"upcoming"'; do
             if ! printf '%s' "$live" | grep -q "$field"; then
               echo "::error::/api/live response missing $field"
               docker rm -f pp-ci

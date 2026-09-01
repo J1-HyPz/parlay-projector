@@ -45,6 +45,11 @@ export interface LiveResponse {
   /** How often the client should poll, in milliseconds. */
   refresh_interval_ms: number;
   games: LiveGame[];
+  /**
+   * Games still to start today. Today-only by design — the Live page is a
+   * scoreboard with a short "what's next" tail, not a second Schedule.
+   */
+  upcoming: Game[];
   /** Present only when every provider request failed. */
   error?: LiveErrorCode;
 }

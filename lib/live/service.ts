@@ -16,7 +16,7 @@ import { logger } from '../logger';
 import { SPORT_DEFINITIONS } from '../home/sports/normalise';
 import { getGamesToday } from '../home/sports/service';
 import type { Game } from '../home/types';
-import { enrichFromFixture, sortLiveGames } from './normalise';
+import { enrichFromFixture, selectUpcomingToday, sortLiveGames } from './normalise';
 import { createTheSportsDbLiveProvider } from './thesportsdb';
 import type { LiveProvider } from './provider';
 import type { LiveGame } from './types';
@@ -29,23 +29,26 @@ const CONCURRENCY = 6;
 
 export interface LiveResult {
   games: LiveGame[];
+  /** Games still to start today. Derived from fixtures already fetched. */
+  upcoming: Game[];
   updatedAt: string;
   /** True only when every sport's request failed. */
   failed: boolean;
 }
 
 /**
- * Today's fixtures, used only to add venue and round to a live card.
+ * Today's fixtures.
  *
- * Failure here is invisible: the scoreboard still renders, just without the
- * extra context.
+ * Serves two purposes from one already-cached fetch: adding venue and round to
+ * a live card, and deriving the upcoming list. Failure here is invisible — the
+ * scoreboard still renders, just without the extra context.
  */
-async function fixtureIndex(): Promise<Map<string, Game>> {
+async function todaysFixtures(): Promise<{ index: Map<string, Game>; games: Game[] }> {
   try {
     const { games } = await getGamesToday('all');
-    return new Map(games.map((game) => [game.id, game]));
+    return { index: new Map(games.map((game) => [game.id, game])), games };
   } catch {
-    return new Map();
+    return { index: new Map(), games: [] };
   }
 }
 
@@ -84,13 +87,19 @@ export async function getLive(): Promise<LiveResult> {
       `live:${provider.name}`,
       liveConfig.cacheTtlMs,
       async () => {
-        const [{ games, failed }, fixtures] = await Promise.all([fetchLive(), fixtureIndex()]);
+        const [{ games, failed }, fixtures] = await Promise.all([fetchLive(), todaysFixtures()]);
 
         const enriched = sortLiveGames(
-          games.map((game) => enrichFromFixture(game, fixtures.get(game.id))),
+          games.map((game) => enrichFromFixture(game, fixtures.index.get(game.id))),
         );
 
-        return { games: enriched, failed, updatedAt: new Date().toISOString() };
+        // A fixture that has already gone live must not also sit in upcoming.
+        const live = new Set(enriched.map((game) => game.id));
+        const upcoming = selectUpcomingToday(fixtures.games, APP_TIMEZONE).filter(
+          (game) => !live.has(game.id),
+        );
+
+        return { games: enriched, upcoming, failed, updatedAt: new Date().toISOString() };
       },
     );
 
@@ -98,6 +107,7 @@ export async function getLive(): Promise<LiveResult> {
       logger.info('live_refreshed', {
         provider: provider.name,
         games: value.games.length,
+        upcoming: value.upcoming.length,
         failed: value.failed,
       });
     }
@@ -108,7 +118,7 @@ export async function getLive(): Promise<LiveResult> {
       provider: provider.name,
       reason: error instanceof Error ? error.message : 'unknown',
     });
-    return { games: [], updatedAt: new Date().toISOString(), failed: true };
+    return { games: [], upcoming: [], updatedAt: new Date().toISOString(), failed: true };
   }
 }
 

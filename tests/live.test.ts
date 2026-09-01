@@ -9,6 +9,7 @@ import {
   normaliseLiveResponse,
   normaliseLiveRow,
   periodLabel,
+  selectUpcomingToday,
   sortLiveGames,
 } from '../lib/live/normalise.ts';
 import type { RawLiveRow } from '../lib/live/normalise.ts';
@@ -300,5 +301,111 @@ describe('ordering', () => {
     // A score change must not reorder the board.
     const rescored = games.map((g) => ({ ...g, score: { home: 9, away: 0 } }));
     assert.deepEqual(sortLiveGames(rescored).map((g) => g.id), ['a', 'b', 'c']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Upcoming today
+// ---------------------------------------------------------------------------
+
+describe('upcoming today', () => {
+  const LONDON = 'Europe/London';
+  // 18:00 BST on 1 September.
+  const now = new Date('2026-09-01T17:00:00.000Z');
+
+  function fixture(overrides: Partial<Game> = {}): Game {
+    return {
+      id: 'f1',
+      sport: 'football',
+      league: 'Premier League',
+      league_badge: null,
+      season: '2026',
+      round: '4',
+      start_time: '2026-09-01T19:00:00.000Z',
+      status: 'scheduled',
+      provider_status: 'NS',
+      home_team: { id: '1', name: 'Arsenal', logo: null },
+      away_team: { id: '2', name: 'Chelsea', logo: null },
+      venue: { name: 'Emirates', city: 'London', country: 'England' },
+      broadcast: null,
+      ...overrides,
+    };
+  }
+
+  it('includes a scheduled game later today', () => {
+    const upcoming = selectUpcomingToday([fixture()], LONDON, now);
+    assert.equal(upcoming.length, 1);
+    assert.equal(upcoming[0].id, 'f1');
+  });
+
+  it('excludes games that are not scheduled', () => {
+    for (const status of ['live', 'finished', 'postponed', 'cancelled', 'unknown'] as const) {
+      assert.equal(selectUpcomingToday([fixture({ status })], LONDON, now).length, 0, status);
+    }
+  });
+
+  it('excludes a game on a different day', () => {
+    // Tomorrow.
+    assert.equal(
+      selectUpcomingToday([fixture({ start_time: '2026-09-02T19:00:00.000Z' })], LONDON, now).length,
+      0,
+    );
+    // Yesterday.
+    assert.equal(
+      selectUpcomingToday([fixture({ start_time: '2026-08-31T19:00:00.000Z' })], LONDON, now).length,
+      0,
+    );
+  });
+
+  it('excludes a game whose kick-off is well past', () => {
+    // 14:00Z is three hours before `now`, beyond the grace period.
+    assert.equal(
+      selectUpcomingToday([fixture({ start_time: '2026-09-01T14:00:00.000Z' })], LONDON, now).length,
+      0,
+    );
+  });
+
+  it('keeps a game whose kick-off just passed but has not gone live yet', () => {
+    // Five minutes ago: inside the grace period, so it does not vanish from
+    // both lists while the provider catches up.
+    assert.equal(
+      selectUpcomingToday([fixture({ start_time: '2026-09-01T16:55:00.000Z' })], LONDON, now).length,
+      1,
+    );
+  });
+
+  it('uses the local day, not the UTC day', () => {
+    // 23:30Z on 1 September is 00:30 on 2 September in London, so relative to a
+    // London "now" late on the 1st it is not today.
+    const lateNow = new Date('2026-09-01T22:00:00.000Z');
+    assert.equal(
+      selectUpcomingToday(
+        [fixture({ start_time: '2026-09-01T23:30:00.000Z' })],
+        LONDON,
+        lateNow,
+      ).length,
+      0,
+    );
+  });
+
+  it('excludes a fixture with no start time, since it cannot be placed on a day', () => {
+    assert.equal(selectUpcomingToday([fixture({ start_time: null })], LONDON, now).length, 0);
+  });
+
+  it('sorts by kick-off', () => {
+    const upcoming = selectUpcomingToday(
+      [
+        fixture({ id: 'c', start_time: '2026-09-01T21:00:00.000Z' }),
+        fixture({ id: 'a', start_time: '2026-09-01T18:00:00.000Z' }),
+        fixture({ id: 'b', start_time: '2026-09-01T19:30:00.000Z' }),
+      ],
+      LONDON,
+      now,
+    );
+    assert.deepEqual(upcoming.map((g) => g.id), ['a', 'b', 'c']);
+  });
+
+  it('returns nothing for an empty fixture list', () => {
+    assert.deepEqual(selectUpcomingToday([], LONDON, now), []);
   });
 });

@@ -12,9 +12,15 @@
 import { Activity, Radio, RefreshCw, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { SportId } from '@/lib/home/types';
+import type { Game, SportId } from '@/lib/home/types';
 import type { LiveGame } from '@/lib/live/types';
-import { ALL_LEAGUES, SPORT_TABS, separatorFor, sportLabel } from '@/lib/schedule/filters';
+import {
+  ALL_LEAGUES,
+  SPORT_TABS,
+  formatKickoff,
+  separatorFor,
+  sportLabel,
+} from '@/lib/schedule/filters';
 import { formatUpdatedAt, useLive } from './live-data';
 
 function StatCard({
@@ -156,6 +162,31 @@ function Skeleton() {
   );
 }
 
+
+/** Keeps the tail short so Live never becomes a second Schedule. */
+const MAX_UPCOMING = 12;
+
+function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
+  return (
+    <a
+      href={`/games/${game.id}`}
+      aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`}
+      className="panel flex items-center gap-3 p-3 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
+    >
+      <span className="w-12 shrink-0 text-xs font-medium tabular-nums text-violet-300">
+        {formatKickoff(game.start_time, timezone)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm text-white/68">
+        {game.away_team.name} <span className="text-white/28">{separatorFor(game.sport)}</span>{' '}
+        {game.home_team.name}
+      </span>
+      <span className="hidden shrink-0 truncate text-[11px] text-white/32 sm:block">
+        {game.league ?? sportLabel(game.sport)}
+      </span>
+    </a>
+  );
+}
+
 export function LiveView() {
   const { state, data, stale, refresh } = useLive();
   const [sport, setSport] = useState<SportId>('all');
@@ -179,6 +210,15 @@ export function LiveView() {
       }),
     [games, sport, league],
   );
+
+  const upcoming = useMemo(() => {
+    const all = data?.upcoming ?? [];
+    return all.filter((game) => {
+      if (sport !== 'all' && game.sport !== sport) return false;
+      if (league !== ALL_LEAGUES && game.league !== league) return false;
+      return true;
+    });
+  }, [data, sport, league]);
 
   const summary = useMemo(
     () => ({
@@ -309,6 +349,40 @@ export function LiveView() {
           </div>
         )}
       </section>
+
+      {/* Later today only. Anything beyond today belongs on /schedule. */}
+      {ready && upcoming.length > 0 && (
+        <section className="mt-8" aria-labelledby="upcoming-heading">
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div>
+              <h2 id="upcoming-heading" className="text-base font-semibold">
+                Upcoming today
+              </h2>
+              <p className="mt-1 text-xs text-white/34">
+                {upcoming.length} {upcoming.length === 1 ? 'game' : 'games'} still to start today
+              </p>
+            </div>
+            <a href="/schedule" className="shrink-0 text-xs text-violet-300 hover:text-violet-200">
+              Full schedule
+            </a>
+          </div>
+
+          <div className="space-y-2">
+            {upcoming.slice(0, MAX_UPCOMING).map((game) => (
+              <UpcomingRow key={game.id} game={game} timezone={timezone} />
+            ))}
+          </div>
+
+          {upcoming.length > MAX_UPCOMING && (
+            <p className="mt-3 text-center text-[11px] text-white/30">
+              Showing {MAX_UPCOMING} of {upcoming.length}.{' '}
+              <a href="/schedule" className="text-violet-300 hover:text-violet-200">
+                See all on the Schedule
+              </a>
+            </p>
+          )}
+        </section>
+      )}
     </>
   );
 }
