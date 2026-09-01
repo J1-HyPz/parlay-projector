@@ -381,7 +381,7 @@ Stages, in order — every one is a hard gate. A failure at any stage stops the
 pipeline and leaves the currently deployed version untouched:
 
 ```
-Install dependencies → Lint → Type check → Production build
+Install dependencies → Lint → Type check → Test → Production build
   → Verify dist/standalone/server.js → Docker build
   → Smoke test container → Publish GHCR
 ```
