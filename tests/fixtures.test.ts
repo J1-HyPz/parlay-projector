@@ -9,8 +9,8 @@ import {
   normaliseFixtures,
   parseEspnGameId,
   statusFromEspn,
-} from '../lib/providers/espn/fixtures.ts';
-import type { RawFixtureEvent } from '../lib/providers/espn/fixtures.ts';
+} from '../lib/providers/espn/fixture-normalise.ts';
+import type { RawFixtureEvent } from '../lib/providers/espn/fixture-normalise.ts';
 import { findLeague } from '../lib/leagues/registry.ts';
 import type { League } from '../lib/leagues/registry.ts';
 import { isValidGameId } from '../lib/games/normalise.ts';
