@@ -138,11 +138,88 @@ jobs:
             org.opencontainers.image.title=Parlay Projector
             org.opencontainers.image.description=Parlay Projector by HyPz - multi-sport analytics interface
 
-      - name: Build and push
+      # Build into the local daemon first so the image can be started and
+      # exercised before anything is published.
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' }}
+          load: true
+          tags: parlay-projector:ci
+          build-args: |
+            IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
+            IMAGE_REVISION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A published image that does not serve traffic is worse than no image,
+      # so prove it boots and responds before pushing it.
+      - name: Smoke test container
+        run: |
+          set -euo pipefail
+          docker run -d --name pp-ci -p 3000:3000 -e PORT=3000 parlay-projector:ci
+
+          echo "Waiting for /health ..."
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health -o /tmp/health.json; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::Container did not respond on /health within 60s"
+            docker logs pp-ci
+            docker rm -f pp-ci
+            exit 1
+          fi
+
+          echo "/health -> $(cat /tmp/health.json)"
+
+          # The dashboard must render, not just the health route.
+          code=$(curl -s -o /tmp/home.html -w '%{http_code}' http://127.0.0.1:3000/)
+          echo "GET / -> HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::Home page returned HTTP $code"
+            docker logs pp-ci
+            docker rm -f pp-ci
+            exit 1
+          fi
+          grep -q "Parlay Projector" /tmp/home.html \
+            || { echo "::error::Home page did not contain expected content"; docker rm -f pp-ci; exit 1; }
+
+          # Confirm the container is not running as root.
+          whoami_out=$(docker exec pp-ci id -un)
+          echo "Container user: $whoami_out"
+          if [ "$whoami_out" = "root" ]; then
+            echo "::error::Container is running as root"
+            docker rm -f pp-ci
+            exit 1
+          fi
+
+          size=$(docker image inspect parlay-projector:ci --format '{{.Size}}')
+          echo "Image size: $(( size / 1024 / 1024 )) MB"
+
+          docker rm -f pp-ci
+          {
+            echo "### Container smoke test: passed"
+            echo
+            echo "- \`GET /health\` → \`$(cat /tmp/health.json)\`"
+            echo "- \`GET /\` → HTTP $code"
+            echo "- Runs as \`$whoami_out\` (non-root)"
+            echo "- Image size: $(( size / 1024 / 1024 )) MB"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Only now, and only from main, does the image reach GHCR.
+      # Layers are already cached, so this re-uses the tested build.
+      - name: Push to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -157,9 +234,9 @@ jobs:
             echo "### Container image"
             echo
             if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-              echo "Published to GHCR:"
+              echo "Built, smoke-tested and published to GHCR:"
             else
-              echo "Built but **not** published (only \`main\` publishes):"
+              echo "Built and smoke-tested, **not** published (only \`main\` publishes):"
             fi
             echo
             echo '```'
