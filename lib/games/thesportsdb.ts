@@ -80,8 +80,8 @@ export function createTheSportsDbGameProvider(): GameDetailProvider {
 
       const homeId = typeof event.idHomeTeam === 'string' ? event.idHomeTeam : null;
       const awayId = typeof event.idAwayTeam === 'string' ? event.idAwayTeam : null;
-      const leagueId = (event as { idLeague?: unknown }).idLeague;
-      const season = (event as { strSeason?: unknown }).strSeason;
+      const leagueId = event.idLeague;
+      const season = event.strSeason;
 
       // One round trip each, in parallel, for a single coherent response.
       const [homeTeam, awayTeam, table, homeRecent, awayRecent] = await Promise.all([

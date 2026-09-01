@@ -21,9 +21,10 @@ export interface GameDataResult {
 export function useGameDetail(gameId: string): GameDataResult {
   const [result, setResult] = useState<GameDataResult>({ state: 'loading', game: null });
 
+  // No synchronous reset here: the page keys this component on gameId, so a
+  // different game mounts a fresh instance already in the loading state.
   useEffect(() => {
     const controller = new AbortController();
-    setResult({ state: 'loading', game: null });
 
     async function load() {
       try {

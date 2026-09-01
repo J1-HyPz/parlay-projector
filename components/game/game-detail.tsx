@@ -8,6 +8,7 @@
  * same sections in the same order. Nothing scrolls horizontally.
  */
 
+import Link from 'next/link';
 import { ArrowLeft, SearchX, TriangleAlert } from 'lucide-react';
 import { useCallback } from 'react';
 import {
@@ -107,12 +108,12 @@ function Notice({
       </span>
       <h1 className="text-lg font-semibold">{title}</h1>
       <p className="max-w-sm text-xs leading-6 text-white/40">{body}</p>
-      <a
+      <Link
         href="/"
         className="mt-2 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-500"
       >
         Back to Home
-      </a>
+      </Link>
     </div>
   );
 }

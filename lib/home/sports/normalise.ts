@@ -30,6 +30,13 @@ export interface RawEvent {
   strTime?: unknown;
   strStatus?: unknown;
   strPostponed?: unknown;
+  // Present on eventsday and lookupevent alike; used by game detail.
+  idLeague?: unknown;
+  strSeason?: unknown;
+  intRound?: unknown;
+  strCity?: unknown;
+  intHomeScore?: unknown;
+  intAwayScore?: unknown;
 }
 
 export interface RawEventsResponse {

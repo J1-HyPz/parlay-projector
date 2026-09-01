@@ -20,7 +20,9 @@ export default async function GamePage({
 
   return (
     <AppShell active="home">
-      <GameDetail gameId={gameId} />
+      {/* Keyed on the id so navigating between games mounts a fresh
+          component in its loading state rather than showing stale data. */}
+      <GameDetail key={gameId} gameId={gameId} />
     </AppShell>
   );
 }

@@ -154,8 +154,8 @@ export function findStanding(
 export function normaliseScore(event: RawEvent, status: string): ScoreLine | null {
   if (status !== 'live' && status !== 'finished') return null;
 
-  const home = num((event as { intHomeScore?: unknown }).intHomeScore);
-  const away = num((event as { intAwayScore?: unknown }).intAwayScore);
+  const home = num(event.intHomeScore);
+  const away = num(event.intAwayScore);
   if (home === null && away === null) return null;
 
   return { home, away };
@@ -196,8 +196,8 @@ export function normaliseRecentGames(
     if (homeId !== teamId && awayId !== teamId) continue;
 
     const isHome = homeId === teamId;
-    const homeScore = num((event as { intHomeScore?: unknown }).intHomeScore);
-    const awayScore = num((event as { intAwayScore?: unknown }).intAwayScore);
+    const homeScore = num(event.intHomeScore);
+    const awayScore = num(event.intAwayScore);
 
     const teamScore = isHome ? homeScore : awayScore;
     const opponentScore = isHome ? awayScore : homeScore;
@@ -230,13 +230,7 @@ export function normaliseGameState(status: string, providerStatus: string | null
 }
 
 export interface GameDetailInput {
-  event: RawEvent & {
-    strSeason?: unknown;
-    intRound?: unknown;
-    strCity?: unknown;
-    intHomeScore?: unknown;
-    intAwayScore?: unknown;
-  };
+  event: RawEvent;
   homeTeam?: RawTeam | null;
   awayTeam?: RawTeam | null;
   table?: readonly RawStanding[] | null;
