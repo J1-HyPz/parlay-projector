@@ -83,9 +83,28 @@ Set in the compose YAML. None of these are secrets.
 | `HOST` | `0.0.0.0` | Bind address. Must stay `0.0.0.0` or the port is unreachable |
 | `SITE_URL` | `http://localhost:3000` | Public origin for absolute metadata URLs |
 
-`SPORTS_API_URL`, `SPORTS_API_KEY` and `DATABASE_URL` are reserved for future
-phases and are unused by this build. When they do become real, add them as
-TrueNAS app environment values — **not** to the repository.
+### Optional provider settings
+
+All optional. The app runs with none of them set.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SPORTS_API_KEY` | public test key | **Recommended.** The free test key rate-limits hard and truncates league tables |
+| `ESPN_ENABLED` | `true` | Enrichment provider (records, form, head-to-head, broadcast). No credentials needed |
+| `LIVE_REFRESH_INTERVAL_MS` | `30000` | Live scoreboard poll interval |
+| `APP_TIMEZONE` | `Europe/London` | Which calendar day "today" is |
+
+Add these as TrueNAS app environment values — **never** to the compose file in
+the repository. `docs/data-providers.md` covers each provider in full.
+
+Check what actually came up with:
+
+```bash
+curl http://<TRUENAS-IP>:3000/api/internal/providers
+```
+
+That reports each provider's enabled state and health, and returns no
+credentials.
 
 ---
 

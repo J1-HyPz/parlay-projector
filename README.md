@@ -37,6 +37,7 @@ Every figure on screen is a placeholder.
 | `/api/games/:gameId` | Detail for one game |
 | `/api/schedule` | Eight-day fixture window |
 | `/api/live` | Games currently in progress |
+| `/api/internal/providers` | Provider health diagnostics |
 
 ---
 
@@ -166,6 +167,23 @@ carries a health check against `/health`.
 
 The container is stateless and exposes one configurable HTTP port, which suits
 a TrueNAS SCALE Custom App or a reverse proxy.
+
+---
+
+## Data providers
+
+Sports data comes from **TheSportsDB** (fixtures, live scores, base game
+record) enriched by **ESPN's public API** (team records, recent form,
+head-to-head, broadcast), with **RSS** for news. The frontend never sees which
+provider supplied a field.
+
+Providers declare capabilities; services request a capability rather than a
+named provider, so adding one is an adapter plus a priority entry. ESPN needs
+no credentials and can be disabled with `ESPN_ENABLED=false` — everything
+degrades cleanly without it.
+
+Full audit, priority table, conflict rules, matching strategy, cache durations
+and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 ---
 

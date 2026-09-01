@@ -46,6 +46,25 @@ export const newsConfig = {
   maxLimit: 20,
 };
 
+/**
+ * ESPN public API.
+ *
+ * Requires no credentials, so it is enabled by default and can be turned off
+ * with ESPN_ENABLED=false. Used only to enrich game details — the primary
+ * provider still supplies fixtures, scores and the base game record.
+ *
+ * Note: this is ESPN's public web API. It is undocumented and carries no
+ * published terms of use; see docs/data-providers.md.
+ */
+export const espnConfig = {
+  enabled: (env('ESPN_ENABLED', 'true') || 'true').toLowerCase() !== 'false',
+  // site.api.espn.com returns 403 to server-side callers; this host does not.
+  baseUrl: env('ESPN_API_URL', 'https://site.web.api.espn.com/apis/site/v2/sports'),
+  timeoutMs: envInt('ESPN_TIMEOUT_MS', 8000),
+  /** Enrichment changes slowly relative to a fixture, so cache it hard. */
+  cacheTtlMs: envInt('ESPN_CACHE_TTL_SECONDS', 900) * 1000,
+};
+
 export const liveConfig = {
   /**
    * Server-side cache for the live scoreboard.

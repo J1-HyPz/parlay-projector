@@ -88,11 +88,16 @@ export interface GameDetail {
     away: RecentGame[];
   };
   /**
-   * Previous meetings. Always empty at present: the configured provider tier
-   * returns 404 for head-to-head. The field exists so a provider that supports
-   * it needs no contract change.
+   * Previous meetings. The primary provider returns 404 for head-to-head on the
+   * configured tier, so these come from the enrichment provider where the
+   * competition is covered; empty otherwise.
    */
   head_to_head: RecentGame[];
+  /**
+   * Which provider supplied which enriched field. Recorded for debugging and
+   * provider comparison; contains no credentials.
+   */
+  _sources?: Record<string, string>;
 }
 
 export interface GameDetailResponse {

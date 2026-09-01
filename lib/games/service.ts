@@ -8,6 +8,8 @@
 
 import { cached } from '../cache';
 import { logger } from '../logger';
+import { bootstrapProviders } from '../providers';
+import { enrichGameDetail } from '../providers/enrichment';
 import { isValidGameId } from './normalise';
 import { createTheSportsDbGameProvider } from './thesportsdb';
 import type { GameDetail } from './types';
@@ -44,7 +46,24 @@ export async function getGameDetail(gameId: string): Promise<GameDetailOutcome> 
     const { value, hit } = await cached<GameDetail | null>(
       `game:${provider.name}:${id}`,
       (game) => (game ? ttlForStatus(game.status) : 60_000),
-      () => provider.gameById(id),
+      async () => {
+        const base = await provider.gameById(id);
+        if (!base) return null;
+
+        // Enrichment is lazy by design: it runs here, for one game page, and
+        // never across a schedule. A failure leaves the base game intact.
+        bootstrapProviders();
+        try {
+          const { game, sources } = await enrichGameDetail(base);
+          return { ...game, _sources: sources };
+        } catch (error) {
+          logger.warn('game_detail_enrichment_failed', {
+            id,
+            reason: error instanceof Error ? error.message : 'unknown',
+          });
+          return base;
+        }
+      },
     );
 
     if (!value) {

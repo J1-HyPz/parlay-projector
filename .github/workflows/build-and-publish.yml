@@ -248,6 +248,24 @@ jobs:
           echo "GET /live -> HTTP $livepage"
           [ "$livepage" = "200" ]             || { echo "::error::live page failed, got $livepage"; docker rm -f pp-ci; exit 1; }
 
+          # Provider diagnostics must report the registry and leak no secrets.
+          prov=$(curl -s --max-time 30 http://127.0.0.1:3000/api/internal/providers) || {
+            echo "::error::/api/internal/providers did not respond"; docker rm -f pp-ci; exit 1; }
+          echo "providers -> $(printf '%s' "$prov" | head -c 200)"
+          for id in thesportsdb espn rss; do
+            if ! printf '%s' "$prov" | grep -q "\"$id\""; then
+              echo "::error::provider '$id' missing from diagnostics"
+              docker rm -f pp-ci
+              exit 1
+            fi
+          done
+          if printf '%s' "$prov" | grep -qiE '"(api_?key|password|token|secret)"[[:space:]]*:[[:space:]]*"[^"]+'; then
+            echo "::error::provider diagnostics leaked a credential"
+            docker rm -f pp-ci
+            exit 1
+          fi
+          echo "provider diagnostics ok, no credentials exposed"
+
           # A malformed id is rejected before any provider call, so it is
           # always a 404.
           code=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/games/not-a-number')
