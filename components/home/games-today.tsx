@@ -28,6 +28,7 @@ function TeamRow({ name, logo, align }: { name: string; logo: string | null; ali
       className={`flex min-w-0 items-center gap-2 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}
     >
       {logo ? (
+        // oxlint-disable-next-line nextjs/no-img-element -- remote team badge from the sports provider CDN; next/image would need remotePatterns per provider and put optimisation in the request path for a decorative crest
         <img
           src={logo}
           alt=""

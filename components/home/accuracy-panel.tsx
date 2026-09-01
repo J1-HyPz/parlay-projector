@@ -47,10 +47,6 @@ export function AccuracyPanel() {
         <div
           className="accuracy-ring grid size-36 place-items-center rounded-full"
           style={{ background: ring(loading || failed ? null : value) }}
-          role="img"
-          aria-label={
-            value === null ? 'Prediction accuracy unavailable' : `Prediction accuracy ${display}`
-          }
         >
           <div className="grid size-[112px] place-items-center rounded-full bg-[#0d0b14] text-center">
             <span className="text-2xl font-semibold">{display}</span>

@@ -24,6 +24,7 @@ function ArticleCard({ article }: { article: NewsArticle }) {
         className="block transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
       >
         {article.image ? (
+          // oxlint-disable-next-line nextjs/no-img-element -- remote publisher thumbnail from arbitrary news CDNs; see games-today.tsx
           <img
             src={article.image}
             alt=""
