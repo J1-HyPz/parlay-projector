@@ -29,7 +29,7 @@ export default function ParlaysPage() {
           <div className="mb-4"><SportFilters compact /></div>
           <section className="space-y-3" aria-labelledby="suggestions-heading">
             <h2 id="suggestions-heading" className="text-base font-semibold">Suggested combinations</h2>
-            {suggestions.map((suggestion, cardIndex) => (
+            {suggestions.map((suggestion) => (
               <article key={suggestion.title} className="panel overflow-hidden">
                 <div className="grid md:grid-cols-[160px_minmax(0,1fr)_160px]">
                   <div className="border-b border-white/7 p-4 md:border-b-0 md:border-r md:p-5">
@@ -66,9 +66,9 @@ export default function ParlaysPage() {
         <aside className="space-y-4 xl:sticky xl:top-24 xl:h-fit">
           <section className="panel p-5" aria-labelledby="stake-heading">
             <div className="flex items-center justify-between"><div><h2 id="stake-heading" className="text-sm font-semibold">Projection summary</h2><p className="mt-1 text-xs text-white/34">Starting amount and outputs</p></div><PoundSterling className="size-5 text-violet-300" /></div>
-            <label className="mt-5 block text-[10px] font-medium uppercase tracking-wider text-white/28">Starting Amount
+            <div className="mt-5 block text-[10px] font-medium uppercase tracking-wider text-white/28">Starting Amount
               <div className="mt-2 flex h-12 items-center rounded-xl border border-white/9 bg-white/[.025] px-3 text-sm text-white/55"><span className="mr-2 text-white/30">£</span>--</div>
-            </label>
+            </div>
             <div className="mt-4 space-y-3 border-t border-white/7 pt-4">
               {[['Estimated Return', '£--'], ['Confidence', '--%'], ['Number of Games', '--']].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between text-xs"><span className="text-white/38">{label}</span><span className="font-medium text-white/65">{value}</span></div>

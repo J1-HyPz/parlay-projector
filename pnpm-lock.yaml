@@ -8,51 +8,21 @@ importers:
 
   .:
     dependencies:
-      '@base-ui/react':
-        specifier: 1.7.0
-        version: 1.7.0(@date-fns/tz@1.5.0)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@shadcn/react':
-        specifier: 0.3.0
-        version: 0.3.0(@types/react@19.2.14)(react@19.2.6)
-      class-variance-authority:
-        specifier: 0.7.1
-        version: 0.7.1
       clsx:
         specifier: 2.1.1
         version: 2.1.1
-      cmdk:
-        specifier: 1.1.1
-        version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      date-fns:
-        specifier: 4.1.0
-        version: 4.1.0
-      embla-carousel-react:
-        specifier: 8.5.2
-        version: 8.5.2(react@19.2.6)
-      input-otp:
-        specifier: 1.4.2
-        version: 1.4.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       lucide-react:
         specifier: 1.31.0
         version: 1.31.0(react@19.2.6)
       react:
         specifier: 19.2.6
         version: 19.2.6
-      react-day-picker:
-        specifier: 9.8.1
-        version: 9.8.1(react@19.2.6)
       react-dom:
         specifier: 19.2.6
         version: 19.2.6(react@19.2.6)
-      react-resizable-panels:
-        specifier: 4.5.8
-        version: 4.5.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react-server-dom-webpack:
         specifier: 19.2.6
         version: 19.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(webpack@5.110.2(esbuild@0.27.3)(lightningcss@1.33.0)(postcss@8.5.26))
-      recharts:
-        specifier: 3.8.0
-        version: 3.8.0(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.8)(react@19.2.6)(redux@5.0.1)
       shadcn:
         specifier: 4.18.0
         version: 4.18.0(supports-color@10.2.2)(typescript@5.9.3)

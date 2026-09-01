@@ -41,10 +41,10 @@ export default function SchedulePage() {
       <section className="mt-4 space-y-3" aria-label="Schedule filters">
         <SportFilters compact />
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[220px] flex-1">
+          <label htmlFor="schedule-search" className="relative min-w-[220px] flex-1">
             <span className="sr-only">Search games, teams, or venues</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/28" />
-            <input readOnly placeholder="Search games, teams, venues..." className="h-10 w-full rounded-xl border border-white/9 bg-white/[.025] pl-9 pr-3 text-xs text-white/60 outline-none placeholder:text-white/25 focus:border-violet-400/40" />
+            <input id="schedule-search" readOnly placeholder="Search games, teams, venues..." className="h-10 w-full rounded-xl border border-white/9 bg-white/[.025] pl-9 pr-3 text-xs text-white/60 outline-none placeholder:text-white/25 focus:border-violet-400/40" />
           </label>
           <FilterSelect label="League" items={['All Leagues', 'Primary leagues']} />
           <FilterSelect label="Timezone" items={['Local time', 'UTC']} />
