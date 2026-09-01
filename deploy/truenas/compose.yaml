@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Parlay Projector — TrueNAS SCALE Custom App
+#
+# Paste the contents of this file into:
+#   Apps -> Discover Apps -> Custom App -> Install via YAML
+#
+# App name: parlay-projector
+#
+# This consumes the image already built and published by GitHub Actions.
+# There is deliberately no `build:` key — TrueNAS never compiles the app, and
+# no application source is ever copied onto the NAS.
+#
+# Image namespace: j1-hypz (GHCR requires the owner in lowercase).
+# ---------------------------------------------------------------------------
+services:
+  parlay-projector:
+    image: ghcr.io/j1-hypz/parlay-projector:latest
+
+    # Pin to a commit SHA tag instead of `latest` to roll back, e.g.
+    #   image: ghcr.io/j1-hypz/parlay-projector:a38d21f
+
+    restart: unless-stopped
+
+    # Forward SIGTERM properly so redeploys stop the app cleanly.
+    init: true
+
+    environment:
+      # Port the server listens on inside the container.
+      PORT: "3000"
+      # Must stay 0.0.0.0 so the port is reachable from outside the container.
+      HOST: "0.0.0.0"
+      # The URL this app is actually reached on. Used for absolute
+      # OpenGraph/metadata URLs. Change to your host or proxy hostname, e.g.
+      #   http://truenas.lan:3000
+      #   https://parlay.example.com
+      SITE_URL: "http://localhost:3000"
+
+    ports:
+      # host:container — change the host side if 3000 is already taken.
+      - "3000:3000"
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # The application is stateless: no volumes, no database, no writable paths.
+    # Add volumes here only when a future phase introduces persistent state.

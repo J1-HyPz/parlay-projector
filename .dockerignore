@@ -1,0 +1,38 @@
+# VCS and CI
+.git
+.gitattributes
+.gitignore
+.github
+
+# Dependencies and build output (rebuilt inside the image)
+node_modules
+dist
+.next
+.vinext
+.wrangler
+.pnpm-store
+coverage
+out
+build
+
+# Local environment — never copy real secrets into an image layer
+.env
+.env.*
+!.env.example
+
+# Docs and deployment assets not needed by the build
+README.md
+deploy
+scripts
+compose.yaml
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# NOTE: .openai/hosting.json is intentionally NOT excluded — vite.config.ts
+# reads it when DEPLOY_TARGET=cloudflare.

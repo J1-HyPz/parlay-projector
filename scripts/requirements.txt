@@ -1,0 +1,4 @@
+# Dependencies for scripts/deploy-truenas.py
+# Install on the self-hosted runner with:
+#   python3 -m pip install -r scripts/requirements.txt
+websockets>=12.0

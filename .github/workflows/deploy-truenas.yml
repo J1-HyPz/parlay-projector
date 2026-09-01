@@ -1,0 +1,108 @@
+name: Deploy TrueNAS
+
+# Redeploys the Parlay Projector Custom App on TrueNAS so it pulls the newest
+# `latest` image from GHCR.
+#
+# TWO MODES
+# ---------
+# 1. Manual (default, and the recommended starting point)
+#      Actions -> Deploy TrueNAS -> Run workflow
+#
+# 2. Automatic, after a successful Build and Publish on main
+#      Off unless the repository variable ENABLE_TRUENAS_AUTO_DEPLOY is
+#      exactly "true".
+#      Enable:  gh variable set ENABLE_TRUENAS_AUTO_DEPLOY --body true
+#      Disable: gh variable set ENABLE_TRUENAS_AUTO_DEPLOY --body false
+#
+# Requires a self-hosted runner on the LAN with the labels
+# [self-hosted, linux, truenas-lan]. The TrueNAS management interface is never
+# exposed to the internet; the runner reaches it over the local network.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Build and Publish
+    types:
+      - completed
+    branches:
+      - main
+
+concurrency:
+  group: deploy-truenas
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy TrueNAS
+    runs-on:
+      - self-hosted
+      - linux
+      - truenas-lan
+
+    # Manual runs always proceed. Automatic runs proceed only when the upstream
+    # build succeeded AND auto-deploy has been explicitly switched on.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       vars.ENABLE_TRUENAS_AUTO_DEPLOY == 'true')
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install script dependencies
+        run: python3 -m pip install --disable-pip-version-check -r scripts/requirements.txt
+
+      # Fail early with a clear message rather than a confusing connection
+      # error. Only presence is checked — values are never printed.
+      - name: Verify required secrets
+        env:
+          TRUENAS_HOST: ${{ secrets.TRUENAS_HOST }}
+          TRUENAS_API_KEY: ${{ secrets.TRUENAS_API_KEY }}
+        run: |
+          missing=0
+          for name in TRUENAS_HOST TRUENAS_API_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret $name is not set."
+              missing=1
+            else
+              echo "$name is set"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "See deploy/truenas/README.md for how to create these."
+            exit 1
+          fi
+
+      - name: Redeploy application
+        env:
+          TRUENAS_HOST: ${{ secrets.TRUENAS_HOST }}
+          TRUENAS_API_KEY: ${{ secrets.TRUENAS_API_KEY }}
+          TRUENAS_USERNAME: ${{ secrets.TRUENAS_USERNAME }}
+          TRUENAS_APP_NAME: ${{ secrets.TRUENAS_APP_NAME || 'parlay-projector' }}
+          # Optional overrides — set as repository variables if needed.
+          TRUENAS_PORT: ${{ vars.TRUENAS_PORT }}
+          TRUENAS_API_PATH: ${{ vars.TRUENAS_API_PATH }}
+          TRUENAS_CA_BUNDLE: ${{ vars.TRUENAS_CA_BUNDLE }}
+          TRUENAS_TIMEOUT: ${{ vars.TRUENAS_TIMEOUT }}
+        run: python3 scripts/deploy-truenas.py
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### TrueNAS deployment"
+            echo
+            echo "- App: \`${{ secrets.TRUENAS_APP_NAME || 'parlay-projector' }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
