@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -37,16 +36,16 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 flex h-16 items-center border-b border-white/8 bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Parlay Projector home">
+        <a href="/" className="flex min-w-0 items-center gap-3" aria-label="Parlay Projector home">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-violet-400/25 bg-violet-500/12 text-violet-300 shadow-[0_0_30px_rgba(124,58,237,.16)]">
             <Orbit className="size-5" aria-hidden="true" />
           </span>
           <span className="truncate text-base font-semibold tracking-[-0.03em] sm:text-lg">Parlay Projector</span>
-        </Link>
+        </a>
 
         <nav className="mx-auto hidden h-full items-center gap-8 lg:flex" aria-label="Primary navigation">
           {primaryNavigation.map((item) => (
-            <Link
+            <a
               key={item.key}
               href={item.href}
               aria-current={active === item.key ? 'page' : undefined}
@@ -56,7 +55,7 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
             >
               {item.label}
               {active === item.key && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-violet-500" />}
-            </Link>
+            </a>
           ))}
         </nav>
 
@@ -66,9 +65,9 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
             <Bell className="size-[18px]" />
             <span className="absolute right-2 top-2 size-1.5 rounded-full bg-violet-400" />
           </button>
-          <Link href="/profile" className={`icon-button hidden sm:grid ${active === 'profile' ? 'text-violet-300' : ''}`} aria-label="Profile">
+          <a href="/profile" className={`icon-button hidden sm:grid ${active === 'profile' ? 'text-violet-300' : ''}`} aria-label="Profile">
             <CircleUserRound className="size-[19px]" />
-          </Link>
+          </a>
         </div>
       </header>
 
@@ -107,7 +106,7 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
 
       <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-5 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
         {[...primaryNavigation, { key: 'profile' as const, label: 'Profile', href: '/profile', icon: CircleUserRound }].map(({ key, label, href, icon: Icon }) => (
-          <Link
+          <a
             key={key}
             href={href}
             aria-current={active === key ? 'page' : undefined}
@@ -115,7 +114,7 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
           >
             <Icon className="size-[19px]" />
             <span>{label}</span>
-          </Link>
+          </a>
         ))}
       </nav>
     </div>

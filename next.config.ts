@@ -1,6 +1,14 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Without this, a client-side navigation that fails is swallowed: the Link
+    // shim calls preventDefault() and then does nothing, so the click appears
+    // dead while middle-click still works. Enabling it falls back to a real
+    // navigation instead. Defaults to false in vinext.
+    appNavFailHandling: true,
+  },
+
   // Emit a self-contained Node server at `dist/standalone/server.js`.
   //
   // This is what the production container runs. The bundle carries its own
