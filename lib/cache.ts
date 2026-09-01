@@ -18,9 +18,17 @@ interface Entry<T> {
 const store = new Map<string, Entry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 
+/**
+ * TTL, either fixed or derived from the loaded value.
+ *
+ * The function form exists for values whose volatility is only knowable after
+ * loading them — a finished game can be cached for hours, a live one cannot.
+ */
+export type Ttl<T> = number | ((value: T) => number);
+
 export async function cached<T>(
   key: string,
-  ttlMs: number,
+  ttlMs: Ttl<T>,
   load: () => Promise<T>,
 ): Promise<{ value: T; hit: boolean }> {
   const now = Date.now();
@@ -37,7 +45,8 @@ export async function cached<T>(
 
   const promise = load()
     .then((value) => {
-      store.set(key, { value, expiresAt: Date.now() + ttlMs });
+      const ttl = typeof ttlMs === 'function' ? ttlMs(value) : ttlMs;
+      store.set(key, { value, expiresAt: Date.now() + ttl });
       return value;
     })
     .finally(() => {

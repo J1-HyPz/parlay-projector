@@ -188,6 +188,23 @@ jobs:
           [ "$bad" = "400" ] \
             || { echo "::error::invalid sport should return 400, got $bad"; docker rm -f pp-ci; exit 1; }
 
+          # Dynamic game route must render on a direct request, not only after
+          # client-side navigation from the homepage.
+          game=$(curl -s -o /tmp/game.html -w '%{http_code}' http://127.0.0.1:3000/games/2398051)
+          echo "GET /games/2398051 -> HTTP $game"
+          [ "$game" = "200" ] \
+            || { echo "::error::dynamic game route failed on direct request, got $game"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          grep -q "Parlay Projector" /tmp/game.html \
+            || { echo "::error::game page did not render the app shell"; docker rm -f pp-ci; exit 1; }
+
+          # An unknown or malformed id is a 404, not a crash.
+          for bad_id in 99999999999 not-a-number; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/api/games/$bad_id")
+            echo "GET /api/games/$bad_id -> HTTP $code"
+            [ "$code" = "404" ] \
+              || { echo "::error::expected 404 for game id '$bad_id', got $code"; docker rm -f pp-ci; exit 1; }
+          done
+
           # Confirm the container is not running as root.
           whoami_out=$(docker exec pp-ci id -un)
           echo "Container user: $whoami_out"

@@ -28,11 +28,13 @@ Every figure on screen is a placeholder.
 | `/live` | Live scoreboard |
 | `/parlays` | Projection workspace |
 | `/profile` | Profile placeholder |
+| `/games/:gameId` | Individual game detail ([docs](#game-detail-api)) |
 | `/health` | Liveness endpoint for the container health check |
 | `/api/home` | Aggregated homepage data ([docs](#homepage-api)) |
 | `/api/home/games` | Today's games |
 | `/api/home/news` | Recent sports news |
 | `/api/home/accuracy` | Prediction accuracy |
+| `/api/games/:gameId` | Detail for one game |
 
 ---
 
@@ -361,6 +363,96 @@ directory must be writable by UID 1000 (the container's `node` user).
 
 Prediction *generation* is not implemented — that is a future task. This backend
 only reads existing records and scores them.
+
+---
+
+## Game detail API
+
+Individual game pages live at `/games/:gameId`, using the sports provider's own
+event id — the same id the Home page already receives. No second identifier
+scheme exists.
+
+```
+Games Today card  ->  /games/<event-id>  ->  GET /api/games/<event-id>
+                                                -> sports service -> provider
+```
+
+### `GET /api/games/:gameId`
+
+One coherent response covering the game, both teams, standings and recent
+results, so the page makes a single request.
+
+| Status | Body |
+|---|---|
+| `200` | `{ "game": { ... } }` |
+| `404` | `{ "error": "game_not_found", "message": "..." }` — unknown or malformed id |
+| `503` | `{ "error": "game_data_unavailable", "message": "..." }` — provider failure |
+
+```json
+{
+  "game": {
+    "id": "2398051",
+    "sport": "football",
+    "league": "Argentinian Primera Division",
+    "season": "2026",
+    "round": "7",
+    "start_time": "2026-09-01T00:15:00.000Z",
+    "status": "finished",
+    "provider_status": "FT",
+    "home_team": {
+      "id": "137786", "name": "Instituto", "abbreviation": null,
+      "logo": "https://.../badge.png", "stadium": "Estadio Juan Domingo Peron",
+      "location": "Cordoba, Argentina", "formed_year": 1918
+    },
+    "away_team": { "...": "same shape" },
+    "venue": { "name": "Estadio Juan Domingo Peron", "city": "Argentina" },
+    "score": { "home": 1, "away": 0 },
+    "game_state": null,
+    "broadcast": null,
+    "standings": { "home": { "rank": 1, "form": ["D","L","W"], "...": "" }, "away": null },
+    "recent_games": { "home": [], "away": [] },
+    "head_to_head": []
+  }
+}
+```
+
+`score` is `null` for scheduled games — never a fabricated `0-0`. `game_state`
+is populated only while a game is live. Any field the provider does not supply
+is `null` and the UI omits that row.
+
+### Caching
+
+Game detail is cached by status, because volatility differs sharply:
+
+| Status | TTL |
+|---|---|
+| `live` | 1 minute |
+| `scheduled` | 10 minutes |
+| `finished` | 6 hours — the result is settled |
+| `postponed` / `cancelled` | 30 minutes |
+| unknown id (404) | 1 minute |
+
+### What the provider supplies, and what it does not
+
+Populated from TheSportsDB: game, venue, season, round, score, team badges and
+abbreviations, league standings (record, position, form) and recent results.
+
+Deliberately absent, because the provider does not expose them on the
+configured tier — these render as empty states rather than invented data:
+
+| Section | Reason |
+|---|---|
+| Head to Head | `eventsh2h.php` returns 404 on this tier |
+| Broadcast | No TV/network field exists in the event payload at all |
+| Game Timeline | No play-by-play or event feed is available for any sport |
+| Sport-specific stats | Only one shared league-table stat set is published, so passing yards, ERA, field-goal percentage and similar are not available |
+
+`Parlay Projector Analysis` is reserved on the page and states *Projection
+unavailable*. No prediction logic exists yet and no confidence figure is
+fabricated.
+
+**No betting data.** There are no odds, spreads, totals, bookmakers, markets or
+sportsbook links in the contract, the services or the UI.
 
 ---
 

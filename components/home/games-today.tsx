@@ -9,6 +9,7 @@
  * Keeps the original card layout; the skeleton doubles as the loading state.
  */
 
+import Link from 'next/link';
 import { SectionHeading, PlaceholderLine } from '@/components/dashboard-ui';
 import type { Game } from '@/lib/home/types';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
@@ -47,7 +48,11 @@ function TeamRow({ name, logo, align }: { name: string; logo: string | null; ali
 
 function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
-    <article className="panel min-w-[245px] flex-1 p-4">
+    <Link
+      href={`/games/${game.id}`}
+      aria-label={`${game.away_team.name} versus ${game.home_team.name}, view game details`}
+      className="panel group min-w-[245px] flex-1 cursor-pointer p-4 transition hover:border-violet-400/35 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
+    >
       <div className="flex items-center justify-between gap-2 text-[11px]">
         <span className="truncate font-medium text-violet-300">{game.league ?? game.sport.toUpperCase()}</span>
         <span className="shrink-0 text-white/32">
@@ -70,7 +75,7 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
         <span className="truncate">{game.venue.name ?? 'Venue to be confirmed'}</span>
         <span className="ml-auto shrink-0 text-white/25">{STATUS_LABEL[game.status]}</span>
       </div>
-    </article>
+    </Link>
   );
 }
 
