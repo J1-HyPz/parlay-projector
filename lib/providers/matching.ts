@@ -17,12 +17,16 @@
  * No network, no config — directly unit-testable.
  */
 
-/** Words that carry no distinguishing information for a club or franchise. */
-const NOISE_WORDS = new Set([
-  'fc', 'afc', 'cf', 'sc', 'ac', 'as', 'ss', 'us', 'rc', 'cd', 'ud', 'sv', 'vfl', 'vfb',
-  'bsc', 'tsv', 'fsv', 'sv', 'club', 'city', 'town', 'united', 'utd', 'athletic',
-  'atletico', 'real', 'deportivo', 'sporting', 'the',
-]);
+/**
+ * Words that carry no distinguishing information.
+ *
+ * Deliberately minimal. Anything that distinguishes two clubs must NOT be here:
+ * "United" and "City" were originally in this list, which made
+ * "Manchester United" and "Manchester City" reduce to the same token and match
+ * each other. Likewise "Atletico" and "Real" separate the two Madrid clubs.
+ * Only genuinely decorative suffixes belong.
+ */
+const NOISE_WORDS = new Set(['fc', 'afc', 'cf', 'sc', 'club', 'the']);
 
 /** Common shorthand seen across providers. */
 const ALIASES: Record<string, string> = {
@@ -45,7 +49,8 @@ export function teamTokens(name: string | null | undefined): string[] {
 
   const cleaned = name
     .normalize('NFD')
-    // Drop combining accent marks.
+    // Drop combining accent marks. Written as explicit escapes so the range
+    // survives tooling that would otherwise mangle literal combining marks.
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')

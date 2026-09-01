@@ -25,7 +25,7 @@ const LONDON = 'Europe/London';
 
 describe('team name matching', () => {
   it('normalises away punctuation, accents and corporate noise', () => {
-    assert.deepEqual(teamTokens('Atlético Madrid'), ['madrid']);
+    assert.deepEqual(teamTokens('Atlético Madrid'), ['atletico', 'madrid']);
     assert.deepEqual(teamTokens('Arsenal FC'), ['arsenal']);
     assert.deepEqual(teamTokens('  Liverpool   F.C. '), ['liverpool']);
   });
@@ -43,6 +43,7 @@ describe('team name matching', () => {
 
   it('does NOT match different clubs that share a city', () => {
     assert.equal(sameTeam('Manchester United', 'Manchester City'), false);
+    assert.equal(sameTeam('Atletico Madrid', 'Real Madrid'), false);
     assert.equal(sameTeam('AC Milan', 'Inter Milan'), false);
   });
 
