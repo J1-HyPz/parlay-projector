@@ -6,7 +6,7 @@
  * import from here rather than reaching for adapters directly.
  */
 
-import { newsConfig, espnConfig, sportsConfig } from '../config';
+import { newsConfig, sportsConfig } from '../config';
 import { espnDescriptor } from './espn/adapter';
 import { registerProvider } from './registry';
 

@@ -38,11 +38,16 @@ export interface RawEspnEvent {
   date?: unknown;
   name?: unknown;
   status?: { type?: { name?: unknown; completed?: unknown } };
-  competitions?: {
+  /**
+   * Untrusted provider payload. The index signature is deliberate: real
+   * responses carry `odds`, `pickcenter` and `hasOdds`, which `stripBetting`
+   * removes here at the boundary.
+   */
+  competitions?: ({
     venue?: { fullName?: unknown; address?: { city?: unknown; country?: unknown } };
     broadcasts?: { names?: unknown[] }[];
     competitors?: RawEspnCompetitor[];
-  }[];
+  } & Record<string, unknown>)[];
 }
 
 export interface RawEspnScoreboard {
@@ -156,9 +161,11 @@ export function normaliseEvent(raw: RawEspnEvent, timeZone: string): EspnGame | 
   if (!home && !away) return null;
 
   const date = str(raw.date);
-  const venue = competition?.venue as RawEspnEvent['competitions'] extends undefined
-    ? never
-    : { fullName?: unknown; address?: { city?: unknown; country?: unknown } } | undefined;
+  // `competition` is a plain record after stripping, so the shape is asserted
+  // once here; every field read from it is still null-guarded by `str`.
+  const venue = competition?.venue as
+    | { fullName?: unknown; address?: { city?: unknown; country?: unknown } }
+    | undefined;
 
   const broadcasts = (competition?.broadcasts as { names?: unknown[] }[] | undefined) ?? [];
   const broadcastName = broadcasts
