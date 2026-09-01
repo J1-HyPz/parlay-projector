@@ -9,12 +9,15 @@
  * one shared pure module, so this file is directly unit-testable.
  */
 
+// Explicit .ts extension: this is a runtime import, and Node's type-stripping
+// test runner resolves real file paths. tsconfig sets allowImportingTsExtensions
+// and Vite resolves it the same way.
 import {
   SPORT_DEFINITIONS,
   normaliseStartTime,
   normaliseStatus,
-} from '../home/sports/normalise';
-import type { RawEvent } from '../home/sports/normalise';
+} from '../home/sports/normalise.ts';
+import type { RawEvent } from '../home/sports/normalise.ts';
 import type { ConcreteSportId } from '../home/types';
 import type {
   FormResult,
