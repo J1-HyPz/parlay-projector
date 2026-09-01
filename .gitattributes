@@ -1,0 +1,19 @@
+# Normalise to LF in the repository so Linux CI and Docker builds never see CRLF.
+* text=auto eol=lf
+
+# Files that must be LF to execute correctly inside the container / on runners.
+Dockerfile      text eol=lf
+*.sh            text eol=lf
+*.py            text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Never touch binary assets.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff  binary
+*.woff2 binary
+
+# Keep the lockfile out of diffs; it is generated.
+pnpm-lock.yaml -diff linguist-generated=true
