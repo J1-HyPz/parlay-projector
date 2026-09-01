@@ -53,21 +53,26 @@ function definitionsFor(sport: SportId): SportDefinition[] {
   return SPORT_DEFINITIONS.filter((definition) => definition.id === sport);
 }
 
-/** Run tasks with a bounded number in flight at once. */
+/**
+ * Run tasks with a bounded number in flight at once.
+ *
+ * Results are appended as they complete rather than written into a pre-sized
+ * array: the caller sorts games by kick-off afterwards, so completion order
+ * carries no meaning.
+ */
 async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
   run: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = [];
   let cursor = 0;
 
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (cursor < items.length) {
-      const index = cursor;
+      const item = items[cursor];
       cursor += 1;
-      const item = items[index];
-      if (item !== undefined) results[index] = await run(item);
+      if (item !== undefined) results.push(await run(item));
     }
   });
 

@@ -78,6 +78,7 @@ function TeamLine({ team }: { team: Game['home_team'] }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       {team.logo ? (
+        // oxlint-disable-next-line nextjs/no-img-element -- remote team badge from the sports provider CDN; see components/home/games-today.tsx
         <img
           src={team.logo}
           alt=""
