@@ -17,21 +17,41 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+import { PUBLIC_TEST_KEY, resolveTuning } from './tuning';
+
 /**
  * Timezone used to decide which calendar day "today" is.
  * The project had no timezone system, so this defaults to Europe/London.
  */
 export const APP_TIMEZONE = env('APP_TIMEZONE', 'Europe/London');
 
+const sportsApiKey = env('SPORTS_API_KEY', PUBLIC_TEST_KEY);
+
+/**
+ * Request tuning, derived from the key.
+ *
+ * Setting a premium SPORTS_API_KEY automatically raises concurrency and lowers
+ * cache lifetimes, because the throttling only exists to survive the public
+ * test key's limits. Each value can still be overridden explicitly.
+ */
+const tuning = resolveTuning(sportsApiKey);
+
 export const sportsConfig = {
   baseUrl: env('SPORTS_API_URL', 'https://www.thesportsdb.com/api/v1/json'),
   /**
-   * TheSportsDB's documented free/test key. Set SPORTS_API_KEY to a real key
-   * for higher rate limits. Never sent to the browser.
+   * Defaults to TheSportsDB's documented public test key. Set SPORTS_API_KEY to
+   * a real key for higher rate limits. Never sent to the browser.
    */
-  apiKey: env('SPORTS_API_KEY', '3'),
-  cacheTtlMs: envInt('SPORTS_CACHE_TTL_SECONDS', 120) * 1000,
+  apiKey: sportsApiKey,
+  /** True while running on the public test key. */
+  usingTestKey: tuning.profile === 'test-key',
+  /** `test-key` or `premium`. Surfaced in provider diagnostics. */
+  tuningProfile: tuning.profile,
+  cacheTtlMs: envInt('SPORTS_CACHE_TTL_SECONDS', tuning.todayCacheSeconds) * 1000,
   timeoutMs: envInt('SPORTS_TIMEOUT_MS', 8000),
+  /** Concurrent provider requests when filling the schedule window. */
+  scheduleConcurrency: envInt('SPORTS_SCHEDULE_CONCURRENCY', tuning.scheduleConcurrency),
+  scheduleTtlMs: envInt('SPORTS_SCHEDULE_TTL_SECONDS', tuning.scheduleTtlSeconds) * 1000,
 };
 
 export const newsConfig = {

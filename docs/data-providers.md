@@ -36,6 +36,24 @@ RSS news ─────┘
 
 `*` marked capabilities exist but are weak, which is why ESPN outranks it for them.
 
+**Throttling adapts to the key.** The profile is derived from `SPORTS_API_KEY`
+alone — setting a premium key changes behaviour with no other configuration:
+
+| | Test key (`3` or unset) | Premium key |
+|---|---|---|
+| Schedule concurrency | 4 | 10 |
+| Schedule cache | 15 min | 5 min |
+| Today's fixtures cache | 2 min | 1 min |
+
+The test-key numbers are measured: anything wider than 4 reliably returns 429s.
+The premium numbers are deliberately moderate — paid tiers still have limits and
+the exact ceiling varies by plan — and each is overridable via
+`SPORTS_SCHEDULE_CONCURRENCY`, `SPORTS_SCHEDULE_TTL_SECONDS` and
+`SPORTS_CACHE_TTL_SECONDS`.
+
+Confirm which profile is live with `GET /api/internal/providers`, which reports
+`tuning.profile` without exposing the key.
+
 ### ESPN — enrichment
 
 | | |

@@ -33,10 +33,11 @@ export function bootstrapProviders(): void {
       'team_records',
       'recent_form',
     ],
-    notes:
-      sportsConfig.apiKey === '3'
-        ? 'Using the public test key: heavily rate limited and league tables are truncated.'
-        : undefined,
+    notes: sportsConfig.usingTestKey
+      ? 'Using the public test key: heavily rate limited and league tables are truncated. ' +
+        'Set SPORTS_API_KEY to raise concurrency and lower cache lifetimes automatically.'
+      : `Premium key detected: tuning profile "${sportsConfig.tuningProfile}", ` +
+        `schedule concurrency ${sportsConfig.scheduleConcurrency}.`,
   });
 
   // Enrichment: records, form, head-to-head, broadcast, venue.

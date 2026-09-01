@@ -10,6 +10,7 @@
  * it needs credentials, and a coarse health state.
  */
 
+import { sportsConfig } from '@/lib/config';
 import { json } from '@/lib/home/api';
 import { bootstrapProviders, listProviders, providerHealth } from '@/lib/providers';
 
@@ -31,5 +32,15 @@ export async function GET(): Promise<Response> {
     notes: descriptor.notes ?? null,
   }));
 
-  return json({ providers });
+  return json({
+    providers,
+    // Non-sensitive: which throttling profile is active, so a premium key can
+    // be confirmed without exposing it.
+    tuning: {
+      profile: sportsConfig.tuningProfile,
+      schedule_concurrency: sportsConfig.scheduleConcurrency,
+      schedule_cache_seconds: Math.round(sportsConfig.scheduleTtlMs / 1000),
+      today_cache_seconds: Math.round(sportsConfig.cacheTtlMs / 1000),
+    },
+  });
 }

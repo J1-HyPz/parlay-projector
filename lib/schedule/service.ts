@@ -26,18 +26,10 @@ import type { ScheduleRange } from './range';
 const provider: SportsProvider = createTheSportsDbProvider();
 
 /**
- * Schedule data changes slowly, and every request costs provider budget, so
- * this sits at the top of the sensible range.
+ * Cache lifetime and concurrency both come from the tuning profile, which is
+ * derived from the API key: the throttling exists to survive the public test
+ * key's limits, and a premium key does not need it. See lib/tuning.ts.
  */
-const SCHEDULE_TTL_MS = 15 * 60_000;
-
-/**
- * Concurrency cap for provider calls.
- *
- * The window is up to 48 requests. Firing them all at once reliably trips the
- * provider's rate limit, so they go out in bounded waves.
- */
-const CONCURRENCY = 4;
 
 export interface ScheduleResult {
   range: ScheduleRange;
@@ -95,25 +87,29 @@ export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResul
     definitions.map((definition) => ({ date, definition })),
   );
 
-  const outcomes = await mapWithConcurrency(tasks, CONCURRENCY, async ({ date, definition }) => {
-    try {
-      // Same key shape as getGamesToday, so the two features share entries.
-      const { value } = await cached(
-        `games:${provider.name}:${date}:${definition.id}`,
-        sportsConfig.cacheTtlMs > SCHEDULE_TTL_MS ? sportsConfig.cacheTtlMs : SCHEDULE_TTL_MS,
-        () => provider.gamesOnDate(date, definition),
-      );
-      return { games: value, failed: false };
-    } catch (error) {
-      logger.warn('schedule_fetch_failed', {
-        provider: provider.name,
-        date,
-        sport: definition.id,
-        reason: error instanceof Error ? error.message : 'unknown',
-      });
-      return { games: [] as Game[], failed: true };
-    }
-  });
+  const outcomes = await mapWithConcurrency(
+    tasks,
+    sportsConfig.scheduleConcurrency,
+    async ({ date, definition }) => {
+      try {
+        // Same key shape as getGamesToday, so the two features share entries.
+        const { value } = await cached(
+          `games:${provider.name}:${date}:${definition.id}`,
+          Math.max(sportsConfig.cacheTtlMs, sportsConfig.scheduleTtlMs),
+          () => provider.gamesOnDate(date, definition),
+        );
+        return { games: value, failed: false };
+      } catch (error) {
+        logger.warn('schedule_fetch_failed', {
+          provider: provider.name,
+          date,
+          sport: definition.id,
+          reason: error instanceof Error ? error.message : 'unknown',
+        });
+        return { games: [] as Game[], failed: true };
+      }
+    },
+  );
 
   const games = sortGames(outcomes.flatMap((outcome) => outcome.games));
   const partialFailures = outcomes.filter((outcome) => outcome.failed).length;
@@ -121,6 +117,8 @@ export async function getSchedule(sport: SportId = 'all'): Promise<ScheduleResul
 
   logger.info('schedule_refreshed', {
     provider: provider.name,
+    tuning: sportsConfig.tuningProfile,
+    concurrency: sportsConfig.scheduleConcurrency,
     start: range.start,
     end: range.end,
     requests: tasks.length,

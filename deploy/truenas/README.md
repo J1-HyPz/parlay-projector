@@ -89,7 +89,7 @@ All optional. The app runs with none of them set.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SPORTS_API_KEY` | public test key | **Recommended.** The free test key rate-limits hard and truncates league tables |
+| `SPORTS_API_KEY` | public test key | **Recommended.** The free test key rate-limits hard and truncates league tables. Setting a real key also raises request concurrency and lowers cache lifetimes automatically |
 | `ESPN_ENABLED` | `true` | Enrichment provider (records, form, head-to-head, broadcast). No credentials needed |
 | `LIVE_REFRESH_INTERVAL_MS` | `30000` | Live scoreboard poll interval |
 | `APP_TIMEZONE` | `Europe/London` | Which calendar day "today" is |
