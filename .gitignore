@@ -48,6 +48,9 @@ next-env.d.ts
 /outputs/
 /work/
 
+# local persistent data (prediction history); mounted volume in production
+/data/
+
 # python helper tooling
 __pycache__/
 *.pyc

@@ -10,6 +10,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "node dist/standalone/server.js",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt",

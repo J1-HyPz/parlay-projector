@@ -36,6 +36,17 @@ services:
       #   https://parlay.example.com
       SITE_URL: "http://localhost:3000"
 
+      # Timezone that decides which calendar day "today" is on the Home page.
+      APP_TIMEZONE: "Europe/London"
+
+      # Sports data provider key. Optional: defaults to TheSportsDB's public
+      # test key, which is rate limited. Set a real key here for production.
+      # SPORTS_API_KEY: "your-key"
+
+      # Persistent data directory (prediction history). Must match the volume
+      # mount below, or history is lost on every redeploy.
+      DATA_DIR: "/data"
+
     ports:
       # host:container — change the host side if 3000 is already taken.
       - "3000:3000"
@@ -51,5 +62,16 @@ services:
       retries: 3
       start_period: 20s
 
-    # The application is stateless: no volumes, no database, no writable paths.
-    # Add volumes here only when a future phase introduces persistent state.
+    volumes:
+      # Prediction history lives here. The container filesystem is ephemeral,
+      # so this MUST be a real host path or the data is lost on every redeploy.
+      #
+      # Replace <pool> with your apps pool. Create the dataset first and make it
+      # writable by UID 1000 (the container's `node` user):
+      #   sudo chown -R 1000:1000 /mnt/<pool>/parlay-projector/data
+      #
+      # See deploy/truenas/README.md section 9.
+      - /mnt/<pool>/parlay-projector/data:/data
+
+    # No database. Prediction history is a JSON file under /data; games and news
+    # come from external providers and are cached in memory.

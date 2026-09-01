@@ -54,6 +54,13 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
+# Mount point for persistent data (prediction history). Created here so the
+# path exists and is writable by the runtime user; it is expected to be backed
+# by a volume in production, since the container filesystem is ephemeral.
+ENV DATA_DIR=/data
+RUN mkdir -p /data && chown node:node /data
+VOLUME ["/data"]
+
 # The standalone bundle is the entire application. No package manager, no dev
 # dependencies, no source tree, no volume mount required at runtime.
 COPY --from=build --chown=node:node /app/dist/standalone ./

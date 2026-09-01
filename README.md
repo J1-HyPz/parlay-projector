@@ -29,6 +29,10 @@ Every figure on screen is a placeholder.
 | `/parlays` | Projection workspace |
 | `/profile` | Profile placeholder |
 | `/health` | Liveness endpoint for the container health check |
+| `/api/home` | Aggregated homepage data ([docs](#homepage-api)) |
+| `/api/home/games` | Today's games |
+| `/api/home/news` | Recent sports news |
+| `/api/home/accuracy` | Prediction accuracy |
 
 ---
 
@@ -85,6 +89,7 @@ are git-ignored.
 | `pnpm build` | Production build → `dist/standalone/` |
 | `pnpm start` | Run the production bundle (`node dist/standalone/server.js`) |
 | `pnpm lint` | oxlint |
+| `pnpm test` | Homepage backend tests (Node's built-in runner) |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm format` | oxfmt (rewrites files) |
 | `pnpm format:check` | oxfmt in check mode |
@@ -157,6 +162,205 @@ carries a health check against `/health`.
 
 The container is stateless and exposes one configurable HTTP port, which suits
 a TrueNAS SCALE Custom App or a reverse proxy.
+
+---
+
+## Homepage API
+
+The Home page is backed by four read-only endpoints. Nothing else in the app has
+a backend yet — Schedule, Live, Parlays and Profile remain frontend skeletons.
+
+All responses are JSON, `cache-control: no-store`, and freshness is managed by a
+server-side cache so a browser refresh does not become a provider request.
+
+### `GET /api/home`
+
+Aggregated payload used by the Home page: one request for all four sections.
+
+| Parameter | Values | Default |
+|---|---|---|
+| `sport` | `all` `nfl` `nba` `mlb` `nhl` `football` | `all` |
+| `limit` | 1-20 (news articles) | `6` |
+| `range` | `all-time` `30d` (accuracy window) | `all-time` |
+
+```json
+{
+  "date": "2026-09-01",
+  "timezone": "Europe/London",
+  "summary": { "games_today": 12, "sports_active": 4, "accuracy": null, "predictions_settled": 0 },
+  "games": [],
+  "news": [],
+  "accuracy": { "accuracy": null, "correct": 0, "incorrect": 0, "settled": 0, "range": "all-time" },
+  "errors": []
+}
+```
+
+`errors` names any section that degraded, e.g. `["news_data_unavailable"]`. The
+other sections still return data — one provider outage never blanks the page.
+
+### `GET /api/home/games`
+
+Games scheduled for today in `APP_TIMEZONE`. **Sports information only**: no
+odds, spreads, totals, bookmakers or bet recommendations are requested,
+normalised, stored or returned.
+
+Parameter: `sport` (as above). An unrecognised value returns `400`.
+
+```json
+{
+  "date": "2026-09-01",
+  "timezone": "Europe/London",
+  "sport": "all",
+  "games": [
+    {
+      "id": "2398051",
+      "sport": "football",
+      "league": "Premier League",
+      "league_badge": "https://.../league.png",
+      "start_time": "2026-09-01T19:45:00.000Z",
+      "status": "scheduled",
+      "provider_status": "NS",
+      "home_team": { "id": "133604", "name": "Arsenal", "logo": "https://.../home.png" },
+      "away_team": { "id": "133616", "name": "Chelsea", "logo": "https://.../away.png" },
+      "venue": { "name": "Emirates Stadium", "city": "England" },
+      "broadcast": null
+    }
+  ]
+}
+```
+
+`status` is normalised to `scheduled` | `live` | `finished` | `postponed` |
+`cancelled` | `unknown`. The provider's own value is kept in `provider_status`
+so switching provider does not change what the frontend sees.
+
+### `GET /api/home/news`
+
+Recent sports headlines. Metadata, short provider summaries and source links
+only — article bodies are never fetched, stored or returned.
+
+| Parameter | Values | Default |
+|---|---|---|
+| `limit` | 1-20 (clamped) | `6` |
+
+```json
+{
+  "articles": [
+    {
+      "id": "https://www.bbc.co.uk/sport/...#0",
+      "headline": "Headline text",
+      "summary": "Short provider summary.",
+      "category": null,
+      "source": "BBC Sport",
+      "published_at": "2026-09-01T10:50:22.000Z",
+      "image": "https://.../thumb.jpg",
+      "url": "https://www.bbc.co.uk/sport/..."
+    }
+  ]
+}
+```
+
+### `GET /api/home/accuracy`
+
+How stored predictions scored against actual results.
+
+`accuracy = correct settled / total settled x 100`, counting only predictions
+whose real result is known. Pending, void, cancelled and unfinished-postponed
+predictions are excluded.
+
+| Parameter | Values | Default |
+|---|---|---|
+| `range` | `all-time` `30d` | `all-time` |
+
+```json
+{ "accuracy": 82.4, "correct": 103, "incorrect": 22, "settled": 125, "range": "all-time" }
+```
+
+With no prediction history the response is the empty state, and the UI shows
+`--%`. No history is ever fabricated to populate the widget:
+
+```json
+{ "accuracy": null, "correct": 0, "incorrect": 0, "settled": 0, "range": "all-time" }
+```
+
+### Errors
+
+Provider failures degrade rather than throw. The section returns empty data plus
+a machine-readable code, HTTP 200:
+
+| Code | Meaning |
+|---|---|
+| `sports_data_unavailable` | Every sports provider request failed |
+| `news_data_unavailable` | Every configured news feed failed |
+| `accuracy_unavailable` | The prediction store could not be read |
+
+An invalid query parameter returns `400` with
+`{ "error": "invalid_request", "message": "..." }`. Internal errors and stack
+traces are never returned.
+
+### Architecture
+
+```
+Home page
+   -> /api/home route handler          (validates input, no provider logic)
+      -> Homepage service              (runs sections concurrently)
+         |- Sports service -> provider adapter -> TheSportsDB
+         |- News service   -> provider adapter -> RSS feeds
+         `- Accuracy service -> prediction repository -> DATA_DIR/predictions.json
+```
+
+Each provider sits behind a one-method interface with a single implementation.
+Swapping providers means writing a new adapter and changing the one line that
+constructs it — no route or component changes.
+
+### External services and environment
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_TIMEZONE` | `Europe/London` | Which calendar day "today" is |
+| `SPORTS_API_URL` | TheSportsDB v1 | Sports provider base URL |
+| `SPORTS_API_KEY` | `3` (public test key) | Sports provider key. **Server-side only** |
+| `SPORTS_CACHE_TTL_SECONDS` | `120` | Games cache lifetime |
+| `SPORTS_TIMEOUT_MS` | `8000` | Sports request timeout |
+| `NEWS_FEED_URLS` | BBC Sport RSS | Comma-separated news feeds |
+| `NEWS_CACHE_TTL_SECONDS` | `600` | News cache lifetime |
+| `NEWS_TIMEOUT_MS` | `8000` | News request timeout |
+| `DATA_DIR` | `./data` | Persistent data directory |
+
+Provider credentials are read only inside route handlers and services, are never
+sent to the browser, and are stripped from log output.
+
+### Prediction storage
+
+No database. The homepage only needs to *read* settled predictions, so records
+live in `$DATA_DIR/predictions.json` behind a small repository interface:
+
+```json
+{
+  "predictions": [
+    {
+      "id": "p-1",
+      "game_id": "2398051",
+      "sport": "football",
+      "predicted_outcome": "home",
+      "actual_outcome": "home",
+      "prediction_result": "correct",
+      "created_at": "2026-08-30T12:00:00.000Z",
+      "settled_at": "2026-08-31T21:00:00.000Z"
+    }
+  ]
+}
+```
+
+`prediction_result` is `correct` | `incorrect` | `pending` | `void`. A missing,
+empty or malformed file all mean the same thing: no history, accuracy `null`.
+
+**`DATA_DIR` must be a mounted volume in production.** A container filesystem is
+ephemeral and would lose prediction history on every redeploy. The Docker image
+declares `/data`; the TrueNAS compose file mounts a host path onto it. The
+directory must be writable by UID 1000 (the container's `node` user).
+
+Prediction *generation* is not implemented — that is a future task. This backend
+only reads existing records and scores them.
 
 ---
 
@@ -291,9 +495,9 @@ Application configuration — safe placeholders live in `.env.example`:
 | `HOST` | `0.0.0.0` | Production bind address |
 | `SITE_URL` | `http://localhost:3000` | Public origin for absolute metadata URLs |
 | `DEPLOY_TARGET` | `node` | Build target: `node` or `cloudflare` |
-| `SPORTS_API_URL` | *(blank)* | Reserved — unused |
-| `SPORTS_API_KEY` | *(blank)* | Reserved — unused |
 | `DATABASE_URL` | *(blank)* | Reserved — unused |
+
+Homepage backend variables are documented in [Homepage API](#external-services-and-environment).
 
 Deployment credentials are **not** application configuration. `TRUENAS_HOST`,
 `TRUENAS_API_KEY`, `TRUENAS_USERNAME` and `TRUENAS_APP_NAME` are CI-only values

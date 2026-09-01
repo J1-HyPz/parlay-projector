@@ -170,6 +170,21 @@ jobs:
           grep -q "Parlay Projector" /tmp/home.html \
             || { echo "::error::Home page did not contain expected content"; docker rm -f pp-ci; exit 1; }
 
+          # Accuracy is fully deterministic and needs no external provider:
+          # with no prediction history it must report the empty state rather
+          # than a fabricated percentage.
+          acc=$(curl -fsS http://127.0.0.1:3000/api/home/accuracy) || {
+            echo "::error::/api/home/accuracy did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          echo "/api/home/accuracy -> $acc"
+          echo "$acc" | grep -q '"accuracy":null' \
+            || { echo "::error::expected the empty accuracy state in a fresh container"; docker rm -f pp-ci; exit 1; }
+
+          # Invalid input must be rejected, not passed through to a provider.
+          bad=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/home/games?sport=bogus')
+          echo "GET /api/home/games?sport=bogus -> HTTP $bad"
+          [ "$bad" = "400" ] \
+            || { echo "::error::invalid sport should return 400, got $bad"; docker rm -f pp-ci; exit 1; }
+
           # Confirm the container is not running as root.
           whoami_out=$(docker exec pp-ci id -un)
           echo "Container user: $whoami_out"
