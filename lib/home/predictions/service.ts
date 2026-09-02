@@ -8,11 +8,23 @@
 import { logger } from '../../logger';
 import type { AccuracyRange, AccuracySummary } from '../types';
 import { calculateAccuracy } from './accuracy';
-import { createFilePredictionRepository } from './repository';
+import {
+  createFilePredictionRepository,
+  createProjectionPredictionRepository,
+} from './repository';
 import type { PredictionRepository } from './repository';
 
-// The one place the concrete store is chosen.
-const repository: PredictionRepository = createFilePredictionRepository();
+/**
+ * Both stores feed one accuracy figure.
+ *
+ * The projection engine publishes to its own richer store; the original file
+ * store predates it and may still hold records. There is deliberately no second
+ * accuracy system — the homepage widget reports on everything published.
+ */
+const repositories: PredictionRepository[] = [
+  createProjectionPredictionRepository(),
+  createFilePredictionRepository(),
+];
 
 export interface AccuracyResult {
   summary: AccuracySummary;
@@ -31,11 +43,21 @@ export async function getAccuracy(
   range: AccuracyRange = 'all-time',
 ): Promise<AccuracyResult> {
   try {
-    const records = await repository.all();
+    const collected = await Promise.all(
+      repositories.map(async (store) => {
+        try {
+          return await store.all();
+        } catch {
+          // One store failing must not zero the figure the other supports.
+          return [];
+        }
+      }),
+    );
+    const records = collected.flat();
     const summary = calculateAccuracy(records, range);
 
     logger.info('homepage_accuracy_calculated', {
-      store: repository.name,
+      stores: repositories.map((store) => store.name),
       range,
       settled: summary.settled,
       accuracy: summary.accuracy,
@@ -44,7 +66,7 @@ export async function getAccuracy(
     return { summary, failed: false };
   } catch (error) {
     logger.error('homepage_accuracy_failed', {
-      store: repository.name,
+      stores: repositories.map((store) => store.name),
       reason: error instanceof Error ? error.message : 'unknown',
     });
     return { summary: EMPTY(range), failed: true };

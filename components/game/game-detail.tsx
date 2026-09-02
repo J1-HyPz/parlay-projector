@@ -14,13 +14,13 @@ import {
   GameInformation,
   HeadToHead,
   MatchupOverview,
-  ProjectorAnalysis,
   RecentForm,
   RecentGames,
   TeamComparison,
 } from './game-sections';
 import { GameHeader } from './game-header';
 import { useGameDetail } from './game-data';
+import { ProjectorAnalysis } from './projector-analysis';
 
 /**
  * Back control.
@@ -162,7 +162,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
             </div>
           </div>
 
-          <ProjectorAnalysis />
+          <ProjectorAnalysis gameId={game.id} />
         </div>
       )}
     </div>

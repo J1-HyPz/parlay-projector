@@ -175,6 +175,28 @@ export const notifyConfig = {
 };
 
 /**
+ * Projection engine.
+ *
+ * Nothing here is a secret: the model is deterministic given its inputs, and
+ * its inputs are the sports data the application already fetches.
+ */
+export const projectionConfig = {
+  /** Stored on every prediction so old ones stay interpretable. */
+  modelVersion: env('PROJECTION_MODEL_VERSION', 'projection-v1'),
+  /**
+   * Monte Carlo runs per fixture.
+   *
+   * Ten thousand puts the sampling error on a probability at well under a
+   * percentage point, which is far finer than the model's real accuracy.
+   * Results are cached, so this is paid once per fixture per refresh window,
+   * not per page load. Bounded so a misconfiguration cannot stall the server.
+   */
+  simulations: Math.min(Math.max(envInt('PROJECTION_SIMULATIONS', 10_000), 1_000), 50_000),
+  /** Fallback lifetime; the real one tightens as kick-off approaches. */
+  cacheTtlMs: envInt('PROJECTION_CACHE_TTL_SECONDS', 6 * 60 * 60) * 1000,
+};
+
+/**
  * Directory for persistent application data.
  *
  * Must point at a mounted volume in production: a container filesystem is

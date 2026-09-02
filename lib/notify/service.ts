@@ -23,6 +23,7 @@ import { buildPayloads } from './messages';
 import { detectTransitions } from './transitions';
 import { readState, writeState } from './state';
 import { pruneStoredWatchlist, readWatchlist } from '../watchlist/store';
+import { runSettlement } from '../projections/settle-job';
 import { NOTIFY_EVENTS } from './types';
 import type { NotifyEvent } from './types';
 
@@ -150,6 +151,10 @@ export function startNotifier(): boolean {
 
   timer = setInterval(() => {
     void pollAndNotify();
+    // Published predictions are settled on the same cadence. It reads final
+    // scores from the fixture cache the poll has just refreshed, so it costs
+    // nothing extra in the common case.
+    void runSettlement();
   }, notifyConfig.pollIntervalMs);
   timer.unref?.();
 

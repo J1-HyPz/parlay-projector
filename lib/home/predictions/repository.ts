@@ -19,6 +19,7 @@ import { DATA_DIR } from '../../config';
 import { logger } from '../../logger';
 import { isPredictionRecord } from './accuracy';
 import type { PredictionRecord } from './accuracy';
+import { readPredictions } from '../../projections/store';
 
 export const PREDICTIONS_FILENAME = 'predictions.json';
 
@@ -92,6 +93,42 @@ export function createFilePredictionRepository(): PredictionRepository {
       }
 
       return records;
+    },
+  };
+}
+
+/**
+ * The projection engine's own store, mapped onto the homepage's record shape.
+ *
+ * There is one accuracy system, not two: the homepage widget reports on the
+ * predictions the projection engine published, rather than a parallel history.
+ * The engine keeps richer records (probability, settlement rule, model
+ * version), so this narrows them to what the accuracy calculation needs.
+ */
+export function createProjectionPredictionRepository(): PredictionRepository {
+  return {
+    name: 'projection',
+
+    async all(): Promise<PredictionRecord[]> {
+      const records = await readPredictions();
+
+      return records.map((record) => ({
+        id: record.id,
+        game_id: record.game_id,
+        sport: record.sport,
+        predicted_outcome: record.selection,
+        actual_outcome: record.result,
+        prediction_result:
+          record.status === 'won'
+            ? 'correct'
+            : record.status === 'lost'
+              ? 'incorrect'
+              : record.status === 'void'
+                ? 'void'
+                : 'pending',
+        created_at: record.created_at,
+        settled_at: record.settled_at,
+      }));
     },
   };
 }

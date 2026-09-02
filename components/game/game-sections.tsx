@@ -370,29 +370,3 @@ export function HeadToHead({ game }: { game: GameDetail }) {
 }
 
 // ---------------------------------------------------------------------------
-// Parlay Projector Analysis
-// ---------------------------------------------------------------------------
-
-/**
- * Reserved for model output.
- *
- * No prediction engine exists yet, so this states that plainly rather than
- * displaying a fabricated confidence percentage.
- */
-export function ProjectorAnalysis() {
-  return (
-    <section className="panel p-5" aria-label="Parlay Projector Analysis">
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="size-4 text-violet-300" />
-        <h2 className="text-sm font-semibold">Parlay Projector Analysis</h2>
-      </div>
-      <div className="rounded-xl border border-violet-400/10 bg-violet-500/[.045] p-4">
-        <p className="text-xs font-medium text-white/60">Projection unavailable</p>
-        <p className="mt-1.5 text-[11px] leading-5 text-white/36">
-          Projected winner, model confidence and expected score will appear here once a
-          prediction model is connected. Nothing is estimated until then.
-        </p>
-      </div>
-    </section>
-  );
-}
