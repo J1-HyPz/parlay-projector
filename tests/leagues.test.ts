@@ -84,7 +84,13 @@ describe('league catalogue', () => {
     const ids = leagueIds();
     assert.equal(new Set(ids).size, ids.length, 'league ids must be unique');
     for (const league of LEAGUES) {
-      assert.ok(league.espnPath.length > 0, `${league.id} needs a provider path`);
+      // Whichever provider serves it, the identifier that provider needs must
+      // be present — an ESPN path or a TheSportsDB league id.
+      const identifier = league.provider === 'espn' ? league.espnPath : league.sportsdbLeagueId;
+      assert.ok(
+        identifier && identifier.length > 0,
+        `${league.id} needs an identifier for provider "${league.provider}"`,
+      );
       assert.ok(league.label.length > 0);
       assert.ok(league.shortLabel.length > 0);
       // The schedule row badge is a 32px circle at 9px text; anything longer
