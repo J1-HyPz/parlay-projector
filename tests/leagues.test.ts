@@ -64,7 +64,8 @@ describe('league catalogue', () => {
 
   it('groups leagues usefully', () => {
     assert.equal(leaguesInGroup('basketball').length, 4);
-    assert.equal(leaguesInGroup('american-football').length, 2);
+    // NFL, NCAA Football, CFL and the two European competitions.
+    assert.equal(leaguesInGroup('american-football').length, 5);
     assert.equal(leaguesInGroup('baseball').length, 1);
     assert.equal(leaguesInGroup('hockey').length, 1);
     assert.equal(leaguesInGroup('football').length, 9);
