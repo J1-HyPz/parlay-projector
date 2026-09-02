@@ -1,15 +1,22 @@
 /**
- * Prediction persistence and settlement.
+ * Prediction persistence, lifecycle and settlement.
  *
- * Stored as JSON under DATA_DIR, alongside the existing prediction history and
- * the notification state — the same pattern, and the same reason: DATA_DIR is
- * the mounted TrueNAS dataset, and a container filesystem is disposable.
- * Prediction history is the one thing in this application that must survive a
- * redeploy, because it is the only evidence the model works.
+ * Stored as JSON under DATA_DIR — the mounted TrueNAS dataset — alongside the
+ * notification state. Prediction history is the one thing in this application
+ * that must survive a redeploy, because it is the only evidence the model
+ * works.
  *
- * No database server is introduced. A file behind a small interface is enough
- * for one household's prediction history, and moving to Postgres later means
- * adding an implementation rather than rewriting the callers.
+ * No database server is introduced, deliberately. One household's history is a
+ * few thousand records; whole-file reads with cached aggregates are faster than
+ * a query planner would be at this size, and the project cannot add native
+ * dependencies. If this ever outgrows a file, the interface here is what a
+ * SQLite or Postgres implementation would satisfy — callers would not change.
+ *
+ * The rule that matters most: **nothing already settled is ever silently
+ * rewritten.** The probability, the settlement rule and the projected scoreline
+ * are frozen when a prediction is published. A result can change only inside
+ * the finalisation window, only because the provider corrected the score, and
+ * only with an audit entry recording what changed and why.
  */
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -17,60 +24,96 @@ import path from 'node:path';
 import { DATA_DIR } from '../config';
 import { logger } from '../logger';
 import { PREDICTIONS_FILENAME, awaitingSettlement, parsePredictions } from './store-parse';
+import { parseParlays, PARLAYS_FILENAME } from './parlay-parse';
 import { describeResult, settle } from './settlement';
 import type { FinalScore } from './settlement';
+import {
+  actualOutcome,
+  applyParlayStatus,
+  isAbandoned,
+  isTerminal,
+  markFinalPreGame,
+  nextAttemptAt,
+  settlementQueue,
+  queuedGameIds,
+} from './tracking';
 import { MODEL_VERSION } from './types';
-import type { PredictionRecordV2, RiskLevel, Selection } from './types';
+import type {
+  ParlayRecord,
+  PredictionRecordV2,
+  PredictionStatus,
+  RiskLevel,
+  Selection,
+} from './types';
 
-export { PREDICTIONS_FILENAME, parsePredictions };
+export { PREDICTIONS_FILENAME, parsePredictions, awaitingSettlement };
 
 export function predictionsPath(): string {
   return path.join(DATA_DIR, PREDICTIONS_FILENAME);
 }
 
-/** Empty on any failure: no history is a truthful answer, a crash is not. */
-export async function readPredictions(): Promise<PredictionRecordV2[]> {
+export function parlaysPath(): string {
+  return path.join(DATA_DIR, PARLAYS_FILENAME);
+}
+
+// ---------------------------------------------------------------------------
+// Reading and writing
+// ---------------------------------------------------------------------------
+
+async function readJson<T>(file: string, parse: (raw: unknown) => T, empty: T): Promise<T> {
   try {
-    return parsePredictions(JSON.parse(await readFile(predictionsPath(), 'utf-8')));
+    return parse(JSON.parse(await readFile(file, 'utf-8')));
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
     if (code !== 'ENOENT') {
-      logger.warn('predictions_unreadable', { reason: code ?? 'parse_error' });
+      logger.warn('prediction_store_unreadable', { file: path.basename(file), reason: code ?? 'parse_error' });
     }
-    return [];
+    return empty;
   }
 }
 
+/** Empty on any failure: no history is a truthful answer, a crash is not. */
+export function readPredictions(): Promise<PredictionRecordV2[]> {
+  return readJson(predictionsPath(), parsePredictions, []);
+}
+
+export function readParlays(): Promise<ParlayRecord[]> {
+  return readJson(parlaysPath(), parseParlays, []);
+}
+
 /**
- * Write the store, reporting failure rather than throwing.
+ * Write, reporting failure rather than throwing.
  *
- * Publishing is a *side effect* of generating a line. If DATA_DIR is not
- * writable -- an unmounted volume, or dataset permissions that exclude the
- * container user -- the right outcome is a logged warning and a line the reader
- * still gets, not a 500 that discards a projection the model computed
- * perfectly. The cost is that those predictions are not measured later, which
- * is the lesser loss and is visible in the log.
+ * Publishing is a side effect of generating a line. If DATA_DIR is not writable
+ * the right outcome is a logged warning and a line the reader still gets, not a
+ * 500 that discards a projection the model computed perfectly.
  */
-async function persist(records: readonly PredictionRecordV2[]): Promise<boolean> {
-  const file = predictionsPath();
+async function persist(file: string, body: unknown): Promise<boolean> {
   const temporary = `${file}.tmp`;
 
   try {
     await mkdir(path.dirname(file), { recursive: true });
-    // Temp file then rename: an interrupted write must not truncate the history.
-    await writeFile(temporary, JSON.stringify({ predictions: records }), 'utf-8');
+    // Temp file then rename: an interrupted write must not truncate history.
+    await writeFile(temporary, JSON.stringify(body), 'utf-8');
     await rename(temporary, file);
     return true;
   } catch (error) {
-    logger.warn('predictions_unwritable', {
+    logger.warn('prediction_store_unwritable', {
+      file: path.basename(file),
       reason: (error as NodeJS.ErrnoException)?.code ?? 'unknown',
-      records: records.length,
     });
     return false;
   }
 }
 
-/** Serialises writes; publishing and settling must not clobber each other. */
+/**
+ * Serialises every mutation behind one promise chain.
+ *
+ * The settlement job, a page generating a line, and a manual re-run can all
+ * write at once. Without this, two settlements reading the same file would each
+ * write their own view and the second would discard the first — the failure
+ * mode §77 warns about, solved with an actual queue rather than a flag.
+ */
 let queue: Promise<unknown> = Promise.resolve();
 
 function exclusive<T>(operation: () => Promise<T>): Promise<T> {
@@ -79,30 +122,52 @@ function exclusive<T>(operation: () => Promise<T>): Promise<T> {
   return run;
 }
 
+// ---------------------------------------------------------------------------
+// Publishing
+// ---------------------------------------------------------------------------
+
+/** Deterministic id for a generated line, so republishing cannot duplicate it. */
+export function parlayIdFor(legs: readonly Selection[], risk: RiskLevel): string {
+  return `${risk}:${legs.map((leg) => leg.id).join('|')}`;
+}
+
+export interface PublishResult {
+  created: number;
+  parlay_id: string | null;
+  stored: boolean;
+}
+
 /**
- * Publish selections so they can be measured later.
+ * Publish a generated line so it can be measured.
  *
- * The probability and the settlement rule are frozen here. Nothing recomputes
- * them afterwards — that is what makes the accuracy figures honest rather than
- * a model grading its own homework with hindsight.
+ * Everything needed to judge the prediction later is frozen here: the
+ * probability, the settlement rule, and the projected scoreline. Nothing
+ * recomputes them afterwards — that is what makes the accuracy figures honest
+ * rather than a model marking its own homework with hindsight.
  *
- * Idempotent per selection: regenerating a line does not double-count a
- * selection that was already published.
+ * Idempotent at both levels. A selection already published is not duplicated,
+ * and a line whose legs are unchanged keeps its original id, so pressing
+ * Regenerate and landing on the same combination does not inflate the sample.
  */
 export function publishPredictions(
   selections: readonly Selection[],
   risk: RiskLevel | null,
-): Promise<number> {
+): Promise<PublishResult> {
   return exclusive(async () => {
+    if (selections.length === 0) return { created: 0, parlay_id: null, stored: false };
+
     const existing = await readPredictions();
-    const known = new Set(existing.map((record) => record.id));
+    const known = new Map(existing.map((record) => [record.id, record]));
+
+    const parlayId = risk ? parlayIdFor(selections, risk) : null;
+    const now = new Date().toISOString();
 
     const created: PredictionRecordV2[] = [];
-    const now = new Date().toISOString();
 
     for (const selection of selections) {
       if (known.has(selection.id)) continue;
-      known.add(selection.id);
+
+      const projection = selection.projection;
 
       created.push({
         id: selection.id,
@@ -122,63 +187,299 @@ export function publishPredictions(
         status: 'pending',
         result: null,
         settled_at: null,
+        // Decided by the tracker from the timestamps once the game starts,
+        // never asserted at publication.
+        final_pre_game: false,
+        parlay_id: parlayId,
+        projected: {
+          home_score: projection.expected_home_score,
+          away_score: projection.expected_away_score,
+          margin: projection.expected_margin,
+          total: projection.expected_total,
+        },
+        actual: null,
+        attempts: 0,
+        next_attempt_at: null,
+        audit: [],
       });
     }
 
-    if (created.length === 0) return 0;
+    let stored = true;
+    if (created.length > 0) {
+      stored = await persist(predictionsPath(), { predictions: [...existing, ...created] });
+      if (stored) {
+        logger.info('predictions_published', { created: created.length, risk, parlay: parlayId });
+      }
+    }
 
-    const written = await persist([...existing, ...created]);
-    if (!written) return 0;
+    // The line itself, so the optimiser can be measured as well as the model.
+    if (parlayId && risk) {
+      const parlays = await readParlays();
+      if (!parlays.some((parlay) => parlay.id === parlayId)) {
+        const starts = selections
+          .map((selection) => selection.start_time)
+          .filter((start): start is string => start !== null)
+          .sort();
 
-    logger.info('predictions_published', { created: created.length, risk });
-    return created.length;
+        const record: ParlayRecord = {
+          id: parlayId,
+          risk,
+          leg_ids: selections.map((selection) => selection.id),
+          combined_probability: Number(
+            selections.reduce((product, leg) => product * leg.probability, 1).toFixed(4),
+          ),
+          average_confidence: Number(
+            (selections.reduce((sum, l) => sum + l.confidence, 0) / selections.length).toFixed(3),
+          ),
+          average_data_quality: Number(
+            (selections.reduce((sum, l) => sum + l.data_quality, 0) / selections.length).toFixed(3),
+          ),
+          model_version: MODEL_VERSION,
+          created_at: now,
+          first_start: starts[0] ?? null,
+          status: 'pending',
+          settled_at: null,
+        };
+
+        await persist(parlaysPath(), { parlays: [...parlays, record] });
+        logger.info('parlay_published', { parlay: parlayId, risk, legs: record.leg_ids.length });
+      }
+    }
+
+    return { created: created.length, parlay_id: parlayId, stored };
   });
 }
 
-/** A completed game, keyed by game id, as supplied by the settlement job. */
-export type FinalScores = ReadonlyMap<string, FinalScore>;
+// ---------------------------------------------------------------------------
+// Settlement
+// ---------------------------------------------------------------------------
+
+/** State of one game, as the settlement job observed it. */
+export interface GameState {
+  status: 'scheduled' | 'live' | 'finished' | 'cancelled' | 'postponed';
+  home: number | null;
+  away: number | null;
+}
+
+export type GameStates = ReadonlyMap<string, GameState>;
+
+export interface SettlementSummary {
+  /** Predictions that reached a terminal status this run. */
+  settled: number;
+  /** Predictions moved from pending to live. */
+  live: number;
+  /** Finished games whose result has not arrived; scheduled for retry. */
+  unsettled: number;
+  /** Past the finalisation window with no result. */
+  abandoned: number;
+  /** Already-settled results a provider correction changed. */
+  corrected: number;
+  parlays: number;
+}
+
+const EMPTY: SettlementSummary = {
+  settled: 0,
+  live: 0,
+  unsettled: 0,
+  abandoned: 0,
+  corrected: 0,
+  parlays: 0,
+};
 
 /**
- * Settle everything whose game has finished.
+ * Move every open prediction as far as the evidence allows.
  *
- * Compares the stored rule against the final score. Nothing is re-derived: the
- * line the model published is the line it is judged against.
+ * Idempotent: running it twice with the same game states produces the same
+ * result and writes nothing the second time. Background jobs retry, and a
+ * duplicate settlement would corrupt every metric downstream.
  */
-export function settlePredictions(finals: FinalScores): Promise<number> {
+export function settlePredictions(states: GameStates): Promise<SettlementSummary> {
   return exclusive(async () => {
     const records = await readPredictions();
-    const pending = awaitingSettlement(records, Date.now());
-    if (pending.length === 0) return 0;
+    if (records.length === 0) return EMPTY;
 
-    const settledAt = new Date().toISOString();
-    let changed = 0;
+    const now = Date.now();
+    const timestamp = new Date(now).toISOString();
+    const summary = { ...EMPTY };
 
-    const updated = records.map((record) => {
-      if (record.status !== 'pending') return record;
-      const final = finals.get(record.game_id);
-      if (!final) return record;
+    // Decide the official pre-game prediction for anything that has started.
+    // Done from the stored timestamps alone, so a result can never influence it.
+    const withFinals = markFinalPreGame(records);
 
-      changed += 1;
+    const updated = withFinals.map((record) => {
+      const state = states.get(record.game_id);
+
+      // --- already settled: only a provider correction may touch it ---------
+      if (isTerminal(record.status)) {
+        if (!state || state.status !== 'finished') return record;
+        if (typeof state.home !== 'number' || typeof state.away !== 'number') return record;
+
+        const revised = settle(record.settlement, {
+          home: state.home,
+          away: state.away,
+          status: 'finished',
+        });
+        if (revised === record.status) return record;
+
+        summary.corrected += 1;
+        logger.warn('prediction_result_corrected', {
+          prediction: record.id,
+          from: record.status,
+          to: revised,
+        });
+
+        return {
+          ...record,
+          status: revised,
+          result: describeResult({ home: state.home, away: state.away, status: 'finished' }),
+          actual: actualOutcome(state.home, state.away),
+          audit: [
+            ...record.audit,
+            {
+              previous_result: record.status,
+              new_result: revised,
+              reason: 'provider corrected the final score',
+              changed_at: timestamp,
+            },
+          ],
+        };
+      }
+
+      // --- no result yet ----------------------------------------------------
+      if (!state) {
+        if (isAbandoned(record, now)) {
+          summary.abandoned += 1;
+          return {
+            ...record,
+            status: 'void' as PredictionStatus,
+            result: 'No result available',
+            settled_at: timestamp,
+          };
+        }
+        return record;
+      }
+
+      // --- under way --------------------------------------------------------
+      if (state.status === 'live') {
+        if (record.status === 'live') return record;
+        summary.live += 1;
+        return { ...record, status: 'live' as PredictionStatus };
+      }
+
+      // --- never played -----------------------------------------------------
+      if (state.status === 'cancelled' || state.status === 'postponed') {
+        summary.settled += 1;
+        return {
+          ...record,
+          status: 'void' as PredictionStatus,
+          result: describeResult({ home: 0, away: 0, status: state.status }),
+          settled_at: timestamp,
+        };
+      }
+
+      if (state.status !== 'finished') return record;
+
+      // --- finished, but the score has not arrived --------------------------
+      if (typeof state.home !== 'number' || typeof state.away !== 'number') {
+        if (isAbandoned(record, now)) {
+          summary.abandoned += 1;
+          return {
+            ...record,
+            status: 'void' as PredictionStatus,
+            result: 'Final score never published',
+            settled_at: timestamp,
+          };
+        }
+
+        const attempts = record.attempts + 1;
+        summary.unsettled += 1;
+        return {
+          ...record,
+          status: 'unsettled' as PredictionStatus,
+          attempts,
+          next_attempt_at: nextAttemptAt(attempts, now),
+        };
+      }
+
+      // --- finished with a score -------------------------------------------
+      const final: FinalScore = { home: state.home, away: state.away, status: 'finished' };
+      const outcome = settle(record.settlement, final);
+
+      summary.settled += 1;
+      logger.info('prediction_settled', {
+        prediction: record.id,
+        game: record.game_id,
+        selection: record.selection,
+        result: outcome,
+        probability: record.model_probability,
+      });
+
       return {
         ...record,
-        status: settle(record.settlement, final),
+        status: outcome,
         result: describeResult(final),
-        settled_at: settledAt,
+        actual: actualOutcome(state.home, state.away),
+        settled_at: timestamp,
+        next_attempt_at: null,
       };
     });
 
-    if (changed === 0) return 0;
+    // Nothing moved: write nothing. This is what makes a repeat run a no-op.
+    const changed = updated.some((record, index) => record !== withFinals[index]);
+    const finalsChanged = withFinals.some((record, index) => record !== records[index]);
+    if (!changed && !finalsChanged) return EMPTY;
 
-    const written = await persist(updated);
-    if (!written) return 0;
+    await persist(predictionsPath(), { predictions: updated });
 
-    logger.info('predictions_settled', { settled: changed });
-    return changed;
+    summary.parlays = await refreshParlays(updated, timestamp);
+    return summary;
   });
 }
 
-/** Game ids still waiting on a result, so the job knows what to look up. */
-export async function pendingGameIds(): Promise<string[]> {
+/** Fold leg outcomes into their generated lines. */
+async function refreshParlays(
+  records: readonly PredictionRecordV2[],
+  timestamp: string,
+): Promise<number> {
+  const parlays = await readParlays();
+  if (parlays.length === 0) return 0;
+
+  const byId = new Map(records.map((record) => [record.id, record]));
+
+  let changed = 0;
+  const updated = parlays.map((parlay) => {
+    const legs = parlay.leg_ids
+      .map((id) => byId.get(id))
+      .filter((leg): leg is PredictionRecordV2 => leg !== undefined);
+
+    const next = applyParlayStatus(parlay, legs, timestamp);
+    if (next !== parlay) {
+      changed += 1;
+      logger.info('parlay_status_changed', {
+        parlay: parlay.id,
+        from: parlay.status,
+        to: next.status,
+      });
+    }
+    return next;
+  });
+
+  if (changed > 0) await persist(parlaysPath(), { parlays: updated });
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
+// Queue
+// ---------------------------------------------------------------------------
+
+/**
+ * Games the settlement job needs states for.
+ *
+ * Only fixtures that have started, are due a retry, or are inside the
+ * correction window. Rescanning every prediction ever made would grow without
+ * bound and achieve nothing.
+ */
+export async function settlementTargets(): Promise<string[]> {
   const records = await readPredictions();
-  return [...new Set(awaitingSettlement(records, Date.now()).map((r) => r.game_id))];
+  return queuedGameIds(settlementQueue(records, Date.now()));
 }

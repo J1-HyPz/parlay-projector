@@ -19,6 +19,8 @@ import type { Parlay, RiskLevel, Selection } from '@/lib/projections/types';
 import { qualityLabel } from '@/lib/projections/types';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { formatDayTab } from '@/lib/schedule/filters';
+import { LegOutcomeLine, LegStatusBadge } from './leg-status';
+import type { LegOutcome, LegStatus } from './leg-status';
 
 const RISKS: { id: RiskLevel; label: string; note: string }[] = [
   { id: 'low', label: 'Low', note: 'Highest probability, lowest variance' },
@@ -43,8 +45,17 @@ interface DayAvailability {
   buildable: boolean;
 }
 
+/** The tracker's live view of one leg, keyed by prediction id. */
+interface LegTracking {
+  status: LegStatus;
+  result: string | null;
+  actual: { home_score: number; away_score: number } | null;
+  final_pre_game: boolean;
+}
+
 interface ParlayResponse {
   parlay: Parlay | null;
+  tracking?: Record<string, LegTracking>;
   error?: string;
   eligible?: number;
   games_available?: number;
@@ -77,7 +88,15 @@ function kickoff(startTime: string | null): string {
 }
 
 /** One leg: what is projected, how likely, the score behind it, and why. */
-function Leg({ selection, index }: { selection: Selection; index: number }) {
+function Leg({
+  selection,
+  index,
+  tracked,
+}: {
+  selection: Selection;
+  index: number;
+  tracked?: LegTracking;
+}) {
   const { projection } = selection;
   const supporting = selection.factors.filter((f) => f.direction === 'positive').slice(0, 3);
   const risks = selection.factors.filter((f) => f.direction === 'negative').slice(0, 2);
@@ -93,6 +112,11 @@ function Leg({ selection, index }: { selection: Selection; index: number }) {
         </span>
         <span className="text-white/20">·</span>
         <span className="truncate text-white/40">{kickoff(selection.start_time)}</span>
+        {tracked && (
+          <span className="ml-auto">
+            <LegStatusBadge status={tracked.status} />
+          </span>
+        )}
       </div>
 
       <a
@@ -109,7 +133,9 @@ function Leg({ selection, index }: { selection: Selection; index: number }) {
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-wider text-white/28">
-            Estimated probability
+            {tracked && tracked.status !== 'pending'
+              ? 'Pre-game probability'
+              : 'Estimated probability'}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-violet-300">
             {percent(selection.probability)}
@@ -133,6 +159,22 @@ function Leg({ selection, index }: { selection: Selection; index: number }) {
           <dd className="mt-0.5 text-white/60">{qualityLabel(selection.data_quality)}</dd>
         </div>
       </dl>
+
+      {tracked && (
+        <LegOutcomeLine
+          outcome={
+            {
+              status: tracked.status,
+              result: tracked.result,
+              actual: tracked.actual,
+              projected: {
+                home_score: projection.expected_home_score,
+                away_score: projection.expected_away_score,
+              },
+            } satisfies LegOutcome
+          }
+        />
+      )}
 
       {supporting.length > 0 && (
         <div className="mt-3 border-t border-white/7 pt-3">
@@ -418,7 +460,12 @@ export function ParlayView() {
 
           {state === 'ready' &&
             parlay?.legs.map((selection, index) => (
-              <Leg key={selection.id} selection={selection} index={index} />
+              <Leg
+                key={selection.id}
+                selection={selection}
+                index={index}
+                tracked={data?.tracking?.[selection.id]}
+              />
             ))}
         </section>
 

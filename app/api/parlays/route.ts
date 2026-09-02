@@ -21,16 +21,26 @@
 
 import { json, parseSport } from '@/lib/home/api';
 import { logger } from '@/lib/logger';
+import { invalidateAccuracy } from '@/lib/projections/accuracy';
 import { APP_TIMEZONE } from '@/lib/config';
 import { scheduleRange } from '@/lib/schedule/range';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { availableDays, optimise, selectionsOnDate } from '@/lib/projections/optimiser';
 import { buildCandidates } from '@/lib/projections/service';
-import { publishPredictions } from '@/lib/projections/store';
+import { publishPredictions, readPredictions } from '@/lib/projections/store';
+import type { ActualOutcome, PredictionStatus } from '@/lib/projections/types';
 import { MODEL_VERSION } from '@/lib/projections/types';
 import type { RiskLevel } from '@/lib/projections/types';
 
 export const dynamic = 'force-dynamic';
+
+/** The tracker's live view of one leg. */
+interface LegTracking {
+  status: PredictionStatus;
+  result: string | null;
+  actual: ActualOutcome | null;
+  final_pre_game: boolean;
+}
 
 const RISKS: readonly RiskLevel[] = ['low', 'medium', 'high'];
 
@@ -94,14 +104,43 @@ export async function GET(request: Request): Promise<Response> {
    * against the real result. Idempotent, so pressing Regenerate does not
    * inflate the sample.
    */
+  let tracking: Record<string, LegTracking> = {};
+
   try {
-    await publishPredictions(result.parlay.legs, risk);
+    const published = await publishPredictions(result.parlay.legs, risk);
+    if (published.created > 0) {
+      // A newly published line changes what the accuracy figures are measuring.
+      invalidateAccuracy();
+    }
+
+    /*
+     * The tracker's view of each leg, so the line shows what is actually
+     * happening to it: pending, live, won, lost.
+     *
+     * Status only. The probability on the leg is what the model said before
+     * kick-off and is never recomputed — a prediction that looks good at
+     * half-time was not a better prediction when it was made.
+     */
+    const records = await readPredictions();
+    const byId = new Map(records.map((record) => [record.id, record]));
+
+    for (const leg of result.parlay.legs) {
+      const record = byId.get(leg.id);
+      if (!record) continue;
+      tracking[leg.id] = {
+        status: record.status,
+        result: record.result,
+        actual: record.actual,
+        final_pre_game: record.final_pre_game,
+      };
+    }
   } catch (error) {
     // Belt and braces: the store already swallows a write failure, but nothing
     // about recording a prediction should be able to withhold the line itself.
     logger.warn('parlay_publish_failed', {
       reason: error instanceof Error ? error.message : 'unknown',
     });
+    tracking = {};
   }
 
   return json({
@@ -111,6 +150,7 @@ export async function GET(request: Request): Promise<Response> {
     dates: window.dates,
     days,
     parlay: result.parlay,
+    tracking,
     eligible: result.eligibleCount,
     games_available: result.gamesAvailable,
     ...(failedLeagues.length > 0 ? { partial_failures: failedLeagues.length } : {}),

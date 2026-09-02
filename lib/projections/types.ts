@@ -189,11 +189,113 @@ export interface Parlay {
 
 export type ParlayErrorCode = 'insufficient_candidates' | 'projection_unavailable';
 
+/**
+ * Overall state of a generated line.
+ *
+ * Deliberately separate from individual prediction accuracy: a three-leg line
+ * losing one leg is a lost line but two correct predictions, and conflating
+ * the two would understate the model badly.
+ */
+export type ParlayStatus = 'pending' | 'live' | 'won' | 'lost' | 'void';
+
+/**
+ * A generated line, kept so the optimiser can be measured as well as the model.
+ *
+ * Stores the combined probability it claimed, so that estimate can be checked
+ * against how often lines of that strength actually came in.
+ */
+export interface ParlayRecord {
+  id: string;
+  risk: RiskLevel;
+  /** Prediction ids of the legs, in the order they were presented. */
+  leg_ids: string[];
+  combined_probability: number;
+  average_confidence: number;
+  average_data_quality: number;
+  model_version: string;
+  created_at: string;
+  /** Earliest kick-off across the legs, for the settlement queue. */
+  first_start: string | null;
+  status: ParlayStatus;
+  settled_at: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Stored predictions
 // ---------------------------------------------------------------------------
 
-export type PredictionStatus = 'pending' | 'won' | 'lost' | 'void';
+/**
+ * Lifecycle of a published prediction.
+ *
+ *   pending    the game has not started
+ *   live       the game is under way; the outcome is not known yet
+ *   won        the prediction came in
+ *   lost       it did not
+ *   push       the result landed exactly on the line, so neither side won
+ *   void       it cannot fairly be judged (never played, player did not feature)
+ *   unsettled  the game finished but the statistic needed has not arrived
+ *
+ * `live` and `unsettled` are working states: a prediction in either is still
+ * being tracked and will move on. Only `won` and `lost` count toward accuracy.
+ */
+export type PredictionStatus =
+  | 'pending'
+  | 'live'
+  | 'won'
+  | 'lost'
+  | 'push'
+  | 'void'
+  | 'unsettled';
+
+/** Statuses that contribute to the headline accuracy figure. */
+export const COUNTED_STATUSES: readonly PredictionStatus[] = ['won', 'lost'];
+
+/** Statuses meaning nothing more will happen. */
+export const TERMINAL_STATUSES: readonly PredictionStatus[] = [
+  'won',
+  'lost',
+  'push',
+  'void',
+];
+
+/** Statuses the settlement queue still has work to do on. */
+export const OPEN_STATUSES: readonly PredictionStatus[] = ['pending', 'live', 'unsettled'];
+
+/**
+ * The scoreline the model projected, frozen with the prediction.
+ *
+ * Kept so score accuracy can be measured against what was actually published,
+ * rather than against a projection regenerated later from better information.
+ */
+export interface ProjectedOutcome {
+  home_score: number;
+  away_score: number;
+  margin: number;
+  total: number;
+}
+
+/** What actually happened, recorded at settlement. */
+export interface ActualOutcome {
+  home_score: number;
+  away_score: number;
+  margin: number;
+  total: number;
+}
+
+/**
+ * One change to a settled result.
+ *
+ * Providers do correct final statistics. When a correction changes a
+ * settlement inside the finalisation window the result is updated and the
+ * change is recorded here — the figures stay accurate without history quietly
+ * rewriting itself.
+ */
+export interface SettlementAudit {
+  previous_result: PredictionStatus;
+  new_result: PredictionStatus;
+  reason: string;
+  changed_at: string;
+}
 
 /**
  * A published selection, kept so the model can be measured.
@@ -221,4 +323,31 @@ export interface PredictionRecordV2 {
   /** What actually happened, in words, once known. */
   result: string | null;
   settled_at: string | null;
+
+  /**
+   * The last projection published for this fixture before kick-off.
+   *
+   * Headline accuracy counts only these. A fixture may be projected several
+   * times as its kick-off approaches, and counting every version would weight
+   * heavily-refreshed games more than quiet ones.
+   *
+   * Decided once, when the game starts, and never revisited.
+   */
+  final_pre_game: boolean;
+
+  /** The generated line this was published as part of, if any. */
+  parlay_id: string | null;
+
+  /** The scoreline the model projected. Frozen with the prediction. */
+  projected: ProjectedOutcome | null;
+  /** The real scoreline. Null until the game finishes. */
+  actual: ActualOutcome | null;
+
+  /** Settlement attempts so far, for the retry backoff. */
+  attempts: number;
+  /** Earliest instant the next settlement attempt should run. */
+  next_attempt_at: string | null;
+
+  /** Corrections to an already-settled result. Empty in the normal case. */
+  audit: SettlementAudit[];
 }

@@ -11,6 +11,7 @@ import type {
   PredictionRecordV2,
   PredictionStatus,
   SelectionType,
+  SettlementAudit,
   SettlementRule,
 } from './types.ts';
 
@@ -19,7 +20,15 @@ export const PREDICTIONS_FILENAME = 'predictions-v2.json';
 /** A season of published predictions across every league sits far below this. */
 export const MAX_RECORDS = 20_000;
 
-const STATUSES: readonly PredictionStatus[] = ['pending', 'won', 'lost', 'void'];
+const STATUSES: readonly PredictionStatus[] = [
+  'pending',
+  'live',
+  'won',
+  'lost',
+  'push',
+  'void',
+  'unsettled',
+];
 
 const SELECTION_TYPES: readonly SelectionType[] = [
   'winner',
@@ -98,6 +107,68 @@ export function isPredictionRecordV2(value: unknown): value is PredictionRecordV
   );
 }
 
+/** A stored scoreline: all four fields present and finite, or nothing. */
+function outcome(value: unknown): { home_score: number; away_score: number; margin: number; total: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+
+  const numbers = ['home_score', 'away_score', 'margin', 'total'].map((key) => raw[key]);
+  if (!numbers.every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
+    return null;
+  }
+
+  const [home_score, away_score, margin, total] = numbers as number[];
+  return { home_score, away_score, margin, total };
+}
+
+function auditTrail(value: unknown): SettlementAudit[] {
+  if (!Array.isArray(value)) return [];
+
+  const entries: SettlementAudit[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const entry = item as Record<string, unknown>;
+    if (
+      (STATUSES as readonly string[]).includes(entry.previous_result as string) &&
+      (STATUSES as readonly string[]).includes(entry.new_result as string) &&
+      typeof entry.changed_at === 'string'
+    ) {
+      entries.push({
+        previous_result: entry.previous_result as PredictionStatus,
+        new_result: entry.new_result as PredictionStatus,
+        reason: typeof entry.reason === 'string' ? entry.reason : 'unknown',
+        changed_at: entry.changed_at,
+      });
+    }
+  }
+  return entries;
+}
+
+/**
+ * Fill in fields a record written by an earlier version does not have.
+ *
+ * Defaults are deliberately conservative. `final_pre_game` starts false and is
+ * decided by the tracker from the record's own timestamps, never assumed — a
+ * record that cannot prove it was published before kick-off must not be counted
+ * in the headline figure.
+ */
+function withDefaults(record: Record<string, unknown>): PredictionRecordV2 {
+  return {
+    ...(record as unknown as PredictionRecordV2),
+    final_pre_game: record.final_pre_game === true,
+    parlay_id: typeof record.parlay_id === 'string' ? record.parlay_id : null,
+    projected: outcome(record.projected),
+    actual: outcome(record.actual),
+    attempts:
+      typeof record.attempts === 'number' && Number.isFinite(record.attempts)
+        ? Math.max(0, Math.floor(record.attempts))
+        : 0,
+    next_attempt_at:
+      typeof record.next_attempt_at === 'string' ? record.next_attempt_at : null,
+    audit: auditTrail(record.audit),
+  };
+}
+
 /** Accepts a bare array or `{ "predictions": [...] }`, matching the older store. */
 export function parsePredictions(raw: unknown): PredictionRecordV2[] {
   const list = Array.isArray(raw)
@@ -115,7 +186,7 @@ export function parsePredictions(raw: unknown): PredictionRecordV2[] {
     // A duplicate id would be counted twice in every metric.
     if (seen.has(item.id)) continue;
     seen.add(item.id);
-    records.push(item);
+    records.push(withDefaults(item as unknown as Record<string, unknown>));
   }
 
   return records;
@@ -124,15 +195,17 @@ export function parsePredictions(raw: unknown): PredictionRecordV2[] {
 /**
  * Predictions still waiting on a result.
  *
- * Only those whose game has already kicked off are worth trying to settle;
- * asking the provider about tonight's fixture achieves nothing.
+ * Kept for the diagnostics count. The settlement queue itself lives in
+ * tracking.ts, which also applies the retry backoff and the correction window.
  */
 export function awaitingSettlement(
   records: readonly PredictionRecordV2[],
   now: number,
 ): PredictionRecordV2[] {
   return records.filter((record) => {
-    if (record.status !== 'pending') return false;
+    if (record.status !== 'pending' && record.status !== 'live' && record.status !== 'unsettled') {
+      return false;
+    }
     if (!record.game_start) return true;
     const start = Date.parse(record.game_start);
     return !Number.isFinite(start) || start < now;

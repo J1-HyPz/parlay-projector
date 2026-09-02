@@ -13,16 +13,17 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
   const { startNotifier } = await import('./lib/notify/service');
-  const notifying = startNotifier();
+  startNotifier();
 
   /*
-   * Settlement runs regardless of Discord.
+   * The prediction tracker always runs.
    *
-   * The notifier's timer already drives it when a webhook is configured. When
-   * one is not, predictions would otherwise sit pending forever and the
-   * accuracy figures would never move, so it gets its own timer.
+   * It moves predictions from pending to live to settled, and it is what keeps
+   * the accuracy figures moving, so it must not depend on Discord being
+   * configured. It also runs once on start-up: after a restart there may be
+   * games that finished while the container was down.
    */
-  if (!notifying) {
+  if (process.env.PREDICTION_TRACKING_ENABLED !== 'false') {
     const { startSettlement } = await import('./lib/projections/settle-job');
     startSettlement();
   }
