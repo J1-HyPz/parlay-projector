@@ -19,6 +19,7 @@
  */
 
 import { clamp } from './math.ts';
+import { gameDate } from '../schedule/range.ts';
 import { MIN_LEGS, MAX_LEGS, RISK_PROFILES } from './config.ts';
 import type { RiskProfile } from './config.ts';
 import { MODEL_VERSION } from './types.ts';
@@ -158,4 +159,71 @@ export function optimise(
     eligibleCount: qualified.length,
     gamesAvailable: perGame.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Days
+// ---------------------------------------------------------------------------
+
+/**
+ * Candidates kicking off on one calendar day.
+ *
+ * The day is the one the fixture falls on in the application's timezone, the
+ * same rule Schedule uses — so a 23:00 UTC kick-off is tomorrow in British
+ * summer time on both pages rather than only on one.
+ */
+export function selectionsOnDate(
+  selections: readonly Selection[],
+  date: string,
+  timezone: string,
+): Selection[] {
+  return selections.filter(
+    (selection) => gameDate(selection.start_time, timezone) === date,
+  );
+}
+
+export interface DayAvailability {
+  date: string;
+  /** Fixtures with at least one candidate of any strength. */
+  games: number;
+  /** Fixtures with a candidate this risk profile would actually accept. */
+  eligible: number;
+  /** Whether a line can be built at all: two qualifying fixtures minimum. */
+  buildable: boolean;
+}
+
+/**
+ * What each day in the window can support, at the current risk level.
+ *
+ * Computed for every day rather than only the selected one, so the selector can
+ * show counts and grey out days that cannot produce a line — better than
+ * letting someone pick a day and be told afterwards that nothing qualified.
+ *
+ * `eligible` counts *fixtures*, not selections: the optimiser takes at most one
+ * leg per game, so five candidates across one fixture is still one leg.
+ */
+export function availableDays(
+  selections: readonly Selection[],
+  dates: readonly string[],
+  risk: RiskLevel,
+  timezone: string,
+): DayAvailability[] {
+  const profile = RISK_PROFILES[risk];
+  const qualified = eligible(selections, profile);
+
+  return dates.map((date) => {
+    const onDay = new Set(
+      selectionsOnDate(selections, date, timezone).map((s) => s.correlation_group),
+    );
+    const qualifiedOnDay = new Set(
+      selectionsOnDate(qualified, date, timezone).map((s) => s.correlation_group),
+    );
+
+    return {
+      date,
+      games: onDay.size,
+      eligible: qualifiedOnDay.size,
+      buildable: qualifiedOnDay.size >= MIN_LEGS,
+    };
+  });
 }

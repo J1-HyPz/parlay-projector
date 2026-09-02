@@ -117,6 +117,45 @@ def check_parlays(sport="all"):
         )
 
 
+def check_days():
+    """The day selector must agree with what a day can actually build."""
+    body = get("/api/parlays?risk=low&legs=3")
+    days = body.get("days") or []
+    assert days, "no day availability reported"
+
+    print(f"  {len(days)} days in the window")
+    for entry in days:
+        assert entry["eligible"] <= entry["games"], (
+            f"{entry['date']}: more eligible than games"
+        )
+        assert entry["buildable"] == (entry["eligible"] >= 2), (
+            f"{entry['date']}: buildable disagrees with the eligible count"
+        )
+
+    buildable = [entry for entry in days if entry["buildable"]]
+    print(
+        "  buildable: "
+        + (", ".join(f"{e['date']}({e['eligible']})" for e in buildable) or "none")
+    )
+
+    # Picking a day must return only that day's fixtures.
+    for entry in buildable[:2]:
+        picked = get(f"/api/parlays?risk=low&legs=3&date={entry['date']}")
+        parlay = picked.get("parlay")
+        assert picked.get("date") == entry["date"], "the API ignored the requested day"
+        if not parlay:
+            print(f"  {entry['date']}: no line despite being marked buildable")
+            continue
+        for leg in parlay["legs"]:
+            assert leg["start_time"], "a leg with no kick-off time"
+        print(f"  {entry['date']}: {len(parlay['legs'])} legs, all on that day")
+
+    # A day outside the window falls back to every day rather than erroring.
+    fallback = get("/api/parlays?risk=low&legs=3&date=1999-01-01")
+    assert fallback.get("date") is None, "an out-of-window date should be ignored"
+    print("  out-of-window date ignored, not rejected")
+
+
 def main():
     print("--- projections ---")
     check_projections()
@@ -128,6 +167,9 @@ def main():
     # in production while "all" passed here.
     for sport in ("football", "nfl", "nba", "mlb", "nhl"):
         check_parlays(sport)
+
+    print("--- day selector ---")
+    check_days()
     print("projection engine verified against live data")
 
 

@@ -18,6 +18,7 @@ import { Info, Layers3, RefreshCw, Shield, Sparkles, Target } from 'lucide-react
 import type { Parlay, RiskLevel, Selection } from '@/lib/projections/types';
 import { qualityLabel } from '@/lib/projections/types';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
+import { formatDayTab } from '@/lib/schedule/filters';
 
 const RISKS: { id: RiskLevel; label: string; note: string }[] = [
   { id: 'low', label: 'Low', note: 'Highest probability, lowest variance' },
@@ -34,13 +35,29 @@ const SPORTS: { id: string; label: string }[] = [
   { id: 'football', label: 'Football' },
 ];
 
+/** What one day of the window can support, at the current risk level. */
+interface DayAvailability {
+  date: string;
+  games: number;
+  eligible: number;
+  buildable: boolean;
+}
+
 interface ParlayResponse {
   parlay: Parlay | null;
   error?: string;
   eligible?: number;
   games_available?: number;
   model_version?: string;
+  date?: string | null;
+  dates?: string[];
+  days?: DayAvailability[];
 }
+
+const ALL_DAYS = 'all';
+
+/** Keeps the selector's shape while the first response is in flight. */
+const PLACEHOLDER_DAYS = Array.from({ length: 8 }, (_, index) => `placeholder-${index}`);
 
 function percent(value: number, places = 0): string {
   return `${(value * 100).toFixed(places)}%`;
@@ -159,6 +176,7 @@ export function ParlayView() {
   const [sport, setSport] = useState('all');
   const [legs, setLegs] = useState(3);
   const [variant, setVariant] = useState(0);
+  const [day, setDay] = useState<string>(ALL_DAYS);
 
   const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const [data, setData] = useState<ParlayResponse | null>(null);
@@ -174,6 +192,7 @@ export function ParlayView() {
           legs: String(legs),
           variant: String(variant),
         });
+        if (day !== ALL_DAYS) query.set('date', day);
         const response = await fetch(`/api/parlays?${query}`, {
           signal: controller.signal,
           headers: { accept: 'application/json' },
@@ -192,7 +211,7 @@ export function ParlayView() {
 
     void load();
     return () => controller.abort();
-  }, [risk, sport, legs, variant]);
+  }, [risk, sport, legs, variant, day]);
 
   // Regenerate steps the variant only. Probabilities are model output and are
   // never touched — a different combination, not different numbers.
@@ -232,6 +251,89 @@ export function ParlayView() {
             {RISKS.find((option) => option.id === risk)?.note}
           </p>
         </fieldset>
+
+        {/*
+          Day selector, mirroring Schedule's eight-day window.
+
+          The counts come from the model, not the fixture list: a day showing
+          four has four fixtures this risk level would actually accept. A day
+          that cannot produce a line is visibly disabled rather than selectable
+          and then empty.
+        */}
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-white/28">Day</p>
+          <div className="horizontal-cards mt-2 rounded-2xl border border-white/[.085] bg-white/[.02] p-1.5">
+            <button
+              type="button"
+              aria-pressed={day === ALL_DAYS}
+              onClick={() => {
+                setDay(ALL_DAYS);
+                setVariant(0);
+              }}
+              className={`min-h-[54px] min-w-[84px] shrink-0 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                day === ALL_DAYS
+                  ? 'border border-violet-400/35 bg-violet-500/15 text-white'
+                  : 'text-white/42 hover:bg-white/[.035] hover:text-white'
+              }`}
+            >
+              <span className="block text-xs font-semibold uppercase tracking-wide">All</span>
+              <span
+                className={`mt-1 block text-[10px] ${day === ALL_DAYS ? 'text-violet-300' : 'text-white/28'}`}
+              >
+                {data?.days
+                  ? `${data.days.reduce((sum, entry) => sum + entry.eligible, 0)} games`
+                  : '--'}
+              </span>
+            </button>
+
+            {(data?.dates ?? PLACEHOLDER_DAYS).map((date, index) => {
+              const real = Boolean(data?.dates);
+              const availability = data?.days?.find((entry) => entry.date === date);
+              const { weekday, label } = real
+                ? formatDayTab(date)
+                : { weekday: '--', label: '--' };
+              const isActive = real && date === day;
+              // Fewer than two qualifying fixtures cannot make a line, so the
+              // day is shown as information rather than offered as a choice.
+              const disabled = !real || !availability?.buildable;
+
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={isActive}
+                  title={
+                    real && !availability?.buildable
+                      ? 'Not enough qualifying fixtures on this day'
+                      : undefined
+                  }
+                  onClick={() => {
+                    setDay(date);
+                    setVariant(0);
+                  }}
+                  className={`min-h-[54px] min-w-[92px] flex-1 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                    isActive
+                      ? 'border border-violet-400/35 bg-violet-500/15 text-white'
+                      : disabled
+                        ? 'cursor-not-allowed text-white/18'
+                        : 'text-white/42 hover:bg-white/[.035] hover:text-white'
+                  }`}
+                >
+                  <span className="block text-xs font-semibold uppercase tracking-wide">
+                    {index === 0 && real ? 'TODAY' : weekday}
+                  </span>
+                  <span
+                    className={`mt-1 block text-[10px] ${isActive ? 'text-violet-300' : 'text-white/28'}`}
+                  >
+                    {label}
+                    {real && availability ? ` · ${availability.eligible}` : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex flex-wrap gap-3">
           <label className="text-[10px] uppercase tracking-wider text-white/28">
@@ -306,8 +408,10 @@ export function ParlayView() {
               <p className="font-medium text-white/60">No line available</p>
               <p className="mt-1.5 text-[13px] leading-6">
                 {data?.games_available === 0
-                  ? 'No upcoming fixtures currently have enough completed match history to project.'
-                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds, across ${data?.games_available ?? 0} eligible game${data?.games_available === 1 ? '' : 's'}. Nothing is padded to fill the requested number.`}
+                  ? day === ALL_DAYS
+                    ? 'No upcoming fixtures currently have enough completed match history to project.'
+                    : 'No fixture on this day has enough completed match history to project.'
+                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible game${data?.games_available === 1 ? '' : 's'}. Nothing is padded to fill the requested number.`}
               </p>
             </div>
           )}

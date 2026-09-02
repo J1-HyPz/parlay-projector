@@ -20,7 +20,14 @@ import {
 import { buildRatings, dataQuality, estimateConfidence, toResults } from '../lib/projections/features.ts';
 import { expectedScores, outcomeProbabilities, simulate } from '../lib/projections/model.ts';
 import { candidateSelections, projectGame, selectionScore } from '../lib/projections/project.ts';
-import { bestPerGame, combinedProbability, eligible, optimise } from '../lib/projections/optimiser.ts';
+import {
+  availableDays,
+  bestPerGame,
+  combinedProbability,
+  eligible,
+  optimise,
+  selectionsOnDate,
+} from '../lib/projections/optimiser.ts';
 import { calculateMetrics, calibration, settle } from '../lib/projections/settlement.ts';
 import { backtest } from '../lib/projections/backtest.ts';
 import { awaitingSettlement, parsePredictions } from '../lib/projections/store-parse.ts';
@@ -617,6 +624,99 @@ describe('the optimiser', () => {
     assert.ok(parlay);
     assert.ok(parlay.average_confidence > 0 && parlay.average_confidence <= 1);
     assert.ok(parlay.average_data_quality > 0 && parlay.average_data_quality <= 1);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Day selection
+// ---------------------------------------------------------------------------
+
+describe('narrowing candidates to one day', () => {
+  const UTC = 'UTC';
+  const dates = ['2026-09-10', '2026-09-11', '2026-09-12'];
+
+  const pool = [
+    selection('a', 'g1', { probability: 0.82, start_time: '2026-09-10T14:00:00.000Z' }),
+    selection('b', 'g2', { probability: 0.79, start_time: '2026-09-10T19:00:00.000Z' }),
+    selection('c', 'g3', { probability: 0.78, start_time: '2026-09-11T14:00:00.000Z' }),
+    selection('d', 'g4', { probability: 0.55, start_time: '2026-09-11T16:00:00.000Z' }),
+  ];
+
+  it('keeps only fixtures kicking off on that day', () => {
+    assert.deepEqual(
+      selectionsOnDate(pool, '2026-09-10', UTC).map((s) => s.id),
+      ['a', 'b'],
+    );
+    assert.deepEqual(
+      selectionsOnDate(pool, '2026-09-12', UTC).map((s) => s.id),
+      [],
+    );
+  });
+
+  it('uses the application timezone, as Schedule does', () => {
+    // 23:00 UTC is the next day in British summer time, and both pages must
+    // agree on which day a fixture belongs to.
+    const late = [selection('late', 'g9', { start_time: '2026-09-10T23:00:00.000Z' })];
+    assert.equal(selectionsOnDate(late, '2026-09-10', 'Europe/London').length, 0);
+    assert.equal(selectionsOnDate(late, '2026-09-11', 'Europe/London').length, 1);
+  });
+
+  it('ignores a fixture with no kick-off time', () => {
+    const undated = [selection('x', 'g9', { start_time: null })];
+    assert.deepEqual(selectionsOnDate(undated, '2026-09-10', UTC), []);
+  });
+
+  it('counts fixtures per day, not selections', () => {
+    // Two candidates from one game is still one possible leg.
+    const sameGame = [
+      selection('a1', 'g1', { probability: 0.82, start_time: '2026-09-10T14:00:00.000Z' }),
+      selection('a2', 'g1', { probability: 0.8, start_time: '2026-09-10T14:00:00.000Z' }),
+    ];
+    const [first] = availableDays(sameGame, ['2026-09-10'], 'low', UTC);
+    assert.equal(first.games, 1);
+    assert.equal(first.eligible, 1);
+  });
+
+  it('reports which days can actually produce a line', () => {
+    const days = availableDays(pool, dates, 'low', UTC);
+
+    const tenth = days.find((d) => d.date === '2026-09-10')!;
+    assert.equal(tenth.eligible, 2);
+    assert.equal(tenth.buildable, true, 'two qualifying fixtures is a line');
+
+    // The 11th has two fixtures but only one clears the low-risk band.
+    const eleventh = days.find((d) => d.date === '2026-09-11')!;
+    assert.equal(eleventh.games, 2);
+    assert.equal(eleventh.eligible, 1);
+    assert.equal(eleventh.buildable, false, 'one leg is not a parlay');
+
+    const twelfth = days.find((d) => d.date === '2026-09-12')!;
+    assert.equal(twelfth.games, 0);
+    assert.equal(twelfth.buildable, false);
+  });
+
+  it('answers for every requested day, including empty ones', () => {
+    assert.equal(availableDays(pool, dates, 'low', UTC).length, dates.length);
+    assert.equal(availableDays([], dates, 'low', UTC).length, dates.length);
+  });
+
+  it('changes with the risk level', () => {
+    // The 0.55 candidate is below the low band and inside the high one, so the
+    // 11th becomes buildable at higher risk.
+    const low = availableDays(pool, dates, 'low', UTC).find((d) => d.date === '2026-09-11')!;
+    const high = availableDays(pool, dates, 'high', UTC).find((d) => d.date === '2026-09-11')!;
+    assert.equal(low.eligible, 1);
+    assert.ok(high.eligible >= low.eligible);
+  });
+
+  it('builds a line from one day when that day supports it', () => {
+    const onDay = selectionsOnDate(pool, '2026-09-10', UTC);
+    const { parlay } = optimise(onDay, { risk: 'low', legs: 3 });
+    assert.equal(parlay?.legs.length, 2, 'never padded beyond what the day offers');
+    for (const leg of parlay!.legs) {
+      assert.ok(leg.start_time?.startsWith('2026-09-10'));
+    }
   });
 });
 
