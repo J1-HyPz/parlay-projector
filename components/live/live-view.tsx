@@ -12,11 +12,14 @@
 import { Activity, Radio, RefreshCw, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { Game, SportId } from '@/lib/home/types';
+import type { Game } from '@/lib/home/types';
 import type { LiveGame } from '@/lib/live/types';
 import {
   ALL_LEAGUES,
+  ALL_SPORTS,
   SPORT_TABS,
+  chipLabel,
+  chipMatches,
   availableLeagues,
   formatKickoff,
   separatorFor,
@@ -190,7 +193,7 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
 
 export function LiveView() {
   const { state, data, stale, refresh } = useLive();
-  const [sport, setSport] = useState<SportId>('all');
+  const [sport, setSport] = useState<string>(ALL_SPORTS);
   const [league, setLeague] = useState<string>(ALL_LEAGUES);
 
   const games = useMemo(() => data?.games ?? [], [data]);
@@ -198,14 +201,14 @@ export function LiveView() {
 
   // Same helper Schedule uses, so ordering and behaviour match.
   const leagues = useMemo(
-    () => availableLeagues(sport === 'all' ? games : games.filter((g) => g.sport === sport)),
+    () => availableLeagues(sport === 'all' ? games : games.filter((g) => chipMatches(g, sport))),
     [games, sport],
   );
 
   const filtered = useMemo(
     () =>
       games.filter((game) => {
-        if (sport !== 'all' && game.sport !== sport) return false;
+        if (!chipMatches(game, sport)) return false;
         if (league !== ALL_LEAGUES && game.league !== league) return false;
         return true;
       }),
@@ -215,7 +218,7 @@ export function LiveView() {
   const upcoming = useMemo(() => {
     const all = data?.upcoming ?? [];
     return all.filter((game) => {
-      if (sport !== 'all' && game.sport !== sport) return false;
+      if (!chipMatches(game, sport)) return false;
       if (league !== ALL_LEAGUES && game.league !== league) return false;
       return true;
     });
@@ -272,6 +275,7 @@ export function LiveView() {
               key={tab.id}
               type="button"
               aria-pressed={sport === tab.id}
+              aria-label={chipLabel(tab.id)}
               onClick={() => {
                 setSport(tab.id);
                 setLeague(ALL_LEAGUES);
@@ -282,6 +286,11 @@ export function LiveView() {
                   : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
               }`}
             >
+              {tab.emoji && (
+                <span aria-hidden="true" className="mr-1.5">
+                  {tab.emoji}
+                </span>
+              )}
               {tab.label}
             </button>
           ))}
@@ -339,7 +348,7 @@ export function LiveView() {
             <p className="text-xs text-white/45">
               {games.length === 0
                 ? 'No games are live right now.'
-                : `No live ${sport === 'all' ? '' : `${sportLabel(sport)} `}games match this filter.`}
+                : `No live ${sport === ALL_SPORTS ? '' : `${chipLabel(sport)} `}games match this filter.`}
             </p>
             <a href="/schedule" className="text-xs text-violet-300 hover:text-violet-200">
               Check the Schedule for upcoming games

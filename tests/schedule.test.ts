@@ -13,6 +13,7 @@ import {
   ALL_LEAGUES,
   SPORT_TABS,
   applyFilters,
+  chipMatches,
   availableLeagues,
   formatDateHeading,
   formatDayTab,
@@ -210,7 +211,7 @@ const week: Game[] = [
   ...gamesFrom({
     idEvent: 'b',
     strTimestamp: '2026-09-03T19:00:00',
-    strLeague: 'Champions League',
+    strLeague: 'UEFA Champions League',
     strHomeTeam: 'Chelsea',
     strAwayTeam: 'Barcelona',
     strVenue: 'Stamford Bridge',
@@ -234,7 +235,7 @@ const week: Game[] = [
   ),
 ];
 
-const noFilters = { date: null, sport: 'all' as const, league: ALL_LEAGUES, search: '' };
+const noFilters = { date: null, sport: 'all', league: ALL_LEAGUES, search: '' };
 
 describe('schedule filters', () => {
   it('returns everything with no filters applied', () => {
@@ -249,14 +250,16 @@ describe('schedule filters', () => {
     assert.equal(day3[0].id, 'b');
   });
 
-  it('filters by sport', () => {
+  it('filters by chip', () => {
     assert.equal(applyFilters(week, { ...noFilters, sport: 'nfl' }, LONDON).length, 1);
     assert.equal(applyFilters(week, { ...noFilters, sport: 'football' }, LONDON).length, 2);
     assert.equal(applyFilters(week, { ...noFilters, sport: 'nhl' }, LONDON).length, 0);
+    // The NFL fixture must not appear under the college chip.
+    assert.equal(applyFilters(week, { ...noFilters, sport: 'ncaaf' }, LONDON).length, 0);
   });
 
   it('filters by league', () => {
-    const cl = applyFilters(week, { ...noFilters, league: 'Champions League' }, LONDON);
+    const cl = applyFilters(week, { ...noFilters, league: 'UEFA Champions League' }, LONDON);
     assert.equal(cl.length, 1);
     assert.equal(cl[0].id, 'b');
   });
@@ -313,11 +316,39 @@ describe('schedule filters', () => {
     assert.ok(nfl < epl, 'catalogue order should place NFL before Premier League');
   });
 
-  it('offers a chip for every sport the catalogue can serve', () => {
+  it('splits the college competitions onto their own chips', () => {
     const ids = SPORT_TABS.map((tab) => tab.id);
-    assert.deepEqual(ids, ['all', 'nfl', 'nba', 'mlb', 'nhl', 'football']);
-    // Tennis was removed: no configured league supplies it.
-    assert.equal(ids.includes('tennis' as never), false);
+    assert.deepEqual(ids, [
+      'all', 'nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'football',
+    ]);
+  });
+
+  it('distinguishes the two NCAA chips by emoji', () => {
+    const ncaa = SPORT_TABS.filter((tab) => tab.label === 'NCAA');
+    assert.equal(ncaa.length, 2, 'one NCAA chip per sport');
+    assert.notEqual(ncaa[0].emoji, ncaa[1].emoji, 'the emoji is what tells them apart');
+    assert.ok(ncaa[0].emoji);
+    assert.ok(ncaa[1].emoji);
+    // Same label, different ids, so React keys and filtering stay correct.
+    assert.notEqual(ncaa[0].id, ncaa[1].id);
+  });
+
+  it('gives every chip at least one league', () => {
+    for (const chip of SPORT_TABS) {
+      if (chip.id === 'all') continue;
+      assert.ok(chip.leagues.length > 0, `chip "${chip.id}" has no leagues`);
+    }
+  });
+
+  it('matches games to chips by league, not sport id', () => {
+    const nflGame = week.find((g) => g.league === 'NFL');
+    assert.ok(nflGame);
+    assert.equal(chipMatches(nflGame, 'nfl'), true);
+    // NCAA Football shares the sport id `nfl`, so a sport-id filter could not
+    // tell them apart. The league-based chip can.
+    assert.equal(chipMatches(nflGame, 'ncaaf'), false);
+    assert.equal(chipMatches(nflGame, 'all'), true);
+    assert.equal(chipMatches(nflGame, 'football'), false);
   });
 
   it('groups games by their local calendar date', () => {

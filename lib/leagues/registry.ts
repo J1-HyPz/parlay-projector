@@ -204,7 +204,7 @@ export const LEAGUES: readonly League[] = [
   {
     id: 'laliga',
     label: 'La Liga',
-    shortLabel: 'LaLiga',
+    shortLabel: 'LIGA',
     group: 'football',
     sport: 'football',
     espnPath: 'soccer/esp.1',

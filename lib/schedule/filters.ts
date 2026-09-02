@@ -16,7 +16,8 @@ export const ALL_LEAGUES = 'All Leagues';
 
 export interface ScheduleFilters {
   date: string | null;
-  sport: SportId;
+  /** Chip id from SPORT_TABS, not a sport id — see SportChip. */
+  sport: string;
   league: string;
   search: string;
 }
@@ -104,7 +105,7 @@ export function applyFilters(
 ): Game[] {
   return games.filter((game) => {
     if (filters.date && gameDate(game.start_time, timezone) !== filters.date) return false;
-    if (filters.sport !== 'all' && game.sport !== filters.sport) return false;
+    if (!chipMatches(game, filters.sport)) return false;
     if (filters.league !== ALL_LEAGUES && game.league !== filters.league) return false;
     if (!matchesSearch(game, filters.search)) return false;
     return true;
@@ -195,27 +196,108 @@ export function formatKickoff(startTime: string | null, timezone: string): strin
 }
 
 /**
- * Sport chips.
+ * Filter chips.
  *
- * These are broad sports, not leagues: "Basketball" covers the NBA, WNBA and
- * both NCAA divisions. The league dropdown beside them narrows to a specific
- * competition. Labelling a chip "NBA" when it also returned college games was
- * misleading, which is why they read as sports now.
+ * Keyed on leagues rather than sport ids, because NFL and NCAA Football share
+ * the sport id `nfl` and the four basketball competitions share `nba` — a
+ * sport-id filter cannot tell them apart.
  *
- * Tennis is absent: no configured league supplies it, and an option that can
- * never return a game is worse than no option.
+ * The emoji marks which sport a chip belongs to, so the two "NCAA" chips are
+ * distinguishable at a glance without a longer label.
  */
-export const SPORT_TABS: { id: SportId; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'nfl', label: 'American Football' },
-  { id: 'nba', label: 'Basketball' },
-  { id: 'mlb', label: 'Baseball' },
-  { id: 'nhl', label: 'Hockey' },
-  { id: 'football', label: 'Football' },
+export interface SportChip {
+  /** Unique filter key. Two chips may share a label, never an id. */
+  id: string;
+  label: string;
+  /** Decorative only — hidden from screen readers, which read the label. */
+  emoji: string | null;
+  /** Catalogue league ids this chip selects. Empty means "everything". */
+  leagues: readonly string[];
+}
+
+/** Football league ids, read from the catalogue so the two stay in step. */
+const FOOTBALL_LEAGUE_IDS = LEAGUES.filter((league) => league.group === 'football').map(
+  (league) => league.id,
+);
+
+export const SPORT_TABS: readonly SportChip[] = [
+  { id: 'all', label: 'All', emoji: null, leagues: [] },
+  { id: 'nfl', label: 'NFL', emoji: '🏈', leagues: ['nfl'] },
+  { id: 'ncaaf', label: 'NCAA', emoji: '🏈', leagues: ['ncaaf'] },
+  { id: 'nba', label: 'NBA', emoji: '🏀', leagues: ['nba'] },
+  { id: 'wnba', label: 'WNBA', emoji: '🏀', leagues: ['wnba'] },
+  // Men's and women's college basketball share one chip; the league dropdown
+  // separates them.
+  { id: 'ncaab', label: 'NCAA', emoji: '🏀', leagues: ['ncaam', 'ncaaw'] },
+  { id: 'mlb', label: 'MLB', emoji: '⚾', leagues: ['mlb'] },
+  { id: 'nhl', label: 'NHL', emoji: '🏒', leagues: ['nhl'] },
+  { id: 'football', label: 'Football', emoji: '⚽', leagues: FOOTBALL_LEAGUE_IDS },
 ];
 
+/** League *labels* each chip accepts — games carry the label, not the id. */
+const CHIP_LEAGUE_LABELS = new Map<string, Set<string>>(
+  SPORT_TABS.map((chip) => [
+    chip.id,
+    new Set(
+      chip.leagues
+        .map((id) => LEAGUES.find((league) => league.id === id)?.label)
+        .filter((label): label is string => label !== undefined),
+    ),
+  ]),
+);
+
+export const ALL_SPORTS = 'all';
+
+/** Whether a game belongs to a chip. */
+export function chipMatches(game: Game, chipId: string): boolean {
+  if (chipId === ALL_SPORTS) return true;
+  const labels = CHIP_LEAGUE_LABELS.get(chipId);
+  if (!labels || labels.size === 0) return false;
+  return game.league !== null && labels.has(game.league);
+}
+
+export function chipLabel(chipId: string): string {
+  const chip = SPORT_TABS.find((tab) => tab.id === chipId);
+  if (!chip) return chipId;
+  return chip.emoji ? `${chip.emoji} ${chip.label}` : chip.label;
+}
+
+/**
+ * Display name for a game's sport.
+ *
+ * Separate from the chips: a chip is a league selection, this is what a card
+ * shows when it has no league of its own.
+ */
+const SPORT_LABELS: Record<SportId, string> = {
+  all: 'All',
+  nfl: 'American Football',
+  nba: 'Basketball',
+  mlb: 'Baseball',
+  nhl: 'Hockey',
+  football: 'Football',
+  tennis: 'Tennis',
+};
+
 export function sportLabel(sport: SportId): string {
-  return SPORT_TABS.find((tab) => tab.id === sport)?.label ?? sport.toUpperCase();
+  return SPORT_LABELS[sport] ?? String(sport).toUpperCase();
+}
+
+/** Catalogue short labels, keyed by the full label games carry. */
+const SHORT_LABELS = new Map(LEAGUES.map((league) => [league.label, league.shortLabel]));
+
+/**
+ * Compact badge text for a game.
+ *
+ * Uses the catalogue short label (`NCAAF`, `EPL`) rather than truncating the
+ * sport name, which produced things like "Ame" and "Bas".
+ */
+export function badgeLabel(league: string | null, sport: SportId): string {
+  if (league) {
+    const short = SHORT_LABELS.get(league);
+    if (short) return short;
+    return league.length <= 5 ? league : league.slice(0, 5);
+  }
+  return sportLabel(sport).slice(0, 5);
 }
 
 /** Football and tennis read "vs"; the North American leagues read "@". */

@@ -87,6 +87,12 @@ describe('league catalogue', () => {
       assert.ok(league.espnPath.length > 0, `${league.id} needs a provider path`);
       assert.ok(league.label.length > 0);
       assert.ok(league.shortLabel.length > 0);
+      // The schedule row badge is a 32px circle at 9px text; anything longer
+      // overflows it.
+      assert.ok(
+        league.shortLabel.length <= 5,
+        `${league.id} short label "${league.shortLabel}" is too long for the badge`,
+      );
     }
   });
 

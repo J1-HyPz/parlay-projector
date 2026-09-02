@@ -15,10 +15,14 @@
 import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { Game, SportId } from '@/lib/home/types';
+import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
+  ALL_SPORTS,
   SPORT_TABS,
+  badgeLabel,
+  chipLabel,
+  chipMatches,
   applyFilters,
   availableLeagues,
   formatDateHeading,
@@ -107,7 +111,7 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
     >
       <div className="flex min-w-0 items-center gap-2">
         <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.04] text-[9px] text-violet-300">
-          {sportLabel(game.sport).slice(0, 3)}
+          {badgeLabel(game.league, game.sport)}
         </span>
         <span className="truncate text-xs text-white/52">{game.league ?? sportLabel(game.sport)}</span>
       </div>
@@ -224,7 +228,7 @@ export function ScheduleView() {
   const { state, data, retry } = useSchedule();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [sport, setSport] = useState<SportId>('all');
+  const [sport, setSport] = useState<string>(ALL_SPORTS);
   const [league, setLeague] = useState<string>(ALL_LEAGUES);
   const [search, setSearch] = useState('');
 
@@ -238,7 +242,7 @@ export function ScheduleView() {
   // League options follow the sport chip: picking Basketball should not still
   // offer the Premier League.
   const leagues = useMemo(
-    () => availableLeagues(sport === 'all' ? games : games.filter((g) => g.sport === sport)),
+    () => availableLeagues(sport === 'all' ? games : games.filter((g) => chipMatches(g, sport))),
     [games, sport],
   );
   const summary = useMemo(() => summarise(games, dates, timezone), [games, dates, timezone]);
@@ -253,7 +257,7 @@ export function ScheduleView() {
   // Why the current view is empty, so the message can be specific.
   const emptyMessage = (() => {
     if (search.trim()) return `No games match “${search.trim()}”.`;
-    if (sport !== 'all') return `No ${sportLabel(sport)} games scheduled for this day.`;
+    if (sport !== ALL_SPORTS) return `No ${chipLabel(sport)} games scheduled for this day.`;
     if (league !== ALL_LEAGUES) return `No ${league} games scheduled for this day.`;
     return 'No games scheduled for this day.';
   })();
@@ -337,6 +341,7 @@ export function ScheduleView() {
               key={tab.id}
               type="button"
               aria-pressed={sport === tab.id}
+              aria-label={chipLabel(tab.id)}
               onClick={() => {
                 setSport(tab.id);
                 // The chosen league may not exist in the new sport.
@@ -348,6 +353,11 @@ export function ScheduleView() {
                   : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
               }`}
             >
+              {tab.emoji && (
+                <span aria-hidden="true" className="mr-1.5">
+                  {tab.emoji}
+                </span>
+              )}
               {tab.label}
             </button>
           ))}
