@@ -143,7 +143,6 @@ body {
   .panel { @apply rounded-2xl border border-white/[.085] bg-white/[.025] shadow-[0_20px_60px_rgba(0,0,0,.16)]; }
   .section-label { @apply text-[10px] font-semibold uppercase tracking-[.17em] text-white/28; }
   .sidebar-item { @apply flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs text-white/48 transition hover:bg-white/[.04] hover:text-white; }
-  .sidebar-item-active { @apply border border-violet-400/15 bg-violet-500/[.11] text-violet-200; }
   .icon-button { @apply grid size-10 place-items-center rounded-xl text-white/48 transition hover:bg-white/[.05] hover:text-white; }
   .placeholder-line { @apply h-2 rounded-full bg-white/[.075]; }
   .horizontal-cards { @apply flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden; }

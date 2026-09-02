@@ -11,9 +11,11 @@ import {
 } from '../lib/schedule/range.ts';
 import {
   ALL_LEAGUES,
+  SIDEBAR_SPORTS,
   SPORT_TABS,
   applyFilters,
   chipMatches,
+  isChipId,
   visibleChips,
   availableLeagues,
   formatDateHeading,
@@ -361,6 +363,23 @@ describe('schedule filters', () => {
       if (chip.id === 'all') continue;
       assert.ok(chip.leagues.length > 0, `chip "${chip.id}" has no leagues`);
     }
+  });
+
+  it('points every sidebar shortcut at a real chip', () => {
+    // The sidebar links to /schedule?sport=<id>. An id that no longer exists
+    // would silently land on "All" instead of the sport the link promised.
+    for (const entry of SIDEBAR_SPORTS) {
+      assert.equal(isChipId(entry.id), true, `sidebar entry "${entry.id}" has no chip`);
+    }
+    assert.equal(new Set(SIDEBAR_SPORTS.map((e) => e.id)).size, SIDEBAR_SPORTS.length);
+  });
+
+  it('rejects an unknown ?sport= value', () => {
+    assert.equal(isChipId('all'), true);
+    assert.equal(isChipId('epl'), true);
+    assert.equal(isChipId('tennis'), false, 'removed chips must not resolve');
+    assert.equal(isChipId(''), false);
+    assert.equal(isChipId('__proto__'), false, 'lookup must not hit the prototype');
   });
 
   it('matches games to chips by league, not sport id', () => {

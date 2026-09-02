@@ -14,11 +14,12 @@
 
 import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
   ALL_SPORTS,
+  isChipId,
   visibleChips,
   badgeLabel,
   chipLabel,
@@ -232,6 +233,18 @@ export function ScheduleView() {
   const [league, setLeague] = useState<string>(ALL_LEAGUES);
   const [search, setSearch] = useState('');
 
+  /*
+   * Sidebar shortcuts arrive as /schedule?sport=<chipId>.
+   *
+   * Read after mount rather than during render: the server has no query string,
+   * so seeding state from `window` directly would hydrate to a different value
+   * than the server produced. An unrecognised value is ignored, leaving "All".
+   */
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('sport');
+    if (requested && isChipId(requested)) setSport(requested);
+  }, []);
+
   const timezone = data?.timezone ?? 'Europe/London';
   const dates = useMemo(() => data?.dates ?? [], [data]);
   const games = useMemo(() => data?.games ?? [], [data]);
@@ -247,6 +260,11 @@ export function ScheduleView() {
   // A refresh can retire the active chip, e.g. the last fixture of a
   // competition finishing. Fall back to All rather than filtering to nothing.
   const activeChip = chips.some((chip) => chip.id === sport) ? sport : ALL_SPORTS;
+
+  // A sport was asked for but has no chip: an out-of-season sidebar link, or a
+  // competition whose last fixture finished mid-session. Say so, rather than
+  // silently showing everything and leaving the fallback unexplained.
+  const unavailable = sport !== ALL_SPORTS && activeChip === ALL_SPORTS ? sport : null;
 
   // League options follow the sport chip: picking Basketball should not still
   // offer the Premier League.
@@ -346,6 +364,11 @@ export function ScheduleView() {
 
       {/* Filters */}
       <section className="mt-4 space-y-3" aria-label="Schedule filters">
+        {unavailable && (
+          <p role="status" className="text-xs text-white/45">
+            No {chipLabel(unavailable)} games this week &mdash; showing all sports.
+          </p>
+        )}
         <div className="horizontal-cards" aria-label="Sport filters">
           {chips.map((tab) => (
             <button

@@ -5,14 +5,13 @@ import {
   CalendarDays,
   CircleUserRound,
   House,
-  Newspaper,
   Orbit,
   Radio,
   Search,
   Sparkles,
   Star,
-  UsersRound,
 } from 'lucide-react';
+import { SIDEBAR_SPORTS } from '@/lib/schedule/filters';
 
 export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'profile';
 
@@ -21,15 +20,6 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'schedule', label: 'Schedule', href: '/schedule', icon: CalendarDays },
   { key: 'live', label: 'Live', href: '/live', icon: Radio },
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
-];
-
-const sports = ['All Sports', 'NFL', 'NBA', 'MLB', 'NHL', 'Football', 'Tennis'];
-
-const quickLinks: { label: string; icon: LucideIcon }[] = [
-  { label: 'My Teams', icon: UsersRound },
-  { label: 'Alerts', icon: Bell },
-  { label: 'News', icon: Newspaper },
-  { label: 'Calendar', icon: CalendarDays },
 ];
 
 export function AppShell({ active, children }: { active: PageKey; children: ReactNode }) {
@@ -74,22 +64,21 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
       <div className="mx-auto flex w-full max-w-[1600px]">
         <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col border-r border-white/8 px-4 py-6 lg:flex">
           <p className="section-label">Sports</p>
+          {/*
+            Plain anchors, deliberately: the router shim intercepts <Link> and
+            has no fallback when it cannot resolve a route. See the game-card
+            regression in components/schedule.
+          */}
           <nav className="mt-3 space-y-1" aria-label="Sports">
-            {sports.map((sport, index) => (
-              <button key={sport} className={`sidebar-item ${index === 0 ? 'sidebar-item-active' : ''}`}>
-                <span className="grid size-6 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[9px] font-semibold">{index === 0 ? '●' : sport.slice(0, 2)}</span>
-                {sport}
-              </button>
-            ))}
-          </nav>
-
-          <div className="my-6 h-px bg-white/7" />
-          <p className="section-label">Quick links</p>
-          <nav className="mt-3 space-y-1" aria-label="Quick links">
-            {quickLinks.map(({ label, icon: Icon }) => (
-              <button key={label} className="sidebar-item">
-                <Icon className="size-4 text-white/32" /> {label}
-              </button>
+            <a href="/schedule" className="sidebar-item">
+              <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[9px] font-semibold">●</span>
+              All Sports
+            </a>
+            {SIDEBAR_SPORTS.map(({ id, label, emoji }) => (
+              <a key={id} href={`/schedule?sport=${id}`} className="sidebar-item">
+                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[11px]">{emoji}</span>
+                <span className="truncate">{label}</span>
+              </a>
             ))}
           </nav>
 
