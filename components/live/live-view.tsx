@@ -137,7 +137,9 @@ function GameCard({ game }: { game: LiveGame }) {
           {[game.venue.name, game.venue.city].filter(Boolean).join(' · ')}
         </p>
       )}
-    </a>
+      </a>
+      <WatchButton game={game} className="absolute right-3 top-3" />
+    </div>
   );
 }
 
