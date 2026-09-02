@@ -40,6 +40,16 @@ export interface League {
   espnPath: string;
   /** Whether the provider publishes a standings table for this league. */
   hasStandings: boolean;
+  /**
+   * Whether the provider publishes structured transactions for this league.
+   *
+   * Verified against ESPN's core API: the five North American professional
+   * leagues return real entries, while every soccer competition and both NCAA
+   * divisions return an empty list. Recorded here so a hub can say "not
+   * published for this competition" rather than showing a permanently empty
+   * section that looks broken.
+   */
+  hasTransactions: boolean;
   /** True for collegiate competitions. */
   collegiate: boolean;
 }
@@ -59,6 +69,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nfl',
     espnPath: 'football/nfl',
     hasStandings: true,
+    hasTransactions: true,
     collegiate: false,
   },
   {
@@ -69,6 +80,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nfl',
     espnPath: 'football/college-football',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: true,
   },
 
@@ -81,6 +93,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nba',
     espnPath: 'basketball/nba',
     hasStandings: true,
+    hasTransactions: true,
     collegiate: false,
   },
   {
@@ -91,6 +104,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nba',
     espnPath: 'basketball/wnba',
     hasStandings: true,
+    hasTransactions: true,
     collegiate: false,
   },
   {
@@ -101,6 +115,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nba',
     espnPath: 'basketball/mens-college-basketball',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: true,
   },
   {
@@ -111,6 +126,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nba',
     espnPath: 'basketball/womens-college-basketball',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: true,
   },
 
@@ -123,6 +139,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'mlb',
     espnPath: 'baseball/mlb',
     hasStandings: true,
+    hasTransactions: true,
     collegiate: false,
   },
 
@@ -135,6 +152,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'nhl',
     espnPath: 'hockey/nhl',
     hasStandings: true,
+    hasTransactions: true,
     collegiate: false,
   },
 
@@ -149,6 +167,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/eng.1',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -159,6 +178,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/eng.2',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -169,6 +189,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/eng.3',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -179,6 +200,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/uefa.champions',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -189,6 +211,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/uefa.europa',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -199,6 +222,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/uefa.europa.conf',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -209,6 +233,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/esp.1',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -219,6 +244,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/ger.1',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
   {
@@ -229,6 +255,7 @@ export const LEAGUES: readonly League[] = [
     sport: 'football',
     espnPath: 'soccer/ita.1',
     hasStandings: true,
+    hasTransactions: false,
     collegiate: false,
   },
 ] as const;

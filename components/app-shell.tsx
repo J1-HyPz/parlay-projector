@@ -1,10 +1,24 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star } from 'lucide-react';
-import { SIDEBAR_SPORTS } from '@/lib/schedule/filters';
+import { SIDEBAR_HUBS } from '@/lib/sports/hubs';
 import { WatchlistProvider } from '@/components/watchlist/watchlist-context';
 
-export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications';
+export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications' | 'sports';
+
+/**
+ * Which competition hub is open, if any.
+ *
+ * A separate prop rather than seventeen more members of PageKey: the primary
+ * navigation and the sport shortcuts are different axes, and only the shortcuts
+ * need per-competition highlighting.
+ */
+export interface AppShellProps {
+  active: PageKey;
+  /** Hub slug currently open, for sidebar highlighting. */
+  activeHub?: string;
+  children: ReactNode;
+}
 
 const primaryNavigation: { key: PageKey; label: string; href: string; icon: LucideIcon }[] = [
   { key: 'home', label: 'Home', href: '/', icon: House },
@@ -13,7 +27,7 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
 ];
 
-export function AppShell({ active, children }: { active: PageKey; children: ReactNode }) {
+export function AppShell({ active, activeHub, children }: AppShellProps) {
   return (
     <WatchlistProvider>
     <div className="min-h-screen bg-background text-foreground">
@@ -56,17 +70,25 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
         <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col border-r border-white/8 px-4 py-6 lg:flex">
           <p className="section-label">Sports</p>
           {/*
-            Plain anchors, deliberately: the router shim intercepts <Link> and
-            has no fallback when it cannot resolve a route. See the game-card
-            regression in components/schedule.
+            These navigate to a competition hub; the Schedule and Live chips
+            filter those pages. Two different jobs, deliberately separated.
+
+            Plain anchors: the router shim intercepts <Link> and has no fallback
+            when it cannot resolve a route. See the game-card regression in
+            components/schedule.
           */}
           <nav className="mt-3 space-y-1" aria-label="Sports">
             <a href="/schedule" className="sidebar-item">
               <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[9px] font-semibold">●</span>
               All Sports
             </a>
-            {SIDEBAR_SPORTS.map(({ id, label, emoji }) => (
-              <a key={id} href={`/schedule?sport=${id}`} className="sidebar-item">
+            {SIDEBAR_HUBS.map(({ slug, label, emoji }) => (
+              <a
+                key={slug}
+                href={`/sports/${slug}`}
+                aria-current={activeHub === slug ? 'page' : undefined}
+                className={`sidebar-item ${activeHub === slug ? 'border border-violet-400/15 bg-violet-500/[.11] text-violet-200' : ''}`}
+              >
                 <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[11px]">{emoji}</span>
                 <span className="truncate">{label}</span>
               </a>

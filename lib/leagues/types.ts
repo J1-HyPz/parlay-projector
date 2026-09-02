@@ -20,6 +20,8 @@ export interface StandingsRow {
   abbreviation: string | null;
   logo: string | null;
   rank: number | null;
+  /** Matches played. Football tables lead with this; ESPN calls it gamesPlayed. */
+  games_played: number | null;
   wins: number | null;
   losses: number | null;
   ties: number | null;
@@ -27,6 +29,10 @@ export interface StandingsRow {
   games_behind: number | null;
   points_for: number | null;
   points_against: number | null;
+  /** Goal or point difference, where the provider supplies it. */
+  point_differential: number | null;
+  /** League points. Football only; null for win/loss competitions. */
+  points: number | null;
   /** Provider summary such as `11-2`. */
   record: string | null;
   streak: string | null;

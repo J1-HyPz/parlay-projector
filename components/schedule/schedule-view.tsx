@@ -35,25 +35,8 @@ import {
   summarise,
 } from '@/lib/schedule/filters';
 import { WatchButton } from '@/components/watchlist/watch-button';
+import { STATUS_LABEL, statusTone } from '@/lib/schedule/status';
 import { useSchedule } from './schedule-data';
-
-const STATUS_LABEL: Record<Game['status'], string> = {
-  scheduled: 'Scheduled',
-  live: 'Live',
-  finished: 'Finished',
-  postponed: 'Postponed',
-  cancelled: 'Cancelled',
-  unknown: 'Unknown',
-};
-
-function statusTone(status: Game['status']): string {
-  if (status === 'live') return 'border-rose-400/20 bg-rose-500/10 text-rose-300';
-  if (status === 'finished') return 'border-white/8 text-white/40';
-  if (status === 'postponed' || status === 'cancelled') {
-    return 'border-amber-400/20 bg-amber-500/10 text-amber-300';
-  }
-  return 'border-violet-400/20 bg-violet-500/[.08] text-violet-300';
-}
 
 function StatCard({
   label,

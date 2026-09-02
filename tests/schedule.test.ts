@@ -11,7 +11,6 @@ import {
 } from '../lib/schedule/range.ts';
 import {
   ALL_LEAGUES,
-  SIDEBAR_SPORTS,
   SPORT_TABS,
   applyFilters,
   chipMatches,
@@ -365,13 +364,12 @@ describe('schedule filters', () => {
     }
   });
 
-  it('points every sidebar shortcut at a real chip', () => {
-    // The sidebar links to /schedule?sport=<id>. An id that no longer exists
-    // would silently land on "All" instead of the sport the link promised.
-    for (const entry of SIDEBAR_SPORTS) {
-      assert.equal(isChipId(entry.id), true, `sidebar entry "${entry.id}" has no chip`);
+  it('keeps a chip for every hub, so hub deep links still filter', () => {
+    // A hub links to /schedule?sport=<chip>. Sidebar navigation now opens hubs
+    // instead of filtering, but those deep links must still resolve.
+    for (const slug of ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'epl', 'ucl']) {
+      assert.equal(isChipId(slug), true, `no chip for hub "${slug}"`);
     }
-    assert.equal(new Set(SIDEBAR_SPORTS.map((e) => e.id)).size, SIDEBAR_SPORTS.length);
   });
 
   it('rejects an unknown ?sport= value', () => {

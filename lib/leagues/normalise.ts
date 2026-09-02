@@ -140,6 +140,7 @@ export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | 
     abbreviation: str(raw.team?.abbreviation),
     logo: str(logos[0]?.href),
     rank: statValue(raw.stats, 'playoffSeed') ?? statValue(raw.stats, 'rank'),
+    games_played: statValue(raw.stats, 'gamesPlayed'),
     wins: statValue(raw.stats, 'wins'),
     losses: statValue(raw.stats, 'losses'),
     ties: statValue(raw.stats, 'ties'),
@@ -147,6 +148,8 @@ export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | 
     games_behind: statValue(raw.stats, 'gamesBehind'),
     points_for: statValue(raw.stats, 'pointsFor'),
     points_against: statValue(raw.stats, 'pointsAgainst'),
+    point_differential: statValue(raw.stats, 'pointDifferential'),
+    points: statValue(raw.stats, 'points'),
     /** Provider's own summary, e.g. `11-2`. */
     record: statDisplay(raw.stats, 'overall') ?? statDisplay(raw.stats, 'record'),
     streak: statDisplay(raw.stats, 'streak'),

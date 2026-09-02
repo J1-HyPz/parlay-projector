@@ -279,36 +279,6 @@ const CHIP_LEAGUE_LABELS = new Map<string, Set<string>>(
 
 export const ALL_SPORTS = 'all';
 
-/**
- * Sidebar shortcuts.
- *
- * A curated subset of the chips -- the competitions people most often arrive
- * looking for. Each links to Schedule with that filter already applied, so the
- * sidebar navigates rather than decorating the page.
- *
- * Labels are longer than the chip labels on purpose: the chip row is tight and
- * leans on the emoji to tell the two "NCAA" entries apart, while a sidebar row
- * has the width to say which is which.
- */
-export interface SidebarSport {
-  /** Chip id in SPORT_TABS. A test asserts every one of these resolves. */
-  id: string;
-  label: string;
-  emoji: string;
-}
-
-export const SIDEBAR_SPORTS: readonly SidebarSport[] = [
-  { id: 'nfl', label: 'NFL', emoji: '\u{1F3C8}' },
-  { id: 'ncaaf', label: 'NCAA Football', emoji: '\u{1F3C8}' },
-  { id: 'nba', label: 'NBA', emoji: '\u{1F3C0}' },
-  { id: 'wnba', label: 'WNBA', emoji: '\u{1F3C0}' },
-  { id: 'ncaab', label: 'NCAA Basketball', emoji: '\u{1F3C0}' },
-  { id: 'mlb', label: 'MLB', emoji: '\u26BE' },
-  { id: 'nhl', label: 'NHL', emoji: '\u{1F3D2}' },
-  { id: 'epl', label: 'Premier League', emoji: '\u26BD' },
-  { id: 'ucl', label: 'Champions League', emoji: '\u26BD' },
-];
-
 /** Whether a string is a usable chip id, for validating a `?sport=` value. */
 export function isChipId(value: string): boolean {
   return SPORT_TABS.some((chip) => chip.id === value);
