@@ -115,7 +115,7 @@ export function parlaySuccess(parlays: readonly ParlayRecord[]): ParlaySuccess[]
     else groups.set(parlay.risk, [parlay]);
   }
 
-  const summarise = (key: string, list: ParlayRecord[]): ParlaySuccess => {
+  const summarise = (key: string, list: readonly ParlayRecord[]): ParlaySuccess => {
     const settledLines = list.filter((p) => p.status === 'won' || p.status === 'lost');
     const won = settledLines.filter((p) => p.status === 'won').length;
 
