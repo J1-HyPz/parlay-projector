@@ -131,11 +131,8 @@ export function DivisionSelector({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div
-      className="horizontal-cards"
-      role="group"
-      aria-label="NCAA division"
-    >
+    <fieldset className="horizontal-cards border-0 p-0">
+      <legend className="sr-only">NCAA division</legend>
       {divisions.map((division) => (
         <button
           key={division.id}
@@ -151,7 +148,7 @@ export function DivisionSelector({
           {division.label}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 

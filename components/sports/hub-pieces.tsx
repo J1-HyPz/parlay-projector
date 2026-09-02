@@ -33,13 +33,10 @@ export function EmptyState({ children }: { children: ReactNode }) {
 /** Something went wrong in this section only. The rest of the hub still works. */
 export function ErrorState({ children }: { children: ReactNode }) {
   return (
-    <p
-      role="status"
-      className="flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-amber-200/80"
-    >
+    <output className="flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-amber-200/80">
       <CircleAlert className="size-4 shrink-0" />
       {children}
-    </p>
+    </output>
   );
 }
 

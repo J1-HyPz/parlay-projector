@@ -12,75 +12,78 @@
  * fetch on mount, abort on unmount, never throw.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Game, NewsArticle } from '@/lib/home/types';
 import type { StandingsGroup, TeamProfile } from '@/lib/leagues/types';
 import type { Transaction } from '@/lib/leagues/transactions-normalise';
 
 export type LoadState = 'loading' | 'loaded' | 'error';
 
-interface Loaded<T> {
+export interface Loaded<T> {
   state: LoadState;
   data: T | null;
 }
 
+interface Fetched<T> {
+  state: LoadState;
+  responses: T[];
+}
+
 /**
- * Fetch JSON from several endpoints and combine them.
+ * Fetch JSON from several endpoints.
  *
  * Takes a list because the combined NCAA basketball hub covers two leagues.
- * `combine` receives only the responses that succeeded, so one division being
- * unavailable does not discard the other.
+ * Only the responses that succeeded are returned, so one division being
+ * unavailable does not discard the other; the state is `error` only when every
+ * request failed.
+ *
+ * The url list is joined into a single string and split back inside the effect.
+ * Callers build these arrays inline, so a new array every render would re-fetch
+ * forever — the joined key is what actually changes when the selection does.
  */
-function useEndpoints<TResponse, TResult>(
-  urls: readonly string[],
-  combine: (responses: TResponse[]) => TResult,
-): Loaded<TResult> {
-  const [state, setState] = useState<LoadState>('loading');
-  const [data, setData] = useState<TResult | null>(null);
-  // Re-run when the set of urls changes, e.g. the NCAA division selector.
+function useEndpoints<T>(urls: readonly string[]): Fetched<T> {
   const key = urls.join('|');
+  const [state, setState] = useState<LoadState>('loading');
+  const [responses, setResponses] = useState<T[]>([]);
 
   useEffect(() => {
+    const targets = key.length > 0 ? key.split('|') : [];
     const controller = new AbortController();
     setState('loading');
 
     async function load() {
       const settled = await Promise.allSettled(
-        urls.map(async (url) => {
+        targets.map(async (url) => {
           const response = await fetch(url, {
             signal: controller.signal,
             headers: { accept: 'application/json' },
           });
           if (!response.ok) throw new Error(String(response.status));
-          return (await response.json()) as TResponse;
+          return (await response.json()) as T;
         }),
       );
 
       if (controller.signal.aborted) return;
 
-      const ok = settled
-        .filter(
-          (outcome): outcome is PromiseFulfilledResult<TResponse> =>
-            outcome.status === 'fulfilled',
-        )
-        .map((outcome) => outcome.value);
+      const ok: T[] = [];
+      for (const outcome of settled) {
+        if (outcome.status === 'fulfilled') ok.push(outcome.value);
+      }
 
-      if (ok.length === 0) {
+      if (targets.length > 0 && ok.length === 0) {
         setState('error');
         return;
       }
 
-      setData(combine(ok));
+      setResponses(ok);
       setState('loaded');
     }
 
     void load();
     return () => controller.abort();
-    // `combine` is defined inline by callers; `key` captures what actually varies.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return { state, data };
+  return { state, responses };
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +92,6 @@ interface GamesResponse {
   games?: Game[];
   today?: string;
   timezone?: string;
-  error?: string;
 }
 
 export interface HubGamesData {
@@ -99,14 +101,20 @@ export interface HubGamesData {
 }
 
 export function useHubGames(leagueIds: readonly string[]): Loaded<HubGamesData> {
-  return useEndpoints<GamesResponse, HubGamesData>(
+  const { state, responses } = useEndpoints<GamesResponse>(
     leagueIds.map((id) => `/api/leagues/${encodeURIComponent(id)}/games`),
-    (responses) => ({
+  );
+
+  const data = useMemo<HubGamesData | null>(() => {
+    if (responses.length === 0) return null;
+    return {
       games: responses.flatMap((response) => response.games ?? []),
       today: responses[0]?.today ?? '',
       timezone: responses[0]?.timezone ?? 'Europe/London',
-    }),
-  );
+    };
+  }, [responses]);
+
+  return { state, data };
 }
 
 interface StandingsResponse {
@@ -114,10 +122,16 @@ interface StandingsResponse {
 }
 
 export function useHubStandings(leagueId: string | null): Loaded<StandingsGroup[]> {
-  return useEndpoints<StandingsResponse, StandingsGroup[]>(
+  const { state, responses } = useEndpoints<StandingsResponse>(
     leagueId ? [`/api/leagues/${encodeURIComponent(leagueId)}/standings`] : [],
-    (responses) => responses.flatMap((response) => response.groups ?? []),
   );
+
+  const data = useMemo(
+    () => (responses.length === 0 ? null : responses.flatMap((r) => r.groups ?? [])),
+    [responses],
+  );
+
+  return { state, data };
 }
 
 interface TeamsResponse {
@@ -125,10 +139,16 @@ interface TeamsResponse {
 }
 
 export function useHubTeams(leagueId: string | null): Loaded<TeamProfile[]> {
-  return useEndpoints<TeamsResponse, TeamProfile[]>(
+  const { state, responses } = useEndpoints<TeamsResponse>(
     leagueId ? [`/api/leagues/${encodeURIComponent(leagueId)}/teams`] : [],
-    (responses) => responses.flatMap((response) => response.teams ?? []),
   );
+
+  const data = useMemo(
+    () => (responses.length === 0 ? null : responses.flatMap((r) => r.teams ?? [])),
+    [responses],
+  );
+
+  return { state, data };
 }
 
 interface NewsResponse {
@@ -136,14 +156,19 @@ interface NewsResponse {
 }
 
 export function useHubNews(leagueIds: readonly string[], limit: number): Loaded<NewsArticle[]> {
-  return useEndpoints<NewsResponse, NewsArticle[]>(
+  const { state, responses } = useEndpoints<NewsResponse>(
     leagueIds.map((id) => `/api/leagues/${encodeURIComponent(id)}/news?limit=${limit}`),
-    (responses) =>
-      responses
-        .flatMap((response) => response.articles ?? [])
-        .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
-        .slice(0, limit),
   );
+
+  const data = useMemo(() => {
+    if (responses.length === 0) return null;
+    return responses
+      .flatMap((response) => response.articles ?? [])
+      .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
+      .slice(0, limit);
+  }, [responses, limit]);
+
+  return { state, data };
 }
 
 interface TransactionsResponse {
@@ -161,15 +186,21 @@ export function useHubTransactions(
   leagueIds: readonly string[],
   limit: number,
 ): Loaded<HubTransactionsData> {
-  return useEndpoints<TransactionsResponse, HubTransactionsData>(
+  const { state, responses } = useEndpoints<TransactionsResponse>(
     leagueIds.map((id) => `/api/leagues/${encodeURIComponent(id)}/transactions?limit=${limit}`),
-    (responses) => ({
+  );
+
+  const data = useMemo<HubTransactionsData | null>(() => {
+    if (responses.length === 0) return null;
+    return {
       // Supported if any league in the hub publishes them.
       supported: responses.some((response) => response.supported === true),
       transactions: responses
         .flatMap((response) => response.transactions ?? [])
         .sort((a, b) => b.date.localeCompare(a.date))
         .slice(0, limit),
-    }),
-  );
+    };
+  }, [responses, limit]);
+
+  return { state, data };
 }
