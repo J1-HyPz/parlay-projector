@@ -40,7 +40,11 @@ def get(path):
 def check_projections():
     body = get("/api/projections/games")
     projections = body.get("projections", [])
-    print(f"projections: {len(projections)} (model {body.get('model_version')})")
+    print(
+        f"projections: {len(projections)} "
+        f"(skipped {body.get('skipped_insufficient_data', '?')} for thin history, "
+        f"model {body.get('model_version')})"
+    )
 
     for p in projections:
         gid = p["game_id"]

@@ -212,15 +212,41 @@ export async function fixturesForRange(
 
   const windows = splitRange(startDate, endDate, DEFAULT_CHUNK_DAYS);
 
-  const results = await mapWithConcurrency(windows, WINDOW_CONCURRENCY, (window) =>
-    fetchWindow(
-      league,
-      window,
-      // A window that ended before today can never change again.
-      window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
-      0,
-    ),
-  );
+  /*
+   * One window failing must not discard the league.
+   *
+   * A burst of requests can draw a rate limit, and a single 429 in the middle
+   * of a season used to reject the whole range — costing a competition its
+   * entire history and every projection with it. Losing four months of results
+   * is far better than losing sixteen, and the gap shows up as lower data
+   * quality rather than as silence.
+   */
+  let failed = 0;
+  const results = await mapWithConcurrency(windows, WINDOW_CONCURRENCY, async (window) => {
+    try {
+      return await fetchWindow(
+        league,
+        window,
+        // A window that ended before today can never change again.
+        window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
+        0,
+      );
+    } catch (error) {
+      failed += 1;
+      logger.warn('espn_history_window_failed', {
+        league: league.id,
+        window: `${window.start}..${window.end}`,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+      return [] as Game[];
+    }
+  });
+
+  // Every window failing is a genuine outage for this competition, and the
+  // caller should see it as one rather than as an empty season.
+  if (failed === windows.length && windows.length > 0) {
+    throw new ProviderError(`history unavailable for ${league.id}`, null);
+  }
 
   // De-duplicate: overlapping windows and split retries can return a fixture
   // more than once, and a doubled result would distort every rating.
@@ -231,6 +257,7 @@ export async function fixturesForRange(
   logger.info('espn_history_loaded', {
     league: league.id,
     windows: windows.length,
+    failed,
     games: games.length,
   });
   return games;

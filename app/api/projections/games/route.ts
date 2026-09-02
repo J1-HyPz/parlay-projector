@@ -21,11 +21,14 @@ export async function GET(request: Request): Promise<Response> {
     return json({ error: 'invalid_sport', message: 'Unknown sport.' }, 400);
   }
 
-  const { projections, failedLeagues } = await buildCandidates(sport);
+  const { projections, failedLeagues, skipped } = await buildCandidates(sport);
 
   return json({
     model_version: MODEL_VERSION,
     count: projections.length,
+    // Fixtures that were eligible but had too little history behind them.
+    // Surfaced so thin coverage is diagnosable rather than mysterious.
+    skipped_insufficient_data: skipped,
     projections: projections.map((outcome) => outcome.projection),
     ...(failedLeagues.length > 0 ? { partial_failures: failedLeagues.length } : {}),
   });
