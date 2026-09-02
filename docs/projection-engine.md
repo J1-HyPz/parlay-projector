@@ -19,9 +19,45 @@ no component calls a provider.
 
 This was checked before anything was built, and it shapes the whole design.
 
-**Available:** completed fixtures with final scores (a ~200-day window per
-league, one cached request each), standings, team lists, head-to-head records,
-and kick-off times — from which rest days are derived.
+**Available:** completed fixtures with final scores, standings, team lists,
+head-to-head records, and kick-off times — from which rest days are derived.
+
+### Loading history
+
+Two undocumented provider limits shape how history is fetched, and **both fail
+silently**:
+
+- A date range beyond roughly a year returns an **empty** event list rather than
+  an error, so a two-season request looks like a competition with no fixtures.
+- Any range is capped at the **earliest** N events. A single 200-day MLB request
+  therefore returned a fortnight of spring training with everything recent
+  missing — and produced ratings that looked perfectly reasonable.
+
+So history is loaded in **45-day windows**, and a window that comes back at the
+cap is split in half and retried. The window length is per sport, because the
+calendars differ enormously:
+
+| Sport | History | Why |
+| --- | --- | --- |
+| NFL | 400 days | 17 games across five months, then a long gap |
+| Football | 400 days | Season runs August to May |
+| NBA, NHL | 330 days | ~80 games in six months |
+| MLB | 300 days | ~160 games in seven months |
+
+### Rating pools
+
+Competitions in the same pool are **rated together**. Every football competition
+shares one, so a Champions League tie is projected from the clubs' domestic
+results. Without it a club has a handful of European games a season — far below
+the minimum — and every cup tie read "projection unavailable".
+
+The pooling is sound rather than a convenience: those competitions are precisely
+where clubs from different leagues play each other, so a shared Elo is
+meaningful. The simplification is that attack and defence rates use one global
+football average, which slightly flattens differences in league scoring
+environments.
+
+The American leagues are each rated alone; they share no fixtures with anything.
 
 **Not available, anywhere in this application:**
 
@@ -259,8 +295,11 @@ not.
 
 A page of parlays does **not** produce hundreds of provider requests:
 
-- One request per league covers ~200 days of history, cached for three hours.
-- Ratings are derived once and cached.
+- History is chunked, but a window that ended before today can never change and
+  is cached for a **week**. After the first warm-up only the window containing
+  today is refetched.
+- Ratings are derived once per pool and cached, so the nine football
+  competitions cost one set rather than nine.
 - Projections are cached per fixture, with the lifetime tightening as kick-off
   approaches: 6 hours beyond a day out, 2 hours inside a day, 30 minutes inside
   six hours.
@@ -300,9 +339,10 @@ the model's own probability expressed as a decimal, labelled as such.
 
 - **No player projections**, for the reasons at the top.
 - **No tennis.**
-- **No opponent-strength adjustment across leagues.** Ratings are within a
-  competition, so a Champions League fixture between clubs from different
-  domestic leagues is projected from their European results only.
+- **No league-strength adjustment inside the football pool.** All football
+  competitions share one average, so a mid-table Serie A side and a mid-table
+  League One side start from the same baseline. Elo separates them over time
+  through European ties, but the scoring rates do not.
 - **Home/away splits are computed but only lightly used** — they feed data
   quality rather than the expected score, because four home games is not enough
   to justify a separate rate.
