@@ -14,7 +14,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Info, Layers3, RefreshCw, Shield, Sparkles, Target } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Info, Layers3, LoaderCircle, RefreshCw, Shield, Sparkles, Target } from 'lucide-react';
 import type { Parlay, RiskLevel, Selection } from '@/lib/projections/types';
 import { qualityLabel } from '@/lib/projections/types';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
@@ -85,6 +86,77 @@ function kickoff(startTime: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(instant);
+}
+
+/**
+ * Spinner used wherever work is in flight.
+ *
+ * Honours `prefers-reduced-motion`: the icon still marks the spot for anyone
+ * who has asked the system not to animate, it simply stops turning.
+ */
+function Spinner({ className = '' }: { className?: string }) {
+  return (
+    <LoaderCircle
+      aria-hidden="true"
+      className={`motion-safe:animate-spin motion-reduce:animate-none ${className}`}
+    />
+  );
+}
+
+/**
+ * Placeholder for one leg.
+ *
+ * Deliberately shaped like a real leg card — badge row, selection, probability,
+ * the three statistics beneath — so the layout does not jump when the real
+ * thing arrives, and so it reads as "this is being worked out" rather than as
+ * an empty box.
+ */
+function LoadingLeg({ index }: { index: number }) {
+  return (
+    <article
+      className="panel p-4 motion-safe:animate-pulse motion-reduce:animate-none"
+      // Staggered, so the column looks like it is filling in rather than
+      // flashing as one block.
+      style={{ animationDelay: `${index * 120}ms` }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="size-5 rounded-md bg-white/[.07]" />
+        <span className="h-3 w-16 rounded bg-white/[.06]" />
+        <span className="h-3 w-24 rounded bg-white/[.04]" />
+      </div>
+
+      <span className="mt-3 block h-4 w-48 rounded bg-white/[.05]" />
+
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-white/7 pt-3">
+        <span className="block h-6 w-40 rounded bg-white/[.07]" />
+        <span className="block h-7 w-16 rounded bg-violet-500/15" />
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {[0, 1, 2].map((cell) => (
+          <span key={cell} className="block h-6 rounded bg-white/[.035]" />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * A summary figure that is still being worked out.
+ *
+ * A pulsing bar rather than `--`: a dash reads as "there is no value", which is
+ * what the panel shows when a line genuinely cannot be built, and the two
+ * should not look the same.
+ */
+function SummaryValue({ loading, children }: { loading: boolean; children: ReactNode }) {
+  if (!loading) return <>{children}</>;
+
+  return (
+    <span
+      aria-hidden="true"
+      className="block h-4 w-14 rounded bg-white/[.08] motion-safe:animate-pulse motion-reduce:animate-none"
+    />
+  );
 }
 
 /** One leg: what is projected, how likely, the score behind it, and why. */
@@ -458,25 +530,49 @@ export function ParlayView() {
           <button
             type="button"
             onClick={regenerate}
-            className="mt-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-4 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            disabled={state === 'loading'}
+            className="mt-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-4 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white/[.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
           >
-            <RefreshCw className="size-3.5" aria-hidden="true" />
+            {state === 'loading' ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+            )}
             Regenerate
           </button>
         </div>
+
+        {/*
+          The work takes a couple of seconds, so it says so.
+
+          `aria-live="polite"` announces it once rather than interrupting, and
+          the element is always present so a screen reader is not surprised by
+          a region appearing and vanishing.
+        */}
+        <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-[11px]">
+          {state === 'loading' && (
+            <>
+              <Spinner className="size-3 text-violet-300" />
+              <span className="text-violet-300/80">
+                Projecting fixtures and simulating outcomes…
+              </span>
+            </>
+          )}
+        </output>
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* Generated line */}
         <section className="min-w-0 space-y-3" aria-labelledby="line-heading">
-          <h2 id="line-heading" className="text-base font-semibold">
+          <h2 id="line-heading" className="flex items-center gap-2 text-base font-semibold">
             Generated line
+            {state === 'loading' && <Spinner className="size-4 text-violet-300/70" />}
           </h2>
 
           {state === 'loading' && (
-            <div className="space-y-3" aria-busy="true">
-              {[0, 1, 2].map((row) => (
-                <div key={row} className="h-52 animate-pulse rounded-2xl bg-white/[.035]" />
+            <div className="space-y-3" aria-busy="true" aria-label="Projecting fixtures">
+              {Array.from({ length: legs }, (_, row) => (
+                <LoadingLeg key={row} index={row} />
               ))}
             </div>
           )}
@@ -513,12 +609,20 @@ export function ParlayView() {
 
         {/* Summary */}
         <aside className="min-w-0 xl:sticky xl:top-24 xl:h-fit">
-          <section className="panel p-5" aria-labelledby="summary-heading">
+          <section
+            className="panel p-5"
+            aria-labelledby="summary-heading"
+            aria-busy={state === 'loading'}
+          >
             <div className="flex items-center justify-between gap-3">
               <h2 id="summary-heading" className="text-sm font-semibold">
                 Summary
               </h2>
-              <Shield className="size-4 text-violet-300" aria-hidden="true" />
+              {state === 'loading' ? (
+                <Spinner className="size-4 text-violet-300/70" />
+              ) : (
+                <Shield className="size-4 text-violet-300" aria-hidden="true" />
+              )}
             </div>
 
             <dl className="mt-4 space-y-3 text-xs">
@@ -529,31 +633,41 @@ export function ParlayView() {
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-white/38">Selections</dt>
                 <dd className="font-medium tabular-nums text-white/70">
-                  {parlay?.legs.length ?? '--'}
+                  <SummaryValue loading={state === 'loading'}>
+                    {parlay?.legs.length ?? '--'}
+                  </SummaryValue>
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-white/7 pt-3">
                 <dt className="text-white/38">Estimated combined probability</dt>
                 <dd className="text-lg font-semibold tabular-nums text-violet-300">
-                  {parlay ? percent(parlay.combined_probability, 1) : '--'}
+                  <SummaryValue loading={state === 'loading'}>
+                    {parlay ? percent(parlay.combined_probability, 1) : '--'}
+                  </SummaryValue>
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-white/38">Average model confidence</dt>
                 <dd className="font-medium tabular-nums text-white/70">
-                  {parlay ? percent(parlay.average_confidence) : '--'}
+                  <SummaryValue loading={state === 'loading'}>
+                    {parlay ? percent(parlay.average_confidence) : '--'}
+                  </SummaryValue>
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-white/38">Data quality</dt>
                 <dd className="font-medium text-white/70">
-                  {parlay ? qualityLabel(parlay.average_data_quality) : '--'}
+                  <SummaryValue loading={state === 'loading'}>
+                    {parlay ? qualityLabel(parlay.average_data_quality) : '--'}
+                  </SummaryValue>
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-white/7 pt-3">
                 <dt className="text-white/38">Model</dt>
                 <dd className="font-medium text-white/70">
-                  {parlay?.model_version ?? data?.model_version ?? '--'}
+                  <SummaryValue loading={state === 'loading'}>
+                    {parlay?.model_version ?? data?.model_version ?? '--'}
+                  </SummaryValue>
                 </dd>
               </div>
             </dl>
