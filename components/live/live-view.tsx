@@ -17,6 +17,7 @@ import type { LiveGame } from '@/lib/live/types';
 import {
   ALL_LEAGUES,
   SPORT_TABS,
+  availableLeagues,
   formatKickoff,
   separatorFor,
   sportLabel,
@@ -195,11 +196,11 @@ export function LiveView() {
   const games = useMemo(() => data?.games ?? [], [data]);
   const timezone = data?.timezone ?? 'Europe/London';
 
-  const leagues = useMemo(() => {
-    const found = new Set<string>();
-    for (const game of games) if (game.league) found.add(game.league);
-    return [ALL_LEAGUES, ...[...found].sort((a, b) => a.localeCompare(b))];
-  }, [games]);
+  // Same helper Schedule uses, so ordering and behaviour match.
+  const leagues = useMemo(
+    () => availableLeagues(sport === 'all' ? games : games.filter((g) => g.sport === sport)),
+    [games, sport],
+  );
 
   const filtered = useMemo(
     () =>
@@ -271,7 +272,10 @@ export function LiveView() {
               key={tab.id}
               type="button"
               aria-pressed={sport === tab.id}
-              onClick={() => setSport(tab.id)}
+              onClick={() => {
+                setSport(tab.id);
+                setLeague(ALL_LEAGUES);
+              }}
               className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
                 sport === tab.id
                   ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'

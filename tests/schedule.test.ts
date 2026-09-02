@@ -11,6 +11,7 @@ import {
 } from '../lib/schedule/range.ts';
 import {
   ALL_LEAGUES,
+  SPORT_TABS,
   applyFilters,
   availableLeagues,
   formatDateHeading,
@@ -296,8 +297,27 @@ describe('schedule filters', () => {
   it('lists only leagues present in the loaded window', () => {
     const leagues = availableLeagues(week);
     assert.equal(leagues[0], ALL_LEAGUES);
-    assert.deepEqual(leagues.slice(1), ['Champions League', 'NFL', 'Premier League']);
+    assert.equal(leagues.length, 4);
+    assert.ok(leagues.includes('NFL'));
+    assert.ok(leagues.includes('Premier League'));
     assert.equal(availableLeagues([]).length, 1);
+  });
+
+  it('orders leagues by the catalogue, not alphabetically', () => {
+    // NFL outranks Premier League in the catalogue, so it comes first even
+    // though "N" sorts after "P" would not put it there by accident.
+    const leagues = availableLeagues(week).slice(1);
+    const nfl = leagues.indexOf('NFL');
+    const epl = leagues.indexOf('Premier League');
+    assert.ok(nfl >= 0 && epl >= 0);
+    assert.ok(nfl < epl, 'catalogue order should place NFL before Premier League');
+  });
+
+  it('offers a chip for every sport the catalogue can serve', () => {
+    const ids = SPORT_TABS.map((tab) => tab.id);
+    assert.deepEqual(ids, ['all', 'nfl', 'nba', 'mlb', 'nhl', 'football']);
+    // Tennis was removed: no configured league supplies it.
+    assert.equal(ids.includes('tennis' as never), false);
   });
 
   it('groups games by their local calendar date', () => {

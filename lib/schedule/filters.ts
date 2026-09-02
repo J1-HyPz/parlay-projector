@@ -9,6 +9,7 @@
 // Explicit .ts extension: runtime import, resolved as a real path by the test
 // runner. See lib/games/normalise.ts for the same note.
 import { gameDate } from './range.ts';
+import { LEAGUES } from '../leagues/registry.ts';
 import type { Game, SportId } from '../home/types';
 
 export const ALL_LEAGUES = 'All Leagues';
@@ -40,18 +41,36 @@ export function groupByDate(games: readonly Game[], timezone: string): Map<strin
   return grouped;
 }
 
+/** Catalogue order, so the dropdown reads NFL before NCAA Football. */
+const LEAGUE_ORDER = new Map(LEAGUES.map((league, index) => [league.label, index]));
+
 /**
- * Leagues actually present in the loaded window.
+ * Leagues actually present in the loaded games.
  *
- * Generated from the data, so the filter never offers a competition that has no
- * games in range.
+ * Generated from the data, so the filter never offers a competition with no
+ * games in range. Pass games already narrowed by sport and the dropdown narrows
+ * with it — picking Basketball should not still offer the Premier League.
+ *
+ * Ordered by the catalogue rather than alphabetically, so the senior
+ * competition in each sport comes first.
  */
 export function availableLeagues(games: readonly Game[]): string[] {
   const leagues = new Set<string>();
   for (const game of games) {
     if (game.league) leagues.add(game.league);
   }
-  return [ALL_LEAGUES, ...[...leagues].sort((a, b) => a.localeCompare(b))];
+
+  const ordered = [...leagues].sort((a, b) => {
+    const left = LEAGUE_ORDER.get(a);
+    const right = LEAGUE_ORDER.get(b);
+    // Anything outside the catalogue sorts after it, alphabetically.
+    if (left === undefined && right === undefined) return a.localeCompare(b);
+    if (left === undefined) return 1;
+    if (right === undefined) return -1;
+    return left - right;
+  });
+
+  return [ALL_LEAGUES, ...ordered];
 }
 
 /** Free-text match across the fields a person would plausibly search. */
@@ -175,15 +194,24 @@ export function formatKickoff(startTime: string | null, timezone: string): strin
   }).format(instant);
 }
 
-/** Sport chips, matching the existing filter control. */
+/**
+ * Sport chips.
+ *
+ * These are broad sports, not leagues: "Basketball" covers the NBA, WNBA and
+ * both NCAA divisions. The league dropdown beside them narrows to a specific
+ * competition. Labelling a chip "NBA" when it also returned college games was
+ * misleading, which is why they read as sports now.
+ *
+ * Tennis is absent: no configured league supplies it, and an option that can
+ * never return a game is worse than no option.
+ */
 export const SPORT_TABS: { id: SportId; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'nfl', label: 'NFL' },
-  { id: 'nba', label: 'NBA' },
-  { id: 'mlb', label: 'MLB' },
-  { id: 'nhl', label: 'NHL' },
+  { id: 'nfl', label: 'American Football' },
+  { id: 'nba', label: 'Basketball' },
+  { id: 'mlb', label: 'Baseball' },
+  { id: 'nhl', label: 'Hockey' },
   { id: 'football', label: 'Football' },
-  { id: 'tennis', label: 'Tennis' },
 ];
 
 export function sportLabel(sport: SportId): string {

@@ -30,7 +30,7 @@ import type {
 
 describe('league catalogue', () => {
   it('covers every requested competition', () => {
-    for (const id of ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaam', 'ncaaw']) {
+    for (const id of ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaam', 'ncaaw', 'mlb', 'nhl']) {
       assert.ok(findLeague(id), `${id} must be in the catalogue`);
     }
   });
@@ -65,7 +65,19 @@ describe('league catalogue', () => {
   it('groups leagues usefully', () => {
     assert.equal(leaguesInGroup('basketball').length, 4);
     assert.equal(leaguesInGroup('american-football').length, 2);
+    assert.equal(leaguesInGroup('baseball').length, 1);
+    assert.equal(leaguesInGroup('hockey').length, 1);
     assert.equal(leaguesInGroup('football').length, 9);
+  });
+
+  it('offers a league for every sport chip, so no chip is dead', () => {
+    // A chip that can never return a game is worse than no chip.
+    for (const sport of ['nfl', 'nba', 'mlb', 'nhl', 'football'] as const) {
+      assert.ok(
+        LEAGUES.some((league) => league.sport === sport),
+        `sport chip "${sport}" has no league behind it`,
+      );
+    }
   });
 
   it('has unique ids and non-empty provider paths', () => {

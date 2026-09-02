@@ -204,7 +204,21 @@ one thing, and a request for college basketball must not return NBA fixtures.
 |---|---|
 | American football | `nfl`, `ncaaf` |
 | Basketball | `nba`, `wnba`, `ncaam`, `ncaaw` |
-| Football | `epl`, `ucl`, `uel`, `laliga`, `bundesliga`, `seriea`, `ligue1`, `mls` |
+| Baseball | `mlb` |
+| Hockey | `nhl` |
+| Football | `epl`, `championship`, `league-one`, `ucl`, `uel`, `uecl`, `laliga`, `bundesliga`, `seriea` |
+
+### Filters
+
+Schedule and Live share two controls. The **sport chips** are broad sports —
+"Basketball" covers the NBA, WNBA and both NCAA divisions — and the **league
+dropdown** narrows to a specific competition. The dropdown is generated from the
+loaded games and follows the chosen sport, so it never offers a competition with
+no fixtures, and picking Basketball does not still offer the Premier League.
+Options are ordered by the catalogue, so the senior competition in each sport
+comes first.
+
+Tennis is not offered: no configured league supplies it.
 
 Every path was verified against live data before being listed — nothing
 speculative is offered.

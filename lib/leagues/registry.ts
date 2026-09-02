@@ -16,7 +16,13 @@
 import type { ConcreteSportId } from '../home/types';
 
 /** Broad grouping used for filtering. */
-export type LeagueGroup = 'american-football' | 'basketball' | 'football' | 'other';
+export type LeagueGroup =
+  | 'american-football'
+  | 'basketball'
+  | 'baseball'
+  | 'hockey'
+  | 'football'
+  | 'other';
 
 export interface League {
   /** Stable internal id used in URLs and cache keys. */
@@ -106,6 +112,30 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'basketball/womens-college-basketball',
     hasStandings: true,
     collegiate: true,
+  },
+
+  // Baseball
+  {
+    id: 'mlb',
+    label: 'MLB',
+    shortLabel: 'MLB',
+    group: 'baseball',
+    sport: 'mlb',
+    espnPath: 'baseball/mlb',
+    hasStandings: true,
+    collegiate: false,
+  },
+
+  // Ice hockey
+  {
+    id: 'nhl',
+    label: 'NHL',
+    shortLabel: 'NHL',
+    group: 'hockey',
+    sport: 'nhl',
+    espnPath: 'hockey/nhl',
+    hasStandings: true,
+    collegiate: false,
   },
 
   // Football / soccer — deliberately limited to the major competitions.

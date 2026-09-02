@@ -235,7 +235,12 @@ export function ScheduleView() {
   // Today is selected by default; `dates[0]` is today in the app timezone.
   const activeDate = selectedDate ?? dates[0] ?? null;
 
-  const leagues = useMemo(() => availableLeagues(games), [games]);
+  // League options follow the sport chip: picking Basketball should not still
+  // offer the Premier League.
+  const leagues = useMemo(
+    () => availableLeagues(sport === 'all' ? games : games.filter((g) => g.sport === sport)),
+    [games, sport],
+  );
   const summary = useMemo(() => summarise(games, dates, timezone), [games, dates, timezone]);
 
   const filtered = useMemo(
@@ -332,7 +337,11 @@ export function ScheduleView() {
               key={tab.id}
               type="button"
               aria-pressed={sport === tab.id}
-              onClick={() => setSport(tab.id)}
+              onClick={() => {
+                setSport(tab.id);
+                // The chosen league may not exist in the new sport.
+                setLeague(ALL_LEAGUES);
+              }}
               className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
                 sport === tab.id
                   ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
