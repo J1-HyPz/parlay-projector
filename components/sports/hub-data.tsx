@@ -43,13 +43,17 @@ interface Fetched<T> {
  */
 function useEndpoints<T>(urls: readonly string[]): Fetched<T> {
   const key = urls.join('|');
-  const [state, setState] = useState<LoadState>('loading');
-  const [responses, setResponses] = useState<T[]>([]);
+
+  // The result is stamped with the key it belongs to, so "loading" is derived
+  // during render rather than set synchronously in the effect -- which would
+  // cost an extra render pass every time the selection changes.
+  const [result, setResult] = useState<{ key: string; responses: T[]; failed: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     const targets = key.length > 0 ? key.split('|') : [];
     const controller = new AbortController();
-    setState('loading');
 
     async function load() {
       const settled = await Promise.allSettled(
@@ -70,21 +74,23 @@ function useEndpoints<T>(urls: readonly string[]): Fetched<T> {
         if (outcome.status === 'fulfilled') ok.push(outcome.value);
       }
 
-      if (targets.length > 0 && ok.length === 0) {
-        setState('error');
-        return;
-      }
-
-      setResponses(ok);
-      setState('loaded');
+      // Failed only when every request failed; one league of a combined hub
+      // being unavailable must not discard the other.
+      setResult({ key, responses: ok, failed: targets.length > 0 && ok.length === 0 });
     }
 
     void load();
     return () => controller.abort();
   }, [key]);
 
-  return { state, responses };
+  const current = result?.key === key ? result : null;
+  const state: LoadState = current === null ? 'loading' : current.failed ? 'error' : 'loaded';
+
+  return { state, responses: current?.responses ?? EMPTY };
 }
+
+/** Stable empty array, so the callers' useMemo does not re-run every render. */
+const EMPTY: never[] = [];
 
 // ---------------------------------------------------------------------------
 
