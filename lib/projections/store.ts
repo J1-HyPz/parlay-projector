@@ -135,6 +135,14 @@ export interface PublishResult {
   created: number;
   parlay_id: string | null;
   stored: boolean;
+  /**
+   * The store as it now stands.
+   *
+   * Returned because the caller needs the tracked status of the legs it just
+   * published, and this function has already read and merged the whole file —
+   * a second read on the request path would grow with the history.
+   */
+  records: PredictionRecordV2[];
 }
 
 /**
@@ -154,7 +162,9 @@ export function publishPredictions(
   risk: RiskLevel | null,
 ): Promise<PublishResult> {
   return exclusive(async () => {
-    if (selections.length === 0) return { created: 0, parlay_id: null, stored: false };
+    if (selections.length === 0) {
+      return { created: 0, parlay_id: null, stored: false, records: [] };
+    }
 
     const existing = await readPredictions();
     const known = new Map(existing.map((record) => [record.id, record]));
@@ -204,9 +214,11 @@ export function publishPredictions(
       });
     }
 
+    const records = [...existing, ...created];
+
     let stored = true;
     if (created.length > 0) {
-      stored = await persist(predictionsPath(), { predictions: [...existing, ...created] });
+      stored = await persist(predictionsPath(), { predictions: records });
       if (stored) {
         logger.info('predictions_published', { created: created.length, risk, parlay: parlayId });
       }
@@ -246,7 +258,7 @@ export function publishPredictions(
       }
     }
 
-    return { created: created.length, parlay_id: parlayId, stored };
+    return { created: created.length, parlay_id: parlayId, stored, records };
   });
 }
 

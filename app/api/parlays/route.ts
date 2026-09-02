@@ -27,7 +27,7 @@ import { scheduleRange } from '@/lib/schedule/range';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { availableDays, optimise, selectionsOnDate } from '@/lib/projections/optimiser';
 import { buildCandidates } from '@/lib/projections/service';
-import { publishPredictions, readPredictions } from '@/lib/projections/store';
+import { publishPredictions } from '@/lib/projections/store';
 import type { ActualOutcome, PredictionStatus } from '@/lib/projections/types';
 import { MODEL_VERSION } from '@/lib/projections/types';
 import type { RiskLevel } from '@/lib/projections/types';
@@ -121,8 +121,9 @@ export async function GET(request: Request): Promise<Response> {
      * kick-off and is never recomputed — a prediction that looks good at
      * half-time was not a better prediction when it was made.
      */
-    const records = await readPredictions();
-    const byId = new Map(records.map((record) => [record.id, record]));
+    // Reusing what publishing already read: a second full read here would
+    // grow with the prediction history, on every request.
+    const byId = new Map(published.records.map((record) => [record.id, record]));
 
     for (const leg of result.parlay.legs) {
       const record = byId.get(leg.id);
