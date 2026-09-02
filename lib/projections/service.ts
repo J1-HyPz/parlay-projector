@@ -183,14 +183,43 @@ function leaguesFor(sport: ConcreteSportId | 'all'): League[] {
 }
 
 /**
+ * How long a built candidate set is reused.
+ *
+ * Building one simulates every eligible fixture ten thousand times — with two
+ * hundred fixtures that is millions of simulated games, and it was previously
+ * repeated on *every* request. Changing risk level, leg count or day does not
+ * change a single projection, so all of them now share one build.
+ *
+ * Five minutes is far tighter than the per-fixture projection TTLs it sits in
+ * front of, so nothing goes stale that would not have anyway.
+ */
+const CANDIDATES_TTL_MS = 5 * 60_000;
+
+/**
  * Every model-backed selection across the eligible fixtures.
  *
- * Pools are built once and shared, so the nine football competitions cost one
- * set of ratings rather than nine. A pool failing leaves the others usable.
+ * Cached: the simulations are seeded from the game id and so are deterministic,
+ * which means a cached set is identical to a rebuilt one. The cache also
+ * de-duplicates concurrent requests, so several controls changed in quick
+ * succession share a single build rather than queueing several.
  */
 export async function buildCandidates(
   sport: ConcreteSportId | 'all' = 'all',
   asOf: number = Date.now(),
+): Promise<CandidateResult> {
+  const { value } = await cached(
+    `projection:candidates:${sport}:${projectionConfig.modelVersion}:${Math.floor(
+      asOf / CANDIDATES_TTL_MS,
+    )}`,
+    CANDIDATES_TTL_MS,
+    () => computeCandidates(sport, asOf),
+  );
+  return value;
+}
+
+async function computeCandidates(
+  sport: ConcreteSportId | 'all',
+  asOf: number,
 ): Promise<CandidateResult> {
   const leagues = leaguesFor(sport);
   const failedLeagues: string[] = [];

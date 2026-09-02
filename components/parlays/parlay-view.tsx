@@ -220,22 +220,40 @@ export function ParlayView() {
   const [variant, setVariant] = useState(0);
   const [day, setDay] = useState<string>(ALL_DAYS);
 
-  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
-  const [data, setData] = useState<ParlayResponse | null>(null);
+  /*
+   * The request is the state.
+   *
+   * Previously the loading state was only ever set inside the fetch callback,
+   * so changing a control left the *previous* line on screen with no
+   * indication anything was happening — and a request can take a moment. Every
+   * button looked broken.
+   *
+   * The result is stamped with the query it answers, so "loading" is derived
+   * during render by comparing against the current one. That gives immediate
+   * feedback without setting state synchronously in an effect, which would
+   * cost an extra render pass on every click.
+   */
+  const query = new URLSearchParams({
+    risk,
+    sport,
+    legs: String(legs),
+    variant: String(variant),
+  });
+  if (day !== ALL_DAYS) query.set('date', day);
+  const search = query.toString();
+
+  const [result, setResult] = useState<{
+    search: string;
+    body: ParlayResponse | null;
+    failed: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function load() {
       try {
-        const query = new URLSearchParams({
-          risk,
-          sport,
-          legs: String(legs),
-          variant: String(variant),
-        });
-        if (day !== ALL_DAYS) query.set('date', day);
-        const response = await fetch(`/api/parlays?${query}`, {
+        const response = await fetch(`/api/parlays?${search}`, {
           signal: controller.signal,
           headers: { accept: 'application/json' },
         });
@@ -243,23 +261,47 @@ export function ParlayView() {
 
         const body = (await response.json()) as ParlayResponse;
         if (controller.signal.aborted) return;
-
-        setData(body);
-        setState(body.parlay ? 'ready' : 'empty');
+        setResult({ search, body, failed: false });
       } catch {
-        if (!controller.signal.aborted) setState('error');
+        if (!controller.signal.aborted) setResult({ search, body: null, failed: true });
       }
     }
 
     void load();
     return () => controller.abort();
-  }, [risk, sport, legs, variant, day]);
+  }, [search]);
+
+  const current = result?.search === search ? result : null;
+  const state: 'loading' | 'ready' | 'empty' | 'error' =
+    current === null
+      ? 'loading'
+      : current.failed
+        ? 'error'
+        : current.body?.parlay
+          ? 'ready'
+          : 'empty';
+
+  /*
+   * The day tabs keep their previous counts while a new request is in flight.
+   *
+   * They are a property of the fixtures, not of the risk level, so blanking
+   * them on every click would make the whole row flicker for no reason.
+   */
+  const data = current?.body ?? result?.body ?? null;
 
   // Regenerate steps the variant only. Probabilities are model output and are
   // never touched — a different combination, not different numbers.
   const regenerate = useCallback(() => setVariant((current) => current + 1), []);
 
-  const parlay = data?.parlay ?? null;
+  /*
+   * The line itself is only shown for the request currently on screen.
+   *
+   * `data` falls back to the previous response so the day counts do not
+   * flicker, but the summary must not keep quoting a probability from a line
+   * that is being replaced — it would sit beside a loading skeleton claiming a
+   * figure for a risk level the reader has already moved off.
+   */
+  const parlay = current?.body?.parlay ?? null;
 
   return (
     <>
