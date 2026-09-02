@@ -203,6 +203,13 @@ jobs:
           python3 scripts/verify-projections.py http://127.0.0.1:3000 || {
             echo "::error::projection verification failed"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
 
+          # The prediction accuracy system, end to end: generate a real line,
+          # confirm its legs are stored and tracked, confirm settlement is
+          # idempotent, and confirm the homepage widget is the same number the
+          # accuracy service reports.
+          python3 scripts/verify-accuracy.py http://127.0.0.1:3000 || {
+            echo "::error::accuracy verification failed"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+
           # An unknown risk level is rejected rather than passed through.
           bad_risk=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/parlays?risk=guaranteed')
           echo "GET /api/parlays?risk=guaranteed -> HTTP $bad_risk"

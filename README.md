@@ -191,6 +191,28 @@ and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 ---
 
+## Prediction accuracy
+
+Every published prediction is measured against the real result, automatically.
+A background tracker moves predictions from pending to live to settled, retries
+when a provider is slow with a statistic, and voids rather than guessing when
+one never arrives.
+
+The headline figure is `wins / (wins + losses)` over official pre-game
+predictions that were actually shown to a reader — not every internal candidate
+— and it is withheld below 20 settled predictions rather than reported from a
+sample too small to mean anything. Brier score, calibration bands and score
+error are reported alongside it, because accuracy alone flatters a model that
+only backs favourites.
+
+Prediction history lives in `$DATA_DIR` on the mounted TrueNAS dataset and
+survives image replacement. It is the only evidence the model works.
+
+Settlement rules, void and push handling, calibration, parlay tracking and the
+persistence requirement: **[docs/prediction-accuracy.md](docs/prediction-accuracy.md)**.
+
+---
+
 ## Projections and parlays
 
 The Parlays page generates model-backed lines for upcoming fixtures. Team
