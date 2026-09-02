@@ -45,7 +45,7 @@ const SPORT_EMOJI: Record<string, string> = {
  * named with an underscore should not italicise the rest of the line.
  */
 export function escapeMarkdown(value: string): string {
-  return value.replace(/([\*_~`|>])/g, '\$1');
+  return value.replace(/([\\*_~`|>])/g, '\\$1');
 }
 
 /** One notification as a single line of Discord markdown. */
