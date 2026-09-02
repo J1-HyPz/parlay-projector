@@ -197,6 +197,28 @@ jobs:
           grep -q "Parlay Projector" /tmp/game.html \
             || { echo "::error::game page did not render the app shell"; docker rm -f pp-ci; exit 1; }
 
+          # The projection engine, end to end against live provider data. The
+          # unit tests run on synthetic seasons where the answer is known; this
+          # is the only place the whole pipeline runs on real fixtures.
+          python3 scripts/verify-projections.py http://127.0.0.1:3000 || {
+            echo "::error::projection verification failed"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+
+          # An unknown risk level is rejected rather than passed through.
+          bad_risk=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/parlays?risk=guaranteed')
+          echo "GET /api/parlays?risk=guaranteed -> HTTP $bad_risk"
+          [ "$bad_risk" = "400" ]             || { echo "::error::an unknown risk level should be 400, got $bad_risk"; docker rm -f pp-ci; exit 1; }
+
+          # Parlays renders, and carries none of the language this system must
+          # never use about a statistical estimate.
+          par=$(curl -s -o /tmp/parlays.html -w '%{http_code}' --max-time 180 http://127.0.0.1:3000/parlays)
+          echo "GET /parlays -> HTTP $par"
+          [ "$par" = "200" ]             || { echo "::error::parlays page failed, got $par"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          if grep -qiE "guaranteed|100% lock|safe bet|sure thing|bookmaker|sportsbook" /tmp/parlays.html; then
+            echo "::error::Parlays page contains language this system must never use"
+            docker rm -f pp-ci
+            exit 1
+          fi
+
           # The competition index is the only route to a hub on mobile, where
           # the sidebar is hidden.
           idx=$(curl -s -o /tmp/sports.html -w '%{http_code}' --max-time 90 http://127.0.0.1:3000/sports)

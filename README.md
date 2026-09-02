@@ -191,6 +191,27 @@ and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 ---
 
+## Projections and parlays
+
+The Parlays page generates model-backed lines for upcoming fixtures. Team
+ratings are built from completed results — opponent-adjusted scoring rates,
+recent form, rest and an Elo rating — then each fixture is simulated thousands
+of times, and every probability shown is read off the same set of simulations.
+
+Risk levels are relative analytical categories, not promises. Selections come
+from different games so the legs stay independent, fixtures without enough
+history are not projected at all, and published predictions are settled against
+real results to feed the homepage accuracy widget.
+
+There is no stake field, no projected return and no bookmaker data: without real
+odds a monetary figure would be invented. Player projections and tennis are
+absent because the required data does not exist — see the doc.
+
+Models, risk thresholds, correlation handling, calibration and the provider
+audit: **[docs/projection-engine.md](docs/projection-engine.md)**.
+
+---
+
 ## Competition hubs
 
 `/sports/<competition>` gives each of the sixteen supported competitions a
