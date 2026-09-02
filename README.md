@@ -191,6 +191,28 @@ and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 ---
 
+## Competition hubs
+
+`/sports/<competition>` gives each of the sixteen supported competitions a
+dedicated page: live scores, today's games, recent results, upcoming fixtures,
+standings, news, teams and transactions. One dynamic route and one component
+tree serve all of them, driven by configuration derived from the league
+catalogue.
+
+Sidebar shortcuts open hubs; the Schedule and Live chips still filter those
+pages, and every hub links back with the right filter applied. NCAA basketball
+is a single hub with an All / Men's / Women's selector, and the nine football
+competitions are reachable from a switcher on any football hub.
+
+Transactions are published by the provider for the NFL, NBA, WNBA, MLB and NHL
+only — football and NCAA competitions say so rather than showing an empty
+section, and no transfer fees are invented.
+
+Slugs, terminology, data sources and the provider audit:
+**[docs/sport-hubs.md](docs/sport-hubs.md)**.
+
+---
+
 ## Notifications
 
 Game updates — kick-off, final score, postponements and cancellations — are
