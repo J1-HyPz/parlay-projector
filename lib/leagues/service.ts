@@ -12,6 +12,10 @@
 import { cached } from '../cache';
 import { espnConfig } from '../config';
 import { fetchEspn } from '../providers/espn/client';
+import {
+  getSportsdbStandings,
+  getSportsdbTeams,
+} from '../providers/thesportsdb/league-data';
 import { logger } from '../logger';
 import type { League } from './registry';
 import {
@@ -39,7 +43,15 @@ function currentSeason(now: Date = new Date()): number {
 }
 
 export async function getStandings(league: League): Promise<StandingsGroup[] | null> {
-  if (!espnConfig.enabled || !league.hasStandings) return null;
+  if (!league.hasStandings) return null;
+
+  // Competitions ESPN does not carry come from their own provider.
+  if (league.provider === 'thesportsdb') {
+    return getSportsdbStandings(league, String(currentSeason()));
+  }
+
+  const espnPath = league.espnPath;
+  if (!espnConfig.enabled || !espnPath) return null;
 
   try {
     const { value, hit } = await cached(
@@ -49,7 +61,7 @@ export async function getStandings(league: League): Promise<StandingsGroup[] | n
         // The v2 host is the one that returns real groups; the site path
         // returns only a link stub.
         const payload = await fetchEspn<RawStandingsGroup>(
-          `${league.espnPath}/standings`,
+          `${espnPath}/standings`,
           `season=${currentSeason()}`,
           'v2',
         );
@@ -74,11 +86,13 @@ export async function getStandings(league: League): Promise<StandingsGroup[] | n
 }
 
 export async function getTeams(league: League): Promise<TeamProfile[] | null> {
-  if (!espnConfig.enabled) return null;
+  if (league.provider === 'thesportsdb') return getSportsdbTeams(league);
+  const espnPath = league.espnPath;
+  if (!espnConfig.enabled || !espnPath) return null;
 
   try {
     const { value } = await cached(`league:teams:${league.id}`, TEAMS_TTL_MS, async () => {
-      const payload = await fetchEspn<RawTeamsResponse>(`${league.espnPath}/teams`);
+      const payload = await fetchEspn<RawTeamsResponse>(`${espnPath}/teams`);
       return normaliseTeams(payload);
     });
     return value.length > 0 ? value : null;
@@ -95,7 +109,16 @@ export async function getRoster(
   league: League,
   teamId: string,
 ): Promise<PlayerProfile[] | null> {
-  if (!espnConfig.enabled) return null;
+  /*
+   * Rosters are an ESPN capability.
+   *
+   * TheSportsDB has a player endpoint, but it carries no statistics and no
+   * squad-by-season data worth the request, so these competitions report no
+   * roster rather than a list that says nothing.
+   */
+  if (league.provider === 'thesportsdb') return null;
+  const espnPath = league.espnPath;
+  if (!espnConfig.enabled || !espnPath) return null;
 
   try {
     const { value } = await cached(
@@ -103,7 +126,7 @@ export async function getRoster(
       ROSTER_TTL_MS,
       async () => {
         const payload = await fetchEspn<RawRosterResponse>(
-          `${league.espnPath}/teams/${encodeURIComponent(teamId)}/roster`,
+          `${espnPath}/teams/${encodeURIComponent(teamId)}/roster`,
         );
         return normaliseRoster(payload);
       },

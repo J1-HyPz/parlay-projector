@@ -90,7 +90,10 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
   if (!parsed) return null;
 
   const league = findLeague(parsed.leagueId);
-  if (!league) return null;
+  // An `espn-` prefixed id can only belong to an ESPN-served competition, but
+  // the path is checked rather than assumed.
+  const espnPath = league?.espnPath;
+  if (!league || !espnPath) return null;
 
   const { value } = await cached(
     `espn:detail:${league.id}:${parsed.eventId}`,
@@ -98,7 +101,7 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
     6 * 60 * 60_000,
     async () => {
       const summary = await fetchEspn<RawSummary>(
-        `${league.espnPath}/summary`,
+        `${espnPath}/summary`,
         `event=${encodeURIComponent(parsed.eventId)}`,
       );
       return summary?.header?.id ? summary : null;

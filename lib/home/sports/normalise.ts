@@ -164,6 +164,14 @@ function venue(event: RawEvent): Venue {
 export function normaliseEvent(
   event: RawEvent,
   sport: ConcreteSportId,
+  /**
+   * Catalogue label to use instead of the provider's own.
+   *
+   * The provider's `strLeague` wording does not always match the catalogue, and
+   * chips, badges and filters all key on the catalogue label — so a competition
+   * fetched by id is labelled by the catalogue, exactly as ESPN fixtures are.
+   */
+  leagueLabel?: string,
 ): Game | null {
   const id = str(event.idEvent);
   if (!id) return null;
@@ -172,15 +180,26 @@ export function normaliseEvent(
   const away = str(event.strAwayTeam);
   if (!home && !away) return null;
 
+  const status = normaliseStatus(event.strStatus, event.strPostponed);
+  // A scheduled fixture has no score. Only a started game gets one, so nothing
+  // downstream has to tell "nil-nil" from "not yet" — the same rule as ESPN.
+  const started = status === 'live' || status === 'finished';
+  const scored = (value: unknown): number | null => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   return {
     id,
     sport,
-    league: str(event.strLeague),
+    league: leagueLabel ?? str(event.strLeague),
     league_badge: str(event.strLeagueBadge),
     season: str(event.strSeason),
     round: str(event.intRound),
     start_time: normaliseStartTime(event),
-    status: normaliseStatus(event.strStatus, event.strPostponed),
+    status,
     provider_status: str(event.strStatus),
     home_team: team(event.strHomeTeam, event.idHomeTeam, event.strHomeTeamBadge),
     away_team: team(event.strAwayTeam, event.idAwayTeam, event.strAwayTeamBadge),
@@ -188,6 +207,9 @@ export function normaliseEvent(
     // TheSportsDB exposes no broadcast field; the contract keeps the slot so a
     // future provider can populate it without a frontend change.
     broadcast: null,
+    ...(started
+      ? { score: { home: scored(event.intHomeScore), away: scored(event.intAwayScore) } }
+      : {}),
   };
 }
 

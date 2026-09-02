@@ -24,6 +24,16 @@ export type LeagueGroup =
   | 'football'
   | 'other';
 
+/**
+ * Which provider serves a competition.
+ *
+ * Most come from ESPN, which has richer coverage — standings, teams, rosters,
+ * news and transactions. A few exist only on TheSportsDB, and those get
+ * fixtures and results but not the rest; the UI degrades to an empty state
+ * rather than pretending otherwise.
+ */
+export type LeagueProvider = 'espn' | 'thesportsdb';
+
 export interface League {
   /** Stable internal id used in URLs and cache keys. */
   id: string;
@@ -36,8 +46,18 @@ export interface League {
    * onto the nearest existing sport so shared code keeps working.
    */
   sport: ConcreteSportId;
-  /** ESPN path segment, e.g. `basketball/wnba`. */
-  espnPath: string;
+  /** Which provider serves this competition. */
+  provider: LeagueProvider;
+  /**
+   * ESPN path segment, e.g. `basketball/wnba`.
+   * Null for competitions ESPN does not carry.
+   */
+  espnPath: string | null;
+  /**
+   * TheSportsDB league id, e.g. `4405` for the CFL.
+   * Null for competitions served by ESPN.
+   */
+  sportsdbLeagueId: string | null;
   /** Whether the provider publishes a standings table for this league. */
   hasStandings: boolean;
   /**
@@ -67,7 +87,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NFL',
     group: 'american-football',
     sport: 'nfl',
+    provider: 'espn',
     espnPath: 'football/nfl',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: true,
     collegiate: false,
@@ -78,10 +100,63 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NCAAF',
     group: 'american-football',
     sport: 'nfl',
+    provider: 'espn',
     espnPath: 'football/college-football',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: true,
+  },
+
+  /*
+   * Competitions ESPN does not carry.
+   *
+   * ESPN holds CFL *teams* but publishes no fixtures or results for it at all —
+   * its scoreboard returns zero events for every season — so these three come
+   * from TheSportsDB, which does have them. Fixtures and results only: no
+   * news, no transactions, and standings only where the provider publishes a
+   * table.
+   */
+  {
+    id: 'cfl',
+    label: 'CFL',
+    shortLabel: 'CFL',
+    group: 'american-football',
+    sport: 'nfl',
+    provider: 'thesportsdb',
+    espnPath: null,
+    sportsdbLeagueId: '4405',
+    hasStandings: true,
+    hasTransactions: false,
+    collegiate: false,
+  },
+  {
+    id: 'afle',
+    label: 'American Football League Europe',
+    shortLabel: 'AFLE',
+    group: 'american-football',
+    sport: 'nfl',
+    provider: 'thesportsdb',
+    espnPath: null,
+    sportsdbLeagueId: '5877',
+    // No table published for this competition; the hub says so rather than
+    // rendering an empty one.
+    hasStandings: false,
+    hasTransactions: false,
+    collegiate: false,
+  },
+  {
+    id: 'efa',
+    label: 'European Football Alliance',
+    shortLabel: 'EFA',
+    group: 'american-football',
+    sport: 'nfl',
+    provider: 'thesportsdb',
+    espnPath: null,
+    sportsdbLeagueId: '5876',
+    hasStandings: false,
+    hasTransactions: false,
+    collegiate: false,
   },
 
   // Basketball
@@ -91,7 +166,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NBA',
     group: 'basketball',
     sport: 'nba',
+    provider: 'espn',
     espnPath: 'basketball/nba',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: true,
     collegiate: false,
@@ -102,7 +179,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'WNBA',
     group: 'basketball',
     sport: 'nba',
+    provider: 'espn',
     espnPath: 'basketball/wnba',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: true,
     collegiate: false,
@@ -113,7 +192,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NCAAM',
     group: 'basketball',
     sport: 'nba',
+    provider: 'espn',
     espnPath: 'basketball/mens-college-basketball',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: true,
@@ -124,7 +205,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NCAAW',
     group: 'basketball',
     sport: 'nba',
+    provider: 'espn',
     espnPath: 'basketball/womens-college-basketball',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: true,
@@ -137,7 +220,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'MLB',
     group: 'baseball',
     sport: 'mlb',
+    provider: 'espn',
     espnPath: 'baseball/mlb',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: true,
     collegiate: false,
@@ -150,7 +235,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'NHL',
     group: 'hockey',
     sport: 'nhl',
+    provider: 'espn',
     espnPath: 'hockey/nhl',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: true,
     collegiate: false,
@@ -165,7 +252,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'EPL',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/eng.1',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -176,7 +265,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'EFLC',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/eng.2',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -187,7 +278,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'EFL1',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/eng.3',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -198,7 +291,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'UCL',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/uefa.champions',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -209,7 +304,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'UEL',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/uefa.europa',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -220,7 +317,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'UECL',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/uefa.europa.conf',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -231,7 +330,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'LIGA',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/esp.1',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -242,7 +343,9 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'BUN',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/ger.1',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
@@ -253,12 +356,24 @@ export const LEAGUES: readonly League[] = [
     shortLabel: 'SERA',
     group: 'football',
     sport: 'football',
+    provider: 'espn',
     espnPath: 'soccer/ita.1',
+    sportsdbLeagueId: null,
     hasStandings: true,
     hasTransactions: false,
     collegiate: false,
   },
 ] as const;
+
+/** Competitions served by a given provider. */
+export function leaguesByProvider(provider: LeagueProvider): League[] {
+  return LEAGUES.filter((league) => league.provider === provider);
+}
+
+/** True when the competition's provider supplies news and transactions. */
+export function supportsEditorialData(league: League): boolean {
+  return league.provider === 'espn';
+}
 
 export function findLeague(id: string | null | undefined): League | null {
   if (typeof id !== 'string') return null;

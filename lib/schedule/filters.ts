@@ -247,6 +247,11 @@ export const SPORT_TABS: readonly SportChip[] = [
   { id: 'all', label: 'All', emoji: null, leagues: [] },
   { id: 'nfl', label: 'NFL', emoji: '\u{1F3C8}', leagues: ['nfl'] },
   { id: 'ncaaf', label: 'NCAA', emoji: '\u{1F3C8}', leagues: ['ncaaf'] },
+  { id: 'cfl', label: 'CFL', emoji: '\u{1F3C8}', leagues: ['cfl'] },
+  // The two European competitions share a chip: both are short summer
+  // seasons with a handful of teams, and separate chips would sit empty
+  // for most of the year.
+  { id: 'euro-football', label: 'Europe', emoji: '\u{1F3C8}', leagues: ['afle', 'efa'] },
   { id: 'nba', label: 'NBA', emoji: '\u{1F3C0}', leagues: ['nba'] },
   { id: 'wnba', label: 'WNBA', emoji: '\u{1F3C0}', leagues: ['wnba'] },
   // Men's and women's college basketball share one chip; the league dropdown

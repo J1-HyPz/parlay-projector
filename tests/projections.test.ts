@@ -31,7 +31,12 @@ import {
 import { settle } from '../lib/projections/settlement.ts';
 import { backtest } from '../lib/projections/backtest.ts';
 import { awaitingSettlement, parsePredictions } from '../lib/projections/store-parse.ts';
-import { MIN_LEGS, RISK_PROFILES, modelConfigFor } from '../lib/projections/config.ts';
+import {
+  MIN_LEGS,
+  RISK_PROFILES,
+  modelConfigFor,
+  modelConfigForLeague,
+} from '../lib/projections/config.ts';
 import { MIN_DATA_QUALITY } from '../lib/projections/types.ts';
 import { halveRange, splitRange } from '../lib/providers/espn/fixture-normalise.ts';
 import type { Game } from '../lib/home/types.ts';
@@ -1062,6 +1067,29 @@ describe('sport models', () => {
     assert.equal(nba.scoring, 'normal');
     assert.equal(football.hasDraw, true);
     assert.equal(nfl.hasDraw, false);
+  });
+
+  it('gives the CFL its own model rather than the NFL default', () => {
+    // Three downs, twelve a side, a bigger field: Canadian football scores
+    // appreciably higher, and the NFL baseline would centre every projected
+    // scoreline several points low.
+    const nfl = modelConfigForLeague('nfl', 'nfl')!;
+    const cfl = modelConfigForLeague('cfl', 'nfl')!;
+    assert.ok(cfl.baselineTotal > nfl.baselineTotal);
+    assert.notEqual(cfl.homeAdvantage, nfl.homeAdvantage);
+  });
+
+  it('lowers the sample bar for the short European seasons', () => {
+    const nfl = modelConfigForLeague('nfl', 'nfl')!;
+    for (const id of ['afle', 'efa']) {
+      const config = modelConfigForLeague(id, 'nfl')!;
+      // A handful of games a season, so full rating trust must be reachable.
+      assert.ok(config.targetGames < nfl.targetGames, id);
+    }
+  });
+
+  it('falls back to the sport when a league has no override', () => {
+    assert.equal(modelConfigForLeague('ncaaf', 'nfl'), modelConfigFor('nfl'));
   });
 
   it('has no model for a sport with no data', () => {

@@ -15,7 +15,7 @@ import { logger } from '../logger';
 import { sortGames } from '../home/sports/normalise';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
-import { fixturesForLeague } from '../providers/espn/fixtures';
+import { fixturesForLeague } from '../providers/fixtures';
 import type { Game, SportId } from '../home/types';
 import { gameDate, isWithinRange, scheduleRange } from './range';
 import type { ScheduleRange } from './range';

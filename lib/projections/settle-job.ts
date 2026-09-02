@@ -19,7 +19,7 @@
 
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
-import { fixturesForLeague } from '../providers/espn/fixtures';
+import { fixturesForLeague } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
 import { todayInAppTimezone } from '../config';
 import { modelConfigFor } from './config';

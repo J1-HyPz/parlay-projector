@@ -217,6 +217,49 @@ const FOOTBALL: SportModelConfig = {
 };
 
 /**
+ * Canadian football is not American football.
+ *
+ * Three downs instead of four, twelve players a side, a longer and wider field
+ * and a deeper end zone. The game scores appreciably higher — a combined total
+ * in the low fifties against the NFL's mid forties — so applying the NFL's
+ * baseline would centre every projected scoreline several points low.
+ *
+ * The season is 18 games, one longer than the NFL's, so the sample thresholds
+ * are near enough the same.
+ */
+const CFL: SportModelConfig = {
+  ...NFL,
+  baselineTotal: 52,
+  scoreSd: 11,
+  homeAdvantage: 1.6,
+  marginPerHundredElo: 3.0,
+  // A June-to-November season, so a year comfortably covers the last one.
+  historyDays: 400,
+};
+
+/**
+ * The European competitions.
+ *
+ * Short summer seasons — a handful of games a team — and far less history than
+ * any other competition here. The thresholds are correspondingly cautious:
+ * `minGames` is the same as the NFL's but `targetGames` is much lower, so a
+ * team reaches full rating trust on the sample the competition actually
+ * provides rather than never reaching it at all.
+ *
+ * Scoring is closer to the NFL's than the CFL's, but is genuinely unverified —
+ * see docs/data-providers.md. These sit on the baseline until settled
+ * predictions say otherwise.
+ */
+const EURO_AMERICAN: SportModelConfig = {
+  ...NFL,
+  baselineTotal: 46,
+  minGames: 4,
+  targetGames: 8,
+  formHalfLife: 3,
+  historyDays: 400,
+};
+
+/**
  * Tennis has no configuration because it has no data.
  *
  * The shared SportId type still contains `tennis`, but the league catalogue
@@ -231,8 +274,35 @@ const CONFIGS: Partial<Record<ConcreteSportId, SportModelConfig>> = {
   football: FOOTBALL,
 };
 
+/**
+ * Competitions whose model differs from their sport's default.
+ *
+ * Keyed by league id, checked before the sport. Several competitions share a
+ * sport id — the CFL, the NFL and NCAA football are all `nfl` — and they do not
+ * all score alike.
+ */
+const LEAGUE_CONFIGS: Record<string, SportModelConfig> = {
+  cfl: CFL,
+  afle: EURO_AMERICAN,
+  efa: EURO_AMERICAN,
+};
+
 export function modelConfigFor(sport: ConcreteSportId): SportModelConfig | null {
   return CONFIGS[sport] ?? null;
+}
+
+/**
+ * The model for a competition.
+ *
+ * Prefers a league-specific configuration, falling back to the sport's. Callers
+ * that hold a league should use this; `modelConfigFor` remains for the places
+ * that only know a sport.
+ */
+export function modelConfigForLeague(
+  leagueId: string,
+  sport: ConcreteSportId,
+): SportModelConfig | null {
+  return LEAGUE_CONFIGS[leagueId] ?? modelConfigFor(sport);
 }
 
 export function isSupportedSport(sport: ConcreteSportId): boolean {

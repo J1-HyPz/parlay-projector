@@ -34,13 +34,18 @@ export async function getLeagueNews(
   league: League,
   limit: number,
 ): Promise<NewsArticle[] | null> {
+  // Only ESPN publishes a per-competition news feed. The others report none,
+  // and the hub shows an empty state rather than a general sports feed
+  // pretending to be about this competition.
+  const espnPath = league.espnPath;
+  if (league.provider !== 'espn' || !espnPath) return null;
   if (!espnConfig.enabled) return null;
 
   try {
     // Cache the whole feed and slice, so varying `limit` costs no extra
     // requests -- the same rule the homepage news service follows.
     const { value } = await cached(`league:news:${league.id}`, NEWS_TTL_MS, async () => {
-      const payload = await fetchEspn<RawEspnNewsResponse>(`${league.espnPath}/news`);
+      const payload = await fetchEspn<RawEspnNewsResponse>(`${espnPath}/news`);
       return normaliseEspnNews(payload, league.label);
     });
     return value.slice(0, limit);
@@ -88,7 +93,8 @@ export async function getLeagueTransactions(
   league: League,
   limit: number,
 ): Promise<TransactionsResult> {
-  if (!league.hasTransactions) {
+  const espnPath = league.espnPath;
+  if (!league.hasTransactions || league.provider !== 'espn' || !espnPath) {
     return { transactions: [], supported: false, failed: false };
   }
   if (!espnConfig.enabled) {
@@ -108,7 +114,7 @@ export async function getLeagueTransactions(
         // requests for names already on hand.
         const [payload, teams] = await Promise.all([
           fetchEspn<RawTransactionsResponse>(
-            `${coreLeaguePath(league.espnPath)}/transactions`,
+            `${coreLeaguePath(espnPath)}/transactions`,
             // Without an explicit range the feed returns nothing at all.
             `limit=100&dates=${range}`,
             'core',

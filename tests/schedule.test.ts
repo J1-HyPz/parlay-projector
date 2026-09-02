@@ -326,7 +326,7 @@ describe('schedule filters', () => {
   it('gives every competition its own chip', () => {
     const ids = SPORT_TABS.map((tab) => tab.id);
     assert.deepEqual(ids, [
-      'all', 'nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
+      'all', 'nfl', 'ncaaf', 'cfl', 'euro-football', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
       'epl', 'championship', 'league-one', 'ucl', 'uel', 'uecl',
       'laliga', 'bundesliga', 'seriea',
     ]);

@@ -53,7 +53,8 @@ export async function fixturesForLeague(
   endDate: string,
   ttlMs: number,
 ): Promise<Game[]> {
-  if (!espnConfig.enabled) return [];
+  const espnPath = league.espnPath;
+  if (!espnConfig.enabled || !espnPath) return [];
 
   const range = `${compactDate(startDate)}-${compactDate(endDate)}`;
 
@@ -63,7 +64,7 @@ export async function fixturesForLeague(
     async () => {
       try {
         const payload = await fetchEspn<RawFixtureResponse>(
-          `${league.espnPath}/scoreboard`,
+          `${espnPath}/scoreboard`,
           `dates=${range}&limit=200`,
         );
         return normaliseFixtures(payload, league);
@@ -158,12 +159,15 @@ async function fetchWindow(
   ttlMs: number,
   depth: number,
 ): Promise<Game[]> {
+  const espnPath = league.espnPath;
+  if (!espnPath) return [];
+
   const range = `${compactDate(window.start)}-${compactDate(window.end)}`;
 
   const { value } = await cached(`espn:history:${league.id}:${range}`, ttlMs, async () => {
     try {
       const payload = await fetchEspn<RawFixtureResponse>(
-        `${league.espnPath}/scoreboard`,
+        `${espnPath}/scoreboard`,
         `dates=${range}&limit=${EVENT_LIMIT}`,
       );
       const games = normaliseFixtures(payload, league);

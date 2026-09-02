@@ -32,9 +32,9 @@ import { APP_TIMEZONE, projectionConfig, todayInAppTimezone } from '../config';
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
-import { fixturesForRange } from '../providers/espn/fixtures';
+import { fixturesForRange } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
-import { modelConfigFor } from './config';
+import { modelConfigFor, modelConfigForLeague } from './config';
 import type { SportModelConfig } from './config';
 import { buildRatings, toResults } from './features';
 import type { RatingSet } from './features';
@@ -118,7 +118,7 @@ export async function buildPoolModel(
   league: League,
   asOf: number = Date.now(),
 ): Promise<PoolModel | null> {
-  const config = modelConfigFor(league.sport);
+  const config = modelConfigForLeague(league.id, league.sport);
   if (!config) return null;
 
   const pool = poolFor(league, config);
@@ -226,7 +226,7 @@ export async function buildCandidates(
     if (!model) continue;
 
     for (const league of leagues) {
-      const config = modelConfigFor(league.sport);
+      const config = modelConfigForLeague(league.id, league.sport);
       if (!config) continue;
 
       const fixtures = model.upcoming.get(league.id);

@@ -13,7 +13,12 @@ import {
   resolveHub,
   singleLeagueFor,
 } from '../lib/sports/hubs.ts';
-import { LEAGUES, findLeague } from '../lib/leagues/registry.ts';
+import {
+  LEAGUES,
+  findLeague,
+  leaguesByProvider,
+  supportsEditorialData,
+} from '../lib/leagues/registry.ts';
 import { previewSections, seasonLabel, splitGames } from '../lib/sports/split.ts';
 import { hasRank, standingsColumns } from '../lib/sports/standings-columns.ts';
 import {
@@ -43,7 +48,7 @@ describe('hub slugs', () => {
 
   it('exposes the expected slugs', () => {
     assert.deepEqual(hubSlugs(), [
-      'nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
+      'nfl', 'ncaaf', 'cfl', 'afle', 'efa', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
       'epl', 'championship', 'league-one', 'ucl', 'uel', 'uecl',
       'laliga', 'bundesliga', 'seriea',
     ]);
@@ -151,7 +156,7 @@ describe('navigation', () => {
   });
 
   it('keeps the sidebar curated rather than exhaustive', () => {
-    assert.ok(SIDEBAR_HUBS.length < HUBS.length, 'seventeen entries would be unusable');
+    assert.ok(SIDEBAR_HUBS.length < HUBS.length, 'every competition would be unusable');
     assert.deepEqual(
       SIDEBAR_HUBS.map((entry) => entry.slug),
       ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'epl', 'ucl'],
@@ -198,6 +203,8 @@ describe('navigation', () => {
     // Football carries nine competitions; the sidebar only has room for two.
     assert.equal(groups.find((group) => group.id === 'football')?.hubs.length, 9);
     assert.equal(groups.find((group) => group.id === 'basketball')?.hubs.length, 3);
+    // NFL, NCAA, CFL and the two European competitions.
+    assert.equal(groups.find((group) => group.id === 'american-football')?.hubs.length, 5);
   });
 
   it('puts each hub in exactly one group', () => {
@@ -579,6 +586,54 @@ describe('transaction normalisation', () => {
       teams,
     );
     assert.deepEqual(result.map((t) => t.description), ['Newer move', 'Older move']);
+  });
+});
+
+describe('provider coverage', () => {
+  it('gives every competition a provider and the path that provider needs', () => {
+    for (const league of LEAGUES) {
+      if (league.provider === 'espn') {
+        assert.ok(league.espnPath, `${league.id} is an ESPN league with no path`);
+        assert.equal(league.sportsdbLeagueId, null, `${league.id} should not carry both`);
+      } else {
+        assert.ok(
+          league.sportsdbLeagueId,
+          `${league.id} is a TheSportsDB league with no id`,
+        );
+        assert.equal(league.espnPath, null, `${league.id} should not carry both`);
+      }
+    }
+  });
+
+  it('serves the competitions ESPN does not carry from TheSportsDB', () => {
+    // ESPN holds CFL teams but publishes no fixtures or results for it at all,
+    // and carries neither European competition.
+    assert.deepEqual(
+      leaguesByProvider('thesportsdb').map((league) => league.id),
+      ['cfl', 'afle', 'efa'],
+    );
+  });
+
+  it('marks those competitions as having no news or transactions', () => {
+    // Only ESPN publishes a per-competition news feed or a transactions feed.
+    for (const league of leaguesByProvider('thesportsdb')) {
+      assert.equal(supportsEditorialData(league), false, league.id);
+      assert.equal(league.hasTransactions, false, league.id);
+    }
+  });
+
+  it('claims a table only where one is published', () => {
+    assert.equal(findLeague('cfl')?.hasStandings, true);
+    // No table is published for the two European competitions, so the hub says
+    // so rather than rendering an empty one.
+    assert.equal(findLeague('afle')?.hasStandings, false);
+    assert.equal(findLeague('efa')?.hasStandings, false);
+  });
+
+  it('reaches every new competition from the hub index', () => {
+    for (const slug of ['cfl', 'afle', 'efa']) {
+      assert.ok(resolveHub(slug), `${slug} has no hub`);
+    }
   });
 });
 

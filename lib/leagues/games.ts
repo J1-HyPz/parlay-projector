@@ -12,7 +12,7 @@
 import { APP_TIMEZONE, sportsConfig, todayInAppTimezone } from '../config';
 import { logger } from '../logger';
 import { sortGames } from '../home/sports/normalise';
-import { fixturesForLeague } from '../providers/espn/fixtures';
+import { fixturesForLeague } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
 import { HUB_DAYS_AHEAD, HUB_DAYS_BACK } from '../sports/split';
 import type { League } from './registry';

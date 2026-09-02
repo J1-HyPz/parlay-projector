@@ -10,7 +10,7 @@ import { APP_TIMEZONE, sportsConfig, todayInAppTimezone } from '../../config';
 import { logger } from '../../logger';
 import { LEAGUES } from '../../leagues/registry';
 import type { League } from '../../leagues/registry';
-import { fixturesForLeague } from '../../providers/espn/fixtures';
+import { fixturesForLeague } from '../../providers/fixtures';
 import { gameDate } from '../../schedule/range';
 import { sortGames } from './normalise';
 import type { Game, SportId } from '../types';
