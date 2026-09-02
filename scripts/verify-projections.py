@@ -156,6 +156,34 @@ def check_days():
     print("  out-of-window date ignored, not rejected")
 
 
+def check_controls_are_responsive():
+    """
+    Changing a control must not rebuild every projection.
+
+    Risk level, leg count and day do not change a single projection, so they
+    share one cached candidate set. Without that, every click re-simulated
+    every eligible fixture ten thousand times and the page felt dead.
+    """
+    import time
+
+    # Warm the candidate set for this sport.
+    get("/api/parlays?risk=low&legs=3")
+
+    worst = 0.0
+    for risk, legs in (("medium", 4), ("high", 5), ("low", 2)):
+        started = time.monotonic()
+        get(f"/api/parlays?risk={risk}&legs={legs}")
+        elapsed = time.monotonic() - started
+        worst = max(worst, elapsed)
+        print(f"  risk={risk} legs={legs}: {elapsed:.2f}s")
+
+    # Generous, so this fails on a rebuild rather than on a slow runner.
+    assert worst < 10.0, (
+        f"a control change took {worst:.1f}s - the candidate set is being rebuilt"
+    )
+    print(f"  slowest control change {worst:.2f}s, candidate set reused")
+
+
 def main():
     print("--- projections ---")
     check_projections()
@@ -170,6 +198,9 @@ def main():
 
     print("--- day selector ---")
     check_days()
+
+    print("--- control responsiveness ---")
+    check_controls_are_responsive()
     print("projection engine verified against live data")
 
 
