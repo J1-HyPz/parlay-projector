@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star } from 'lucide-react';
+import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star, Trophy } from 'lucide-react';
 import { SIDEBAR_HUBS } from '@/lib/sports/hubs';
 import { WatchlistProvider } from '@/components/watchlist/watchlist-context';
 
@@ -25,6 +25,18 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'schedule', label: 'Schedule', href: '/schedule', icon: CalendarDays },
   { key: 'live', label: 'Live', href: '/live', icon: Radio },
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
+];
+
+/**
+ * Mobile gets one tab the desktop header does not.
+ *
+ * The sport shortcuts live in the sidebar, which is `lg:flex` — so on a phone
+ * there was no way to reach a competition hub at all. This tab opens the
+ * competition index instead. Desktop keeps the sidebar and does not need it.
+ */
+const mobileNavigation: typeof primaryNavigation = [
+  ...primaryNavigation,
+  { key: 'sports', label: 'Sports', href: '/sports', icon: Trophy },
 ];
 
 export function AppShell({ active, activeHub, children }: AppShellProps) {
@@ -106,8 +118,8 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-4 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
-        {primaryNavigation.map(({ key, label, href, icon: Icon }) => (
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-5 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+        {mobileNavigation.map(({ key, label, href, icon: Icon }) => (
           <a
             key={key}
             href={href}

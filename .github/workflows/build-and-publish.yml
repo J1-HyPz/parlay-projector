@@ -197,6 +197,15 @@ jobs:
           grep -q "Parlay Projector" /tmp/game.html \
             || { echo "::error::game page did not render the app shell"; docker rm -f pp-ci; exit 1; }
 
+          # The competition index is the only route to a hub on mobile, where
+          # the sidebar is hidden.
+          idx=$(curl -s -o /tmp/sports.html -w '%{http_code}' --max-time 90 http://127.0.0.1:3000/sports)
+          echo "GET /sports -> HTTP $idx"
+          [ "$idx" = "200" ]             || { echo "::error::competition index failed, got $idx"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          for expect in "NBA" "Premier League" "NCAA Basketball" "Serie A"; do
+            grep -q "$expect" /tmp/sports.html               || { echo "::error::/sports did not list \"$expect\""; docker rm -f pp-ci; exit 1; }
+          done
+
           # Every competition hub renders on a direct request. One dynamic
           # route serves all sixteen, so a representative slug per shape is
           # enough: a plain league, a football competition, and the combined

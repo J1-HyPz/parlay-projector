@@ -224,6 +224,58 @@ export function hubForLeagueId(leagueId: string): HubConfig | null {
 }
 
 // ---------------------------------------------------------------------------
+// Directory
+// ---------------------------------------------------------------------------
+
+/** Readable name for a catalogue group, for the competition index. */
+const GROUP_LABEL: Record<string, string> = {
+  'american-football': 'American football',
+  basketball: 'Basketball',
+  baseball: 'Baseball',
+  hockey: 'Ice hockey',
+  football: 'Football',
+  other: 'Other',
+};
+
+export interface HubGroup {
+  id: string;
+  label: string;
+  emoji: string;
+  hubs: HubConfig[];
+}
+
+/**
+ * Every hub, grouped by sport, in catalogue order.
+ *
+ * Used by the competition index — the page the mobile navigation opens, since
+ * the sidebar shortcuts are desktop-only. Grouping comes from the league
+ * catalogue rather than a second list.
+ */
+export function hubGroups(): HubGroup[] {
+  const groups: HubGroup[] = [];
+
+  for (const hub of HUBS) {
+    // A hub's leagues always share a group; the combined NCAA basketball hub
+    // covers two leagues, both of them basketball.
+    const league = findLeague(hub.leagues[0]);
+    if (!league) continue;
+
+    const existing = groups.find((group) => group.id === league.group);
+    if (existing) existing.hubs.push(hub);
+    else {
+      groups.push({
+        id: league.group,
+        label: GROUP_LABEL[league.group] ?? league.group,
+        emoji: EMOJI[league.group] ?? EMOJI.other,
+        hubs: [hub],
+      });
+    }
+  }
+
+  return groups;
+}
+
+// ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
 

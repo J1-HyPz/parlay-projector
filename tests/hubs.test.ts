@@ -6,6 +6,7 @@ import {
   HUBS,
   SIDEBAR_HUBS,
   divisionFor,
+  hubGroups,
   hubSlugs,
   isFootballHub,
   leaguesForHub,
@@ -172,6 +173,36 @@ describe('navigation', () => {
     assert.equal(isFootballHub(resolveHub('epl')!.hub), true);
     assert.equal(isFootballHub(resolveHub('uecl')!.hub), true);
     assert.equal(isFootballHub(resolveHub('nba')!.hub), false);
+  });
+
+  it('lists every hub in the competition index', () => {
+    // The index is the only way to reach a hub on mobile: the sidebar is
+    // desktop-only, so anything missing here is unreachable on a phone.
+    const listed = hubGroups().flatMap((group) => group.hubs.map((hub) => hub.slug));
+    assert.deepEqual(listed.sort(), hubSlugs().sort());
+  });
+
+  it('includes every sidebar shortcut in the index', () => {
+    const listed = new Set(hubGroups().flatMap((group) => group.hubs.map((h) => h.slug)));
+    for (const entry of SIDEBAR_HUBS) {
+      assert.ok(listed.has(entry.slug), `${entry.slug} is missing from the index`);
+    }
+  });
+
+  it('groups the index by sport', () => {
+    const groups = hubGroups();
+    assert.deepEqual(
+      groups.map((group) => group.id),
+      ['american-football', 'basketball', 'baseball', 'hockey', 'football'],
+    );
+    // Football carries nine competitions; the sidebar only has room for two.
+    assert.equal(groups.find((group) => group.id === 'football')?.hubs.length, 9);
+    assert.equal(groups.find((group) => group.id === 'basketball')?.hubs.length, 3);
+  });
+
+  it('puts each hub in exactly one group', () => {
+    const listed = hubGroups().flatMap((group) => group.hubs.map((hub) => hub.slug));
+    assert.equal(new Set(listed).size, listed.length);
   });
 
   it('uses a chip id that Schedule and Live understand', () => {
