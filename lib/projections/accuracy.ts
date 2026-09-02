@@ -29,7 +29,7 @@ import type {
   ScoreAccuracy,
   TrendPoint,
 } from './metrics';
-import { sampleStrength } from './tracking';
+import { markFinalPreGame, sampleStrength } from './tracking';
 import type { SampleStrength } from './tracking';
 import { readParlays, readPredictions } from './store';
 import type { ParlayRecord, PredictionRecordV2 } from './types';
@@ -55,7 +55,13 @@ const WINDOW_MS: Record<Exclude<AccuracyWindow, 'all-time'>, number> = {
   '30d': 30 * 24 * 60 * 60_000,
 };
 
-/** Settled inside the window. Filters on settlement, not creation. */
+/**
+ * Records inside the window.
+ *
+ * Settled ones are filtered on when they settled, because that is when a
+ * prediction became evidence. Open ones are always kept: a game still to be
+ * played belongs in the pending count of every window.
+ */
 function inWindow(
   records: readonly PredictionRecordV2[],
   window: AccuracyWindow,
@@ -65,7 +71,7 @@ function inWindow(
   const span = WINDOW_MS[window];
 
   return records.filter((record) => {
-    if (!record.settled_at) return false;
+    if (!record.settled_at) return record.status !== 'void';
     const settled = Date.parse(record.settled_at);
     return Number.isFinite(settled) && now - settled <= span;
   });
@@ -189,11 +195,22 @@ const RISK_LABELS: Record<string, string> = {
 };
 
 function build(
-  records: readonly PredictionRecordV2[],
+  stored: readonly PredictionRecordV2[],
   parlays: readonly ParlayRecord[],
   window: AccuracyWindow,
   now: number,
 ): AccuracyReport {
+  /*
+   * Mark the official pre-game prediction before filtering.
+   *
+   * The flag is frozen into the file when a game starts, but a prediction that
+   * has not kicked off yet does not have it — and would then be invisible here,
+   * making the pending count read zero while the tracker held eighteen. The
+   * marking is provisional until kick-off (a later projection can still
+   * supersede it) and uses stored timestamps only, so it cannot see a result.
+   */
+  const records = markFinalPreGame(stored);
+
   const scoped = inWindow(records, window, now);
   const headline = headlinePredictions(scoped);
 
@@ -235,7 +252,7 @@ function build(
     parlays: parlaySuccess(scopedParlays),
     risk_ordering: riskOrdering(byRisk),
     counts: {
-      stored: records.length,
+      stored: stored.length,
       open: records.filter(
         (record) =>
           record.status === 'pending' ||

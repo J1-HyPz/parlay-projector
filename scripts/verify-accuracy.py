@@ -135,6 +135,25 @@ def check_accuracy_consistency():
     return report
 
 
+def check_pending_is_visible():
+    """A prediction the tracker is holding must appear in the report."""
+    report = get("/api/accuracy")
+    tracker = get("/api/internal/tracker")
+
+    open_total = sum(tracker["open"].values())
+    reported = (
+        report["overall"]["pending"]
+        + report["overall"]["live"]
+        + report["overall"]["unsettled"]
+    )
+
+    if open_total > 0:
+        assert reported > 0, (
+            f"the tracker holds {open_total} open predictions but the report shows none"
+        )
+    print(f"  tracker holds {open_total} open, report shows {reported} in the headline set")
+
+
 def check_homepage_matches(report):
     """The widget and the service must be the same number."""
     home = get("/api/home/accuracy")
@@ -207,6 +226,9 @@ def main():
 
     print("--- accuracy consistency ---")
     report = check_accuracy_consistency()
+
+    print("--- pending visibility ---")
+    check_pending_is_visible()
 
     print("--- homepage ---")
     check_homepage_matches(report)
