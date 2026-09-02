@@ -213,13 +213,28 @@ jobs:
           # The tracker must have logged its own start-up. Independent of the
           # endpoint above: this proves the instrumentation hook fired inside
           # the standalone server, which is what makes the whole thing run.
-          if ! docker logs pp-ci 2>&1 | grep -q 'settlement_started'; then
+          # Captured to a file first: `grep -q` exits on its first match, which
+          # sends SIGPIPE to `docker logs`, and under `pipefail` that makes the
+          # pipeline fail even though the string was found.
+          docker logs pp-ci > /tmp/container.log 2>&1
+          if ! grep -q 'settlement_started' /tmp/container.log; then
             echo "::error::the prediction tracker never started"
-            docker logs pp-ci | tail -40
+            tail -40 /tmp/container.log
             docker rm -f pp-ci
             exit 1
           fi
           echo "prediction tracker started inside the container"
+
+          # History must actually load. A window refused for its size used to
+          # fail outright, taking a whole season of NBA, MLB, NHL and college
+          # football history with it.
+          if grep -q 'history unavailable for' /tmp/container.log; then
+            echo "::error::a competition's history failed to load entirely"
+            grep 'history unavailable for' /tmp/container.log | head -5
+            docker rm -f pp-ci
+            exit 1
+          fi
+          echo "no competition lost its history"
 
 
           # An unknown risk level is rejected rather than passed through.

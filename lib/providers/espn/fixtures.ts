@@ -177,6 +177,20 @@ async function fetchWindow(
       if (error instanceof ProviderError && error.status === 404) {
         return { games: [] as Game[], capped: false };
       }
+
+      /*
+       * Too much data for one request.
+       *
+       * A busy competition over a long window exceeds the response size cap
+       * before it ever reaches the event cap, and that arrives as a thrown
+       * error rather than a truncated payload — so the split below has to be
+       * driven by it as well. Without this, a whole season of NBA, MLB, NHL
+       * and college football history simply failed.
+       */
+      if (error instanceof ProviderError && error.tooLarge) {
+        return { games: [] as Game[], capped: true };
+      }
+
       throw error;
     }
   });
