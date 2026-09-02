@@ -16,7 +16,7 @@
  *   score and the calibration table are reported beside it.
  */
 
-import { boundProbability, brierScore, logLoss } from './math.ts';
+import { brierScore, logLoss } from './math.ts';
 import { isCounted, sampleStrength, scoreError } from './tracking.ts';
 import type { SampleStrength } from './tracking.ts';
 import type { PredictionRecordV2, PredictionStatus } from './types.ts';

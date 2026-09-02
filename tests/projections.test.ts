@@ -28,7 +28,7 @@ import {
   optimise,
   selectionsOnDate,
 } from '../lib/projections/optimiser.ts';
-import { calculateMetrics, calibration, settle } from '../lib/projections/settlement.ts';
+import { settle } from '../lib/projections/settlement.ts';
 import { backtest } from '../lib/projections/backtest.ts';
 import { awaitingSettlement, parsePredictions } from '../lib/projections/store-parse.ts';
 import { MIN_LEGS, RISK_PROFILES, modelConfigFor } from '../lib/projections/config.ts';
@@ -779,13 +779,18 @@ describe('settlement', () => {
     );
   });
 
-  it('voids an exact push', () => {
-    assert.equal(settle({ kind: 'total', direction: 'over', line: 50 }, finished(27, 23)), 'void');
+  it('pushes when the result lands exactly on the line', () => {
+    // A push is not a void: the prediction was tested and neither side won.
+    assert.equal(settle({ kind: 'total', direction: 'over', line: 50 }, finished(27, 23)), 'push');
+    assert.equal(
+      settle({ kind: 'spread', side: 'home', line: -4 }, finished(27, 23)),
+      'push',
+    );
   });
 });
 
 // ---------------------------------------------------------------------------
-// Metrics
+// Storage
 // ---------------------------------------------------------------------------
 
 function record(overrides: Partial<PredictionRecordV2> = {}): PredictionRecordV2 {
@@ -807,89 +812,16 @@ function record(overrides: Partial<PredictionRecordV2> = {}): PredictionRecordV2
     status: 'won',
     result: '27-24',
     settled_at: '2026-09-02T22:00:00.000Z',
+    final_pre_game: true,
+    parlay_id: 'low:a|b',
+    projected: { home_score: 27, away_score: 24, margin: 3, total: 51 },
+    actual: { home_score: 27, away_score: 24, margin: 3, total: 51 },
+    attempts: 0,
+    next_attempt_at: null,
+    audit: [],
     ...overrides,
   };
 }
-
-describe('model metrics', () => {
-  it('withholds accuracy below a usable sample', () => {
-    // Five settled predictions cannot support a percentage.
-    const metrics = calculateMetrics(Array.from({ length: 5 }, () => record()));
-    assert.equal(metrics.accuracy, null);
-    assert.equal(metrics.settled, 5);
-    // Scoring rules are still reported: they are informative at smaller n.
-    assert.ok(metrics.brier !== null);
-  });
-
-  it('reports accuracy once there is enough', () => {
-    const records = [
-      ...Array.from({ length: 15 }, () => record({ status: 'won' })),
-      ...Array.from({ length: 10 }, () => record({ status: 'lost' })),
-    ];
-    const metrics = calculateMetrics(records);
-    assert.equal(metrics.settled, 25);
-    assert.equal(metrics.accuracy, 0.6);
-  });
-
-  it('excludes pending and void from the settled count', () => {
-    const metrics = calculateMetrics([
-      record({ status: 'won' }),
-      record({ status: 'pending' }),
-      record({ status: 'void' }),
-    ]);
-    assert.equal(metrics.settled, 1);
-    assert.equal(metrics.void, 1);
-  });
-
-  it('scores a perfectly confident model well and a wrong one badly', () => {
-    const good = calculateMetrics(
-      Array.from({ length: 20 }, () => record({ model_probability: 0.95, status: 'won' })),
-    );
-    const bad = calculateMetrics(
-      Array.from({ length: 20 }, () => record({ model_probability: 0.95, status: 'lost' })),
-    );
-    assert.ok(good.brier! < 0.01);
-    assert.ok(bad.brier! > 0.8);
-    assert.ok(bad.log_loss! > good.log_loss!);
-  });
-
-  it('reports nothing when nothing has settled', () => {
-    const metrics = calculateMetrics([record({ status: 'pending' })]);
-    assert.equal(metrics.accuracy, null);
-    assert.equal(metrics.brier, null);
-  });
-});
-
-describe('calibration', () => {
-  it('buckets predictions by probability band', () => {
-    const records = [
-      ...Array.from({ length: 12 }, (_, i) =>
-        record({ model_probability: 0.75, status: i < 9 ? 'won' : 'lost' }),
-      ),
-      ...Array.from({ length: 12 }, (_, i) =>
-        record({ model_probability: 0.85, status: i < 10 ? 'won' : 'lost' }),
-      ),
-    ];
-
-    const buckets = calibration(records);
-    const band70 = buckets.find((bucket) => bucket.label === '70-79%')!;
-    const band80 = buckets.find((bucket) => bucket.label === '80-89%')!;
-
-    assert.equal(band70.predictions, 12);
-    assert.equal(band70.actual, 0.75);
-    assert.equal(band70.expected, 0.75);
-    assert.ok(band80.actual !== null && band80.actual > band70.actual!);
-  });
-
-  it('withholds a rate from a thin bucket', () => {
-    const buckets = calibration([record({ model_probability: 0.75 })]);
-    assert.equal(buckets.find((bucket) => bucket.label === '70-79%')?.actual, null);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Storage
-// ---------------------------------------------------------------------------
 
 describe('the prediction store', () => {
   it('accepts a well-formed record', () => {

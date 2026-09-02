@@ -36,9 +36,12 @@ import { settlementQueue } from './tracking';
  */
 const LOOKBACK_DAYS = 3;
 
-/** A settled result never changes; only the current day needs refreshing. */
-const SETTLED_TTL_MS = 6 * 60 * 60_000;
-/** Short, so a live score is current — and shared with the Live page's cache. */
+/**
+ * Short, so a live score is current.
+ *
+ * Shared with the Live page's cache: both read the same normalised state, so
+ * tracking a prediction costs a cache lookup rather than its own traffic.
+ */
 const LIVE_TTL_MS = 60_000;
 
 export interface TrackerRun {
@@ -167,7 +170,7 @@ export async function runSettlement(): Promise<TrackerRun> {
     if (changed > 0) {
       // The homepage figure should move as soon as something settles.
       invalidateAccuracy();
-      logger.info('settlement_run', result);
+      logger.info('settlement_run', { ...result });
     }
 
     lastRun = { at: new Date().toISOString(), result };

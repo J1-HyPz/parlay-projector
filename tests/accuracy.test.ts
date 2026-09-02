@@ -372,11 +372,11 @@ describe('grouped accuracy', () => {
 
 describe('calibration', () => {
   it('compares claimed probability against what happened', () => {
-    const table = calibrationTable([
-      ...Array.from({ length: 12 }, (_, i) =>
+    const table = calibrationTable(
+      Array.from({ length: 12 }, (_, i) =>
         record({ model_probability: 0.75, status: i < 9 ? 'won' : 'lost' }),
       ),
-    ]);
+    );
 
     const band = table.find((entry) => entry.label === '70-79%')!;
     assert.equal(band.predictions, 12);

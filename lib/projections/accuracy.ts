@@ -197,7 +197,7 @@ function build(
   const scoped = inWindow(records, window, now);
   const headline = headlinePredictions(scoped);
 
-  const scopedParlays =
+  const scopedParlays: ParlayRecord[] =
     window === 'all-time'
       ? [...parlays]
       : parlays.filter((parlay) => {
