@@ -3,6 +3,7 @@ import { AppShell } from '@/components/app-shell';
 import { PageHeader } from '@/components/dashboard-ui';
 import { notifyConfig } from '@/lib/config';
 import { NOTIFY_EVENTS } from '@/lib/notify/types';
+import { WatchlistPanel } from '@/components/watchlist/watchlist-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export default function NotificationsPage() {
       <PageHeader
         eyebrow="Delivery"
         title="Notifications"
-        subtitle="Game updates are delivered to Discord. There is no in-app inbox."
+        subtitle="Starred games are announced to Discord. There is no in-app inbox."
       />
 
       <section
@@ -71,6 +72,8 @@ export default function NotificationsPage() {
           </div>
         </div>
       </section>
+
+      <WatchlistPanel />
 
       <section className="mt-6" aria-labelledby="events-heading">
         <h2 id="events-heading" className="text-base font-semibold">

@@ -195,7 +195,10 @@ and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 Game updates — kick-off, final score, postponements and cancellations — are
 posted to a **Discord webhook**. There is no in-app inbox; the bell links to
-`/notifications`, which reports delivery status only.
+`/notifications`, which shows delivery status and the watchlist.
+
+**Only starred games are announced.** Star a fixture from any card or its detail
+page; it drops off the watchlist by itself once the match finishes.
 
 Set `DISCORD_WEBHOOK_URL` in the app environment to enable it. That URL is a
 credential: it is never committed, never logged, and never sent to the browser.

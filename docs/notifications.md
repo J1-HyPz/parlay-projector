@@ -4,6 +4,32 @@ Game updates are delivered to a **Discord webhook**. There is no in-app inbox:
 the bell in the header links to `/notifications`, which reports delivery status
 and nothing else.
 
+## The watchlist
+
+**Only games on the watchlist are announced.** An empty watchlist sends nothing.
+
+Star a game from the Schedule, Live or Home cards, or from its detail page. The
+current list is on `/notifications`, which is also where you can remove entries.
+
+A game leaves the list automatically when the poller sees it **finish** or be
+**cancelled** — you never have to tidy up after a match. Two details:
+
+- **Removal follows the observed status, not the message.** A game that finishes
+  while notifications are off still leaves the list.
+- **A postponed game stays.** Postponements are usually rescheduled under the
+  same fixture id, so it keeps its place. If it never resumes, the staleness rule
+  below removes it.
+
+**Staleness.** Anything still listed 48 hours after its kick-off is dropped. That
+is the safety net for fixtures the poller never sees finish: a postponement that
+is abandoned, or a game that falls out of the provider feed.
+
+There is **one shared list**, not a list per person — the application has no
+accounts. `/api/watchlist` has no authentication either, consistent with the rest
+of the app: anyone who can reach the server can change it. That is fine on a LAN.
+Do not expose this host to the internet without putting authentication in front
+of it.
+
 ## What gets sent
 
 The poller compares today's fixtures against the statuses it saw on the previous
@@ -47,6 +73,12 @@ only remedy — a webhook URL cannot be revoked any other way.
 
 ## Design decisions
 
+**Watchlist writes are serialised.** Two tabs starring games at the same moment
+would otherwise each read the same list, add one entry, and the second write
+would discard the first. Pruning reads inside the same lock, so a game starred
+while the poller is fetching fixtures cannot be erased by a prune working from a
+stale copy.
+
 **A game seen for the first time is never announced.** State lives in
 `$DATA_DIR/notify-state.json`, and after a redeploy that file may be missing or
 stale. Announcing every game already in progress would replay a whole afternoon
@@ -84,6 +116,9 @@ cache lifetime; polling faster costs requests without improving latency.
 - **Five-minute granularity.** A kick-off is announced on the next poll after it
   happens, not at the whistle. Lower `NOTIFY_POLL_INTERVAL_MS` (floor: 60s) to
   tighten that, at the cost of more provider requests.
-- **All leagues, no filtering.** Every competition in the catalogue is watched.
-  There is no per-league or per-team subscription, because there are no user
-  accounts to attach one to.
+- **No per-team subscriptions.** The watchlist is per *game*, not per team or
+  league, so a team you follow has to be starred fixture by fixture. Standing
+  subscriptions would need an account to hang them on.
+- **A game must be visible to be starred.** Only fixtures inside the eight-day
+  schedule window can be added, because that is what the pages render.
+- **200 entries.** Adds beyond that are refused and logged.

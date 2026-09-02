@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star } from 'lucide-react';
 import { SIDEBAR_SPORTS } from '@/lib/schedule/filters';
+import { WatchlistProvider } from '@/components/watchlist/watchlist-context';
 
 export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications';
 
@@ -14,6 +15,7 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
 
 export function AppShell({ active, children }: { active: PageKey; children: ReactNode }) {
   return (
+    <WatchlistProvider>
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 flex h-16 items-center border-b border-white/8 bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
         <a href="/" className="flex min-w-0 items-center gap-3" aria-label="Parlay Projector home">
@@ -96,5 +98,6 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
         ))}
       </nav>
     </div>
+    </WatchlistProvider>
   );
 }

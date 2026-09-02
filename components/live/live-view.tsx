@@ -25,6 +25,7 @@ import {
   separatorFor,
   sportLabel,
 } from '@/lib/schedule/filters';
+import { WatchButton } from '@/components/watchlist/watch-button';
 import { formatUpdatedAt, useLive } from './live-data';
 
 function StatCard({
@@ -102,12 +103,13 @@ function TeamRow({ team, score }: { team: LiveGame['home_team']; score: number |
 
 function GameCard({ game }: { game: LiveGame }) {
   return (
-    <a
-      href={`/games/${game.id}`}
-      aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, live, view game details`}
-      className="panel block p-4 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06] md:p-5"
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="relative">
+      <a
+        href={`/games/${game.id}`}
+        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, live, view game details`}
+        className="panel block p-4 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06] md:p-5"
+      >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-10">
         <LiveBadge />
         <span className="truncate text-[11px] font-medium uppercase tracking-wider text-violet-300">
           {sportLabel(game.sport)}
@@ -172,11 +174,12 @@ const MAX_UPCOMING = 12;
 
 function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
   return (
-    <a
-      href={`/games/${game.id}`}
-      aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`}
-      className="panel flex items-center gap-3 p-3 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
-    >
+    <div className="relative">
+      <a
+        href={`/games/${game.id}`}
+        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`}
+        className="panel flex items-center gap-3 p-3 pr-12 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
+      >
       <span className="w-12 shrink-0 text-xs font-medium tabular-nums text-violet-300">
         {formatKickoff(game.start_time, timezone)}
       </span>
@@ -187,7 +190,9 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
       <span className="hidden shrink-0 truncate text-[11px] text-white/32 sm:block">
         {game.league ?? sportLabel(game.sport)}
       </span>
-    </a>
+      </a>
+      <WatchButton game={game} className="absolute right-2 top-1/2 -translate-y-1/2" />
+    </div>
   );
 }
 

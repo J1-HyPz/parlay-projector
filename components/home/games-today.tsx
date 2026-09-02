@@ -11,6 +11,7 @@
 
 import { SectionHeading, PlaceholderLine } from '@/components/dashboard-ui';
 import type { Game } from '@/lib/home/types';
+import { WatchButton } from '@/components/watchlist/watch-button';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
 
 const STATUS_LABEL: Record<Game['status'], string> = {
@@ -47,12 +48,13 @@ function TeamRow({ name, logo, align }: { name: string; logo: string | null; ali
 
 function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
-    <a
-      href={`/games/${game.id}`}
-      aria-label={`${game.away_team.name} versus ${game.home_team.name}, view game details`}
-      className="panel group block min-w-[245px] flex-1 cursor-pointer p-4 transition hover:border-violet-400/35 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
-    >
-      <div className="flex items-center justify-between gap-2 text-[11px]">
+    <div className="relative min-w-[245px] flex-1">
+      <a
+        href={`/games/${game.id}`}
+        aria-label={`${game.away_team.name} versus ${game.home_team.name}, view game details`}
+        className="panel group block cursor-pointer p-4 transition hover:border-violet-400/35 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
+      >
+      <div className="flex items-center justify-between gap-2 pr-10 text-[11px]">
         <span className="truncate font-medium text-violet-300">{game.league ?? game.sport.toUpperCase()}</span>
         <span className="shrink-0 text-white/32">
           {game.status === 'live' ? 'Live' : formatTime(game.start_time, timezone)}
@@ -74,7 +76,9 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
         <span className="truncate">{game.venue.name ?? 'Venue to be confirmed'}</span>
         <span className="ml-auto shrink-0 text-white/25">{STATUS_LABEL[game.status]}</span>
       </div>
-    </a>
+      </a>
+      <WatchButton game={game} className="absolute right-3 top-3" />
+    </div>
   );
 }
 

@@ -34,6 +34,7 @@ import {
   sportLabel,
   summarise,
 } from '@/lib/schedule/filters';
+import { WatchButton } from '@/components/watchlist/watch-button';
 import { useSchedule } from './schedule-data';
 
 const STATUS_LABEL: Record<Game['status'], string> = {
@@ -101,15 +102,16 @@ function TeamLine({ team }: { team: Game['home_team'] }) {
 }
 
 const ROW_GRID =
-  'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px]';
+  'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px_44px]';
 
 function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
   return (
-    <a
-      href={`/games/${game.id}`}
-      aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
-      className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 border-b border-white/[.065] px-4 py-3 transition last:border-b-0 hover:bg-violet-500/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400/50`}
-    >
+    <div className="relative border-b border-white/[.065] last:border-b-0">
+      <a
+        href={`/games/${game.id}`}
+        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
+        className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 px-4 py-3 transition hover:bg-violet-500/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400/50`}
+      >
       <div className="flex min-w-0 items-center gap-2">
         <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.04] text-[9px] text-violet-300">
           {badgeLabel(game.league, game.sport)}
@@ -137,18 +139,26 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
       <span className={`w-fit rounded-full border px-2 py-1 text-[10px] ${statusTone(game.status)}`}>
         {STATUS_LABEL[game.status]}
       </span>
-    </a>
+
+        {/* Reserves the trailing column; the button is a sibling of the link,
+            because a button nested inside an anchor is invalid and would fight
+            the navigation. */}
+        <span aria-hidden="true" />
+      </a>
+      <WatchButton game={game} className="absolute right-3 top-1/2 -translate-y-1/2" />
+    </div>
   );
 }
 
 function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
-    <a
-      href={`/games/${game.id}`}
-      aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
-      className="panel block p-4 transition hover:border-violet-400/35 active:bg-white/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
-    >
-      <div className="flex items-center justify-between gap-3 border-b border-white/7 pb-3">
+    <div className="relative">
+      <a
+        href={`/games/${game.id}`}
+        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
+        className="panel block p-4 transition hover:border-violet-400/35 active:bg-white/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+      >
+      <div className="flex items-center justify-between gap-3 border-b border-white/7 pb-3 pr-10">
         <span className="truncate text-xs font-medium text-violet-300">
           {game.league ?? sportLabel(game.sport)}
           {game.round ? ` • Round ${game.round}` : ''}
@@ -177,7 +187,9 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
           {STATUS_LABEL[game.status]}
         </span>
       </div>
-    </a>
+      </a>
+      <WatchButton game={game} className="absolute right-3 top-3" />
+    </div>
   );
 }
 
@@ -454,6 +466,7 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
                 <span>Venue</span>
                 <span>Broadcast</span>
                 <span>Status</span>
+                <span className="sr-only">Watch</span>
               </div>
               {filtered.map((game) => (
                 <DesktopRow key={game.id} game={game} timezone={timezone} />
