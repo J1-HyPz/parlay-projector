@@ -248,6 +248,27 @@ jobs:
             grep -q "$expect" /tmp/hub.html               || { echo "::error::/sports/$slug did not render \"$expect\""; docker rm -f pp-ci; exit 1; }
           done
 
+          # The competitions served by TheSportsDB rather than ESPN. Their hubs
+          # must render, and their capability flags must match what that
+          # provider actually publishes.
+          for hub in "cfl:CFL" "afle:American Football League Europe" "efa:European Football Alliance"; do
+            slug="${hub%%:*}"
+            expect="${hub#*:}"
+            code=$(curl -s -o /tmp/sdb.html -w '%{http_code}' --max-time 120 "http://127.0.0.1:3000/sports/$slug")
+            echo "GET /sports/$slug -> HTTP $code"
+            [ "$code" = "200" ]               || { echo "::error::hub /sports/$slug failed, got $code"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+            grep -q "$expect" /tmp/sdb.html               || { echo "::error::/sports/$slug did not render \"$expect\""; docker rm -f pp-ci; exit 1; }
+
+            # Neither news nor transactions is published for these, and both
+            # must say so rather than erroring.
+            for endpoint in games news transactions; do
+              c=$(curl -s -o /tmp/sdb.json -w '%{http_code}' --max-time 120 "http://127.0.0.1:3000/api/leagues/$slug/$endpoint")
+              [ "$c" = "200" ]                 || { echo "::error::/api/leagues/$slug/$endpoint returned $c"; docker rm -f pp-ci; exit 1; }
+            done
+            grep -q '"supported":false' /tmp/sdb.json               || { echo "::error::$slug should report transactions unsupported"; docker rm -f pp-ci; exit 1; }
+            echo "  $slug: hub renders, endpoints answer, transactions unsupported"
+          done
+
           # An unlisted competition is a 404, not an empty page. `tennis` is the
           # case that matters: the shared SportId type still contains it, but no
           # verified tennis competition exists in the catalogue.
