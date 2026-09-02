@@ -197,6 +197,51 @@ jobs:
           grep -q "Parlay Projector" /tmp/game.html \
             || { echo "::error::game page did not render the app shell"; docker rm -f pp-ci; exit 1; }
 
+          # Every competition hub renders on a direct request. One dynamic
+          # route serves all sixteen, so a representative slug per shape is
+          # enough: a plain league, a football competition, and the combined
+          # NCAA grouping that is not a registry id at all.
+          for hub in "nba:NBA" "epl:Premier League" "ncaab:NCAA Basketball" "ncaam:NCAA Basketball"; do
+            slug="${hub%%:*}"
+            expect="${hub#*:}"
+            code=$(curl -s -o /tmp/hub.html -w '%{http_code}' --max-time 90 "http://127.0.0.1:3000/sports/$slug")
+            echo "GET /sports/$slug -> HTTP $code"
+            [ "$code" = "200" ]               || { echo "::error::hub /sports/$slug failed, got $code"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+            grep -q "$expect" /tmp/hub.html               || { echo "::error::/sports/$slug did not render \"$expect\""; docker rm -f pp-ci; exit 1; }
+          done
+
+          # An unlisted competition is a 404, not an empty page. `tennis` is the
+          # case that matters: the shared SportId type still contains it, but no
+          # verified tennis competition exists in the catalogue.
+          for missing in tennis rugby nonsense; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "http://127.0.0.1:3000/sports/$missing")
+            echo "GET /sports/$missing -> HTTP $code"
+            [ "$code" = "404" ]               || { echo "::error::/sports/$missing should be 404, got $code"; docker rm -f pp-ci; exit 1; }
+          done
+
+          # The new league endpoints answer, and reject an unknown league.
+          for endpoint in games news transactions; do
+            code=$(curl -s -o /tmp/league.json -w '%{http_code}' --max-time 90 "http://127.0.0.1:3000/api/leagues/nba/$endpoint")
+            echo "GET /api/leagues/nba/$endpoint -> HTTP $code"
+            [ "$code" = "200" ]               || { echo "::error::/api/leagues/nba/$endpoint failed, got $code"; docker rm -f pp-ci; exit 1; }
+
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "http://127.0.0.1:3000/api/leagues/bogus/$endpoint")
+            [ "$code" = "404" ]               || { echo "::error::unknown league on $endpoint should be 404, got $code"; docker rm -f pp-ci; exit 1; }
+          done
+
+          # Football publishes no transactions, and that must be reported as
+          # unsupported rather than as an empty week.
+          transfers=$(curl -fsS --max-time 90 http://127.0.0.1:3000/api/leagues/epl/transactions) || {
+            echo "::error::/api/leagues/epl/transactions did not respond"; docker rm -f pp-ci; exit 1; }
+          printf '%s' "$transfers" | grep -q '"supported":false'             || { echo "::error::expected epl transactions to report supported:false"; docker rm -f pp-ci; exit 1; }
+
+          # The pages that existed before the hubs must still render.
+          for route in /live /parlays /notifications; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "http://127.0.0.1:3000$route")
+            echo "GET $route -> HTTP $code"
+            [ "$code" = "200" ]               || { echo "::error::$route regressed, got $code"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
+          done
+
           # Schedule renders on a direct request and always reports an
           # eight-date window, even when every provider call is rate limited.
           sched=$(curl -s -o /tmp/sched.html -w '%{http_code}' --max-time 90 http://127.0.0.1:3000/schedule)
