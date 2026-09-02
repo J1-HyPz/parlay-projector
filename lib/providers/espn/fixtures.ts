@@ -18,6 +18,7 @@ import { espnConfig } from '../../config';
 import { logger } from '../../logger';
 import type { Game } from '../../home/types';
 import type { League } from '../../leagues/registry';
+import { ProviderError } from '../../http';
 import { fetchEspn } from './client';
 import { compactDate, normaliseFixtures } from './fixture-normalise';
 import type { RawFixtureResponse } from './fixture-normalise';
@@ -58,11 +59,22 @@ export async function fixturesForLeague(
     `espn:fixtures:${league.id}:${range}`,
     ttlMs,
     async () => {
-      const payload = await fetchEspn<RawFixtureResponse>(
-        `${league.espnPath}/scoreboard`,
-        `dates=${range}&limit=200`,
-      );
-      return normaliseFixtures(payload, league);
+      try {
+        const payload = await fetchEspn<RawFixtureResponse>(
+          `${league.espnPath}/scoreboard`,
+          `dates=${range}&limit=200`,
+        );
+        return normaliseFixtures(payload, league);
+      } catch (error) {
+        // An out-of-season competition 404s on a date range — NCAA basketball
+        // does this all summer. That is "no fixtures", not a provider failure,
+        // so it must not count towards the schedule's error state.
+        if (error instanceof ProviderError && error.status === 404) {
+          logger.info('espn_fixtures_out_of_season', { league: league.id, range });
+          return [] as Game[];
+        }
+        throw error;
+      }
     },
   );
 
