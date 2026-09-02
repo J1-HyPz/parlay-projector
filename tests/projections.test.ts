@@ -26,6 +26,7 @@ import { backtest } from '../lib/projections/backtest.ts';
 import { awaitingSettlement, parsePredictions } from '../lib/projections/store-parse.ts';
 import { MIN_LEGS, RISK_PROFILES, modelConfigFor } from '../lib/projections/config.ts';
 import { MIN_DATA_QUALITY } from '../lib/projections/types.ts';
+import { halveRange, splitRange } from '../lib/providers/espn/fixture-normalise.ts';
 import type { Game } from '../lib/home/types.ts';
 import type {
   PredictionRecordV2,
@@ -919,6 +920,95 @@ describe('backtesting', () => {
     assert.equal(report.evaluated, 0);
     assert.equal(report.accuracy, null);
     assert.equal(report.brier, null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// History windows
+// ---------------------------------------------------------------------------
+
+describe('splitting a history range', () => {
+  it('covers the whole range with no gaps and no overlaps', () => {
+    const windows = splitRange('2026-01-01', '2026-04-10', 45);
+
+    assert.equal(windows[0].start, '2026-01-01');
+    assert.equal(windows[windows.length - 1].end, '2026-04-10');
+
+    for (let i = 1; i < windows.length; i += 1) {
+      const previousEnd = Date.parse(`${windows[i - 1].end}T00:00:00Z`);
+      const nextStart = Date.parse(`${windows[i].start}T00:00:00Z`);
+      assert.equal(nextStart - previousEnd, 86_400_000, 'windows must be contiguous');
+    }
+  });
+
+  it('keeps every window inside the requested span', () => {
+    // The provider returns nothing at all for a range beyond about a year, so
+    // an oversized window fails silently rather than erroring.
+    for (const window of splitRange('2025-01-01', '2026-09-10', 45)) {
+      const days =
+        (Date.parse(`${window.end}T00:00:00Z`) - Date.parse(`${window.start}T00:00:00Z`)) /
+          86_400_000 +
+        1;
+      assert.ok(days <= 45, `window of ${days} days exceeds the chunk size`);
+    }
+  });
+
+  it('handles a range shorter than one window', () => {
+    assert.deepEqual(splitRange('2026-01-01', '2026-01-05', 45), [
+      { start: '2026-01-01', end: '2026-01-05' },
+    ]);
+  });
+
+  it('handles a single day', () => {
+    assert.deepEqual(splitRange('2026-01-01', '2026-01-01', 45), [
+      { start: '2026-01-01', end: '2026-01-01' },
+    ]);
+  });
+
+  it('rejects a backwards or malformed range', () => {
+    assert.deepEqual(splitRange('2026-04-10', '2026-01-01', 45), []);
+    assert.deepEqual(splitRange('not-a-date', '2026-01-01', 45), []);
+  });
+
+  it('splits a capped window in half without losing a day', () => {
+    const [first, second] = halveRange({ start: '2026-01-01', end: '2026-01-10' });
+    assert.equal(first.start, '2026-01-01');
+    assert.equal(second.end, '2026-01-10');
+    assert.equal(
+      Date.parse(`${second.start}T00:00:00Z`) - Date.parse(`${first.end}T00:00:00Z`),
+      86_400_000,
+    );
+  });
+
+  it('cannot split a single day further', () => {
+    const single = { start: '2026-01-01', end: '2026-01-01' };
+    assert.deepEqual(halveRange(single), [single]);
+  });
+});
+
+describe('history windows per sport', () => {
+  it('reaches back far enough for each calendar', () => {
+    // An NFL team plays 17 games across five months; a 200-day window in
+    // September would hold barely one of them.
+    assert.ok(modelConfigFor('nfl')!.historyDays >= 365);
+    assert.ok(modelConfigFor('football')!.historyDays >= 365);
+    // The others play often enough that a season fits in less.
+    assert.ok(modelConfigFor('nba')!.historyDays >= 300);
+    assert.ok(modelConfigFor('mlb')!.historyDays >= 250);
+  });
+
+  it('rates every football competition together', () => {
+    // Without this a Champions League tie has only a handful of European games
+    // behind it and never clears the minimum.
+    for (const sport of ['football'] as const) {
+      assert.equal(modelConfigFor(sport)!.ratingPool, 'football');
+    }
+  });
+
+  it('keeps the American leagues separate', () => {
+    for (const sport of ['nfl', 'nba', 'mlb', 'nhl'] as const) {
+      assert.equal(modelConfigFor(sport)!.ratingPool, null);
+    }
   });
 });
 

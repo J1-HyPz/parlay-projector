@@ -20,12 +20,14 @@ import type { Game } from '../../home/types';
 import type { League } from '../../leagues/registry';
 import { ProviderError } from '../../http';
 import { fetchEspn } from './client';
-import { compactDate, normaliseFixtures } from './fixture-normalise';
+import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixture-normalise';
 import type { RawFixtureResponse } from './fixture-normalise';
 
 export {
   ESPN_ID_PREFIX,
   compactDate,
+  halveRange,
+  splitRange,
   espnGameId,
   isEspnGameId,
   normaliseFixture,
@@ -86,4 +88,114 @@ export async function fixturesForLeague(
     });
   }
   return value;
+}
+
+// ---------------------------------------------------------------------------
+// Long history
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-request event cap.
+ *
+ * The provider returns the *earliest* events when a range exceeds this, so a
+ * capped response is silently missing everything recent. `fixturesForRange`
+ * detects that and splits rather than accepting the truncation.
+ */
+const EVENT_LIMIT = 1000;
+
+/**
+ * Default window per request.
+ *
+ * Comfortably inside the provider's undocumented ~1-year span limit, and small
+ * enough that most competitions stay under the event cap.
+ */
+const DEFAULT_CHUNK_DAYS = 45;
+
+/** Guard against a pathological split loop; six halvings is well under a day. */
+const MAX_SPLIT_DEPTH = 6;
+
+async function fetchWindow(
+  league: League,
+  window: { start: string; end: string },
+  ttlMs: number,
+  depth: number,
+): Promise<Game[]> {
+  const range = `${compactDate(window.start)}-${compactDate(window.end)}`;
+
+  const { value } = await cached(`espn:history:${league.id}:${range}`, ttlMs, async () => {
+    try {
+      const payload = await fetchEspn<RawFixtureResponse>(
+        `${league.espnPath}/scoreboard`,
+        `dates=${range}&limit=${EVENT_LIMIT}`,
+      );
+      const games = normaliseFixtures(payload, league);
+      return { games, capped: (payload?.events?.length ?? 0) >= EVENT_LIMIT };
+    } catch (error) {
+      // Out of season for this window. Empty, not a failure.
+      if (error instanceof ProviderError && error.status === 404) {
+        return { games: [] as Game[], capped: false };
+      }
+      throw error;
+    }
+  });
+
+  if (!value.capped || depth >= MAX_SPLIT_DEPTH) return value.games;
+
+  // The response hit the cap, so it is missing the later part of this window.
+  logger.info('espn_history_split', { league: league.id, range, depth });
+  const halves = halveRange(window);
+  if (halves.length < 2) return value.games;
+
+  const parts = await Promise.all(
+    halves.map((half) => fetchWindow(league, half, ttlMs, depth + 1)),
+  );
+  return parts.flat();
+}
+
+/**
+ * Every fixture for a league across an arbitrarily long range.
+ *
+ * Chunked, because the provider fails silently in two ways on a long request:
+ * a range beyond about a year returns nothing at all, and any range is capped
+ * at the earliest N events. Neither surfaces as an error, so a naive request
+ * for a season of history returns a fortnight of it and looks fine.
+ *
+ * Windows entirely in the past are cached far longer than the one containing
+ * today: a settled result never changes, so after the first warm-up only the
+ * current window is refetched.
+ */
+export async function fixturesForRange(
+  league: League,
+  startDate: string,
+  endDate: string,
+  options: { currentTtlMs: number; settledTtlMs: number; today: string },
+): Promise<Game[]> {
+  if (!espnConfig.enabled) return [];
+
+  const windows = splitRange(startDate, endDate, DEFAULT_CHUNK_DAYS);
+
+  const results = await Promise.all(
+    windows.map((window) =>
+      fetchWindow(
+        league,
+        window,
+        // A window that ended before today can never change again.
+        window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
+        0,
+      ),
+    ),
+  );
+
+  // De-duplicate: overlapping windows and split retries can return a fixture
+  // more than once, and a doubled result would distort every rating.
+  const seen = new Map<string, Game>();
+  for (const game of results.flat()) seen.set(game.id, game);
+
+  const games = [...seen.values()];
+  logger.info('espn_history_loaded', {
+    league: league.id,
+    windows: windows.length,
+    games: games.length,
+  });
+  return games;
 }

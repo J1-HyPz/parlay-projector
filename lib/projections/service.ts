@@ -6,14 +6,25 @@
  *   completed results ──► ratings ──► projection ──► candidate selections
  *
  * Reuses the sports data layer wholesale: history and upcoming fixtures both
- * come from `fixturesForLeague`, the same cached adapter Schedule, Home and the
- * hubs use. No provider is called from a component, and no second sports
- * pipeline exists.
+ * come from the shared ESPN adapter. No provider is called from a component,
+ * and no second sports pipeline exists.
  *
- * Cost control matters here — a page of parlays must not become hundreds of
- * provider requests. One request per league covers a whole season of history,
- * it is cached for hours, and the ratings derived from it are cached too, so
- * generating every risk level costs the same as generating one.
+ * Two things govern how much can be projected, and both are handled here.
+ *
+ * *How far back.* The window is per sport, because an NFL team plays seventeen
+ * games across five months and an NBA team plays eighty in six. The request is
+ * chunked, because the provider fails silently on long ranges — see
+ * `fixturesForRange`.
+ *
+ * *What counts as history.* Competitions in the same rating pool are rated
+ * together. Every football competition shares one, so a Champions League tie is
+ * projected from the clubs' domestic results rather than from the handful of
+ * European games they have played.
+ *
+ * Cost control matters: a page of parlays must not become hundreds of provider
+ * requests. History windows that ended before today can never change and are
+ * cached for days, so after the first warm-up only the current window is
+ * refetched, and the ratings built from it are cached too.
  */
 
 import { cached } from '../cache';
@@ -21,9 +32,10 @@ import { APP_TIMEZONE, projectionConfig, todayInAppTimezone } from '../config';
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
-import { fixturesForLeague } from '../providers/espn/fixtures';
+import { fixturesForRange } from '../providers/espn/fixtures';
 import { addDays } from '../schedule/range';
 import { modelConfigFor } from './config';
+import type { SportModelConfig } from './config';
 import { buildRatings, toResults } from './features';
 import type { RatingSet } from './features';
 import { candidateSelections, projectGame } from './project';
@@ -31,16 +43,12 @@ import type { ProjectionOutcome } from './project';
 import type { Game, ConcreteSportId } from '../home/types';
 import type { Selection } from './types';
 
-/**
- * How far back ratings look.
- *
- * Long enough to cover a season in every supported sport, short enough that one
- * request per league still returns inside the provider's result cap.
- */
-const HISTORY_DAYS = 200;
-
-/** Ratings change only when a game finishes; hours of cache is right. */
+/** Ratings change only when a game finishes. */
 const RATINGS_TTL_MS = 3 * 60 * 60_000;
+/** The window containing today; the only one that can still gain results. */
+const CURRENT_WINDOW_TTL_MS = 3 * 60 * 60_000;
+/** A window that ended before today is settled and will never change again. */
+const SETTLED_WINDOW_TTL_MS = 7 * 24 * 60 * 60_000;
 
 /**
  * Refresh cadence, tightening as kick-off approaches.
@@ -58,19 +66,21 @@ export function projectionTtlFor(startTime: string | null, now = Date.now()): nu
   return 30 * 60_000;
 }
 
-/**
- * Completed results for a league, plus the fixtures still to come.
- *
- * One provider request covers both: the history window ends a week ahead, so
- * the same payload carries the games being projected.
- */
-async function leagueGames(league: League): Promise<Game[]> {
+/** Completed results and upcoming fixtures for one competition. */
+async function leagueGames(league: League, config: SportModelConfig): Promise<Game[]> {
   const today = todayInAppTimezone();
-  const start = addDays(today, -HISTORY_DAYS);
-  const end = addDays(today, 7);
 
   try {
-    return await fixturesForLeague(league, start, end, RATINGS_TTL_MS);
+    return await fixturesForRange(
+      league,
+      addDays(today, -config.historyDays),
+      addDays(today, 7),
+      {
+        currentTtlMs: CURRENT_WINDOW_TTL_MS,
+        settledTtlMs: SETTLED_WINDOW_TTL_MS,
+        today,
+      },
+    );
   } catch (error) {
     logger.warn('projection_history_failed', {
       league: league.id,
@@ -80,51 +90,86 @@ async function leagueGames(league: League): Promise<Game[]> {
   }
 }
 
-export interface LeagueModel {
-  league: League;
+/** Competitions rated together with this one. */
+function poolFor(league: League, config: SportModelConfig): League[] {
+  if (!config.ratingPool) return [league];
+
+  return LEAGUES.filter((candidate) => {
+    const other = modelConfigFor(candidate.sport);
+    return other?.ratingPool === config.ratingPool;
+  });
+}
+
+export interface PoolModel {
+  /** Ratings built from every competition in the pool. */
   ratings: RatingSet;
-  upcoming: Game[];
+  /** Upcoming fixtures, keyed by the league they belong to. */
+  upcoming: Map<string, Game[]>;
 }
 
 /**
- * Ratings for one league, built only from games that had already finished.
+ * Ratings for a pool, built only from games that had already finished.
  *
  * `asOf` defaults to now. Backtests pass an earlier instant, and because
  * `toResults` filters on it, the ratings genuinely cannot see the result of the
  * game being projected.
  */
-export async function buildLeagueModel(
+export async function buildPoolModel(
   league: League,
   asOf: number = Date.now(),
-): Promise<LeagueModel | null> {
+): Promise<PoolModel | null> {
   const config = modelConfigFor(league.sport);
   if (!config) return null;
 
-  const games = await leagueGames(league);
-  if (games.length === 0) return null;
+  const pool = poolFor(league, config);
 
-  const { value } = await cached(
-    `projection:ratings:${league.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+  const loaded = await Promise.all(
+    pool.map(async (member) => ({
+      league: member,
+      games: await leagueGames(member, config),
+    })),
+  );
+
+  const all = loaded.flatMap((entry) => entry.games);
+  if (all.length === 0) return null;
+
+  const key = pool.map((member) => member.id).join('+');
+  const { value: ratings } = await cached(
+    `projection:ratings:${key}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
     RATINGS_TTL_MS,
-    async () => buildRatings(toResults(games, asOf), config),
+    async () => buildRatings(toResults(all, asOf), config),
   );
 
   // Eligible fixtures only: scheduled, not yet started, inside the window.
-  const upcoming = games.filter(
-    (game) =>
-      game.status === 'scheduled' &&
-      game.start_time !== null &&
-      Date.parse(game.start_time) > asOf,
-  );
+  const upcoming = new Map<string, Game[]>();
+  for (const entry of loaded) {
+    upcoming.set(
+      entry.league.id,
+      entry.games.filter(
+        (game) =>
+          game.status === 'scheduled' &&
+          game.start_time !== null &&
+          Date.parse(game.start_time) > asOf,
+      ),
+    );
+  }
 
-  return { league, ratings: value, upcoming };
+  logger.info('projection_pool_built', {
+    pool: key,
+    results: ratings.sample,
+    teams: ratings.ratings.size,
+  });
+
+  return { ratings, upcoming };
 }
 
 export interface CandidateResult {
   selections: Selection[];
   projections: ProjectionOutcome[];
-  /** Leagues whose data could not be loaded; the rest still produced output. */
+  /** Competitions whose data could not be loaded; the rest still produced output. */
   failedLeagues: string[];
+  /** Fixtures skipped for insufficient history, for the empty-state message. */
+  skipped: number;
 }
 
 function leaguesFor(sport: ConcreteSportId | 'all'): League[] {
@@ -135,7 +180,8 @@ function leaguesFor(sport: ConcreteSportId | 'all'): League[] {
 /**
  * Every model-backed selection across the eligible fixtures.
  *
- * Leagues are processed independently, so one failing leaves the rest usable.
+ * Pools are built once and shared, so the nine football competitions cost one
+ * set of ratings rather than nine. A pool failing leaves the others usable.
  */
 export async function buildCandidates(
   sport: ConcreteSportId | 'all' = 'all',
@@ -145,57 +191,77 @@ export async function buildCandidates(
   const failedLeagues: string[] = [];
   const selections: Selection[] = [];
   const projections: ProjectionOutcome[] = [];
+  let skipped = 0;
+
+  // One entry per pool, so competitions sharing ratings are loaded once.
+  const pools = new Map<string, League>();
+  for (const league of leagues) {
+    const config = modelConfigFor(league.sport);
+    if (!config) continue;
+    const key = config.ratingPool ?? league.id;
+    if (!pools.has(key)) pools.set(key, league);
+  }
 
   const models = await Promise.all(
-    leagues.map(async (league) => {
+    [...pools.entries()].map(async ([key, representative]) => {
       try {
-        return await buildLeagueModel(league, asOf);
+        return { key, model: await buildPoolModel(representative, asOf) };
       } catch (error) {
-        logger.warn('projection_model_failed', {
-          league: league.id,
+        logger.warn('projection_pool_failed', {
+          pool: key,
           reason: error instanceof Error ? error.message : 'unknown',
         });
-        failedLeagues.push(league.id);
-        return null;
+        failedLeagues.push(key);
+        return { key, model: null };
       }
     }),
   );
 
-  for (const model of models) {
+  for (const { model } of models) {
     if (!model) continue;
-    const config = modelConfigFor(model.league.sport);
-    if (!config) continue;
 
-    for (const game of model.upcoming) {
-      const outcome = projectGame(game, model.ratings, config, {
-        simulations: projectionConfig.simulations,
-        now: new Date(asOf),
-      });
-      // Null means insufficient data. That fixture simply produces nothing —
-      // it is never filled in with a fabricated estimate.
-      if (!outcome) continue;
+    for (const league of leagues) {
+      const config = modelConfigFor(league.sport);
+      if (!config) continue;
 
-      projections.push(outcome);
-      selections.push(...candidateSelections(game, outcome, config));
+      const fixtures = model.upcoming.get(league.id);
+      if (!fixtures) continue;
+
+      for (const game of fixtures) {
+        const outcome = projectGame(game, model.ratings, config, {
+          simulations: projectionConfig.simulations,
+          now: new Date(asOf),
+        });
+        // Null means insufficient data. That fixture produces nothing — it is
+        // never filled in with a fabricated estimate.
+        if (!outcome) {
+          skipped += 1;
+          continue;
+        }
+
+        projections.push(outcome);
+        selections.push(...candidateSelections(game, outcome, config));
+      }
     }
   }
 
   logger.info('projection_candidates_built', {
     sport,
-    leagues: leagues.length,
+    pools: pools.size,
     projected: projections.length,
+    skipped,
     selections: selections.length,
     failed: failedLeagues.length,
   });
 
-  return { selections, projections, failedLeagues };
+  return { selections, projections, failedLeagues, skipped };
 }
 
 /**
  * Projection for one fixture, for the game detail page.
  *
- * Looks the game up in its own league's model rather than scanning everything,
- * so a detail page costs one league's cached history.
+ * Uses the fixture's own pool, so a Champions League tie is rated from the
+ * clubs' domestic results.
  */
 export async function projectionForGame(
   game: Game,
@@ -212,7 +278,7 @@ export async function projectionForGame(
     `projection:game:${game.id}:${projectionConfig.modelVersion}`,
     projectionTtlFor(game.start_time, asOf),
     async () => {
-      const model = await buildLeagueModel(league, asOf);
+      const model = await buildPoolModel(league, asOf);
       if (!model) return null;
       return projectGame(game, model.ratings, config, {
         simulations: projectionConfig.simulations,

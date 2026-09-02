@@ -122,6 +122,63 @@ export function statusFromEspn(type: RawStatusType | undefined): GameStatus {
   }
 }
 
+/**
+ * Split a date range into windows the provider will actually answer.
+ *
+ * Two undocumented limits make this necessary, both of which fail silently:
+ *
+ *   - A range longer than roughly a year returns an *empty* list rather than an
+ *     error, so a two-season request looks like a competition with no fixtures.
+ *   - A range is capped at `limit` events, and the ones returned are the
+ *     *earliest*. A 200-day MLB request therefore came back as a fortnight of
+ *     spring training with everything recent missing.
+ *
+ * Returned oldest first. Dates are inclusive at both ends.
+ */
+export function splitRange(
+  start: string,
+  end: string,
+  maxDays: number,
+): { start: string; end: string }[] {
+  const from = Date.parse(`${start}T00:00:00Z`);
+  const to = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return [];
+
+  const span = Math.max(1, Math.floor(maxDays));
+  const day = 86_400_000;
+  const windows: { start: string; end: string }[] = [];
+
+  for (let cursor = from; cursor <= to; cursor += span * day) {
+    const last = Math.min(cursor + (span - 1) * day, to);
+    windows.push({
+      start: new Date(cursor).toISOString().slice(0, 10),
+      end: new Date(last).toISOString().slice(0, 10),
+    });
+  }
+
+  return windows;
+}
+
+/** Halve a window, for retrying one that came back capped. */
+export function halveRange(range: { start: string; end: string }): {
+  start: string;
+  end: string;
+}[] {
+  const from = Date.parse(`${range.start}T00:00:00Z`);
+  const to = Date.parse(`${range.end}T00:00:00Z`);
+  const day = 86_400_000;
+  const days = Math.round((to - from) / day) + 1;
+  if (!Number.isFinite(days) || days < 2) return [range];
+
+  const half = Math.floor(days / 2);
+  const middle = from + (half - 1) * day;
+
+  return [
+    { start: range.start, end: new Date(middle).toISOString().slice(0, 10) },
+    { start: new Date(middle + day).toISOString().slice(0, 10), end: range.end },
+  ];
+}
+
 /** Normalise one ESPN event into the shared game model. */
 export function normaliseFixture(raw: RawFixtureEvent, league: League): Game | null {
   if (!raw || typeof raw !== 'object') return null;

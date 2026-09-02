@@ -70,6 +70,30 @@ export interface SportModelConfig {
   /** Games at which data quality from history alone is considered full. */
   targetGames: number;
 
+  /**
+   * How far back to load completed results, in days.
+   *
+   * Set per sport from the shape of its calendar rather than one figure for
+   * everything: an NFL team plays seventeen games across five months, so a
+   * 200-day window in September holds barely one of them, while an NBA team
+   * plays eighty in six.
+   */
+  historyDays: number;
+
+  /**
+   * Ratings pool this competition belongs to.
+   *
+   * Competitions sharing a pool are rated together. Football uses one pool so a
+   * Champions League fixture is projected from the clubs' domestic results —
+   * without it, a club's handful of European games is far below the minimum and
+   * every cup tie reads "projection unavailable". The pooling is also sound:
+   * these competitions are exactly where clubs from different leagues play each
+   * other, so a shared Elo is meaningful rather than a category error.
+   *
+   * Null means the competition is rated on its own.
+   */
+  ratingPool: string | null;
+
   /** Days between games under which a side is treated as short-rested. */
   shortRestDays: number;
   /** Points removed from a short-rested side's expectation. */
@@ -94,6 +118,10 @@ const NFL: SportModelConfig = {
   // standards, so the thresholds are correspondingly low.
   minGames: 4,
   targetGames: 12,
+  // A full previous season plus the current one. Anything shorter leaves every
+  // team below the minimum until October.
+  historyDays: 400,
+  ratingPool: null,
   shortRestDays: 5,
   shortRestPenalty: 1.0,
 };
@@ -112,6 +140,8 @@ const NBA: SportModelConfig = {
   seasonWeight: 0.6,
   minGames: 6,
   targetGames: 25,
+  historyDays: 330,
+  ratingPool: null,
   // Back-to-backs are the defining rest effect in basketball.
   shortRestDays: 1,
   shortRestPenalty: 1.5,
@@ -134,6 +164,8 @@ const MLB: SportModelConfig = {
   seasonWeight: 0.7,
   minGames: 15,
   targetGames: 60,
+  historyDays: 300,
+  ratingPool: null,
   shortRestDays: 0,
   shortRestPenalty: 0,
 };
@@ -152,6 +184,8 @@ const NHL: SportModelConfig = {
   seasonWeight: 0.65,
   minGames: 10,
   targetGames: 35,
+  historyDays: 330,
+  ratingPool: null,
   shortRestDays: 1,
   shortRestPenalty: 0.15,
 };
@@ -173,6 +207,11 @@ const FOOTBALL: SportModelConfig = {
   seasonWeight: 0.6,
   minGames: 6,
   targetGames: 20,
+  // A season runs August to May, so a year is needed to hold a full one.
+  historyDays: 400,
+  // Every football competition rates together, so European ties can draw on
+  // the clubs' domestic form.
+  ratingPool: 'football',
   shortRestDays: 3,
   shortRestPenalty: 0.1,
 };
