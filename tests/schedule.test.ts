@@ -253,10 +253,15 @@ describe('schedule filters', () => {
 
   it('filters by chip', () => {
     assert.equal(applyFilters(week, { ...noFilters, sport: 'nfl' }, LONDON).length, 1);
-    assert.equal(applyFilters(week, { ...noFilters, sport: 'football' }, LONDON).length, 2);
+    // Football is now one chip per competition, so the two football fixtures
+    // land on different chips rather than a shared one.
+    assert.equal(applyFilters(week, { ...noFilters, sport: 'epl' }, LONDON).length, 1);
+    assert.equal(applyFilters(week, { ...noFilters, sport: 'ucl' }, LONDON).length, 1);
     assert.equal(applyFilters(week, { ...noFilters, sport: 'nhl' }, LONDON).length, 0);
     // The NFL fixture must not appear under the college chip.
     assert.equal(applyFilters(week, { ...noFilters, sport: 'ncaaf' }, LONDON).length, 0);
+    // Nor a Premier League fixture under another competition's chip.
+    assert.equal(applyFilters(week, { ...noFilters, sport: 'laliga' }, LONDON).length, 0);
   });
 
   it('filters by league', () => {
@@ -276,7 +281,7 @@ describe('schedule filters', () => {
   it('combines filters rather than replacing them', () => {
     const combined = applyFilters(
       week,
-      { date: '2026-09-01', sport: 'football', league: 'Premier League', search: 'Arsenal' },
+      { date: '2026-09-01', sport: 'epl', league: 'Premier League', search: 'Arsenal' },
       LONDON,
     );
     assert.equal(combined.length, 1);
