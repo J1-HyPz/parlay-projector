@@ -260,6 +260,23 @@ export const SPORT_TABS: readonly SportChip[] = [
 /** League label for a catalogue id. */
 const LEAGUE_LABEL_BY_ID = new Map(LEAGUES.map((league) => [league.id, league.label]));
 
+/**
+ * League *labels* each chip accepts.
+ *
+ * Games carry the label, not the id, so matching is done on labels — built once
+ * from the catalogue rather than looked up per game.
+ */
+const CHIP_LEAGUE_LABELS = new Map<string, Set<string>>(
+  SPORT_TABS.map((chip) => [
+    chip.id,
+    new Set(
+      chip.leagues
+        .map((id) => LEAGUE_LABEL_BY_ID.get(id))
+        .filter((label): label is string => label !== undefined),
+    ),
+  ]),
+);
+
 export const ALL_SPORTS = 'all';
 
 /**
