@@ -221,3 +221,54 @@ unavailable — no fake keys, no dead configuration. Candidates for later:
 
 Adding one is: a new adapter, a `ProviderDescriptor`, and an entry in the
 priority table. No page or service changes.
+
+## Which provider serves which competition
+
+The league catalogue records a `provider` per competition. Seventeen come from
+ESPN; three come from TheSportsDB because **ESPN does not carry them**.
+
+| Competition | Provider | Why |
+| --- | --- | --- |
+| CFL | TheSportsDB | ESPN holds CFL *teams* but publishes **zero fixtures or results** — its scoreboard returns no events for any season, and the core API confirms `count: 0` |
+| American Football League Europe | TheSportsDB | Not on ESPN at all |
+| European Football Alliance | TheSportsDB | Not on ESPN at all |
+
+`lib/providers/fixtures.ts` routes on that field. Both adapters emit the same
+normalised `Game`, so Schedule, Live, the hubs, the projection engine and the
+settlement tracker are provider-agnostic — adding these three did not change any
+of them beyond one import.
+
+### What each provider supplies
+
+| | Fixtures | Results | Standings | Teams | Rosters | News | Transactions |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ESPN competitions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | NFL/NBA/WNBA/MLB/NHL only |
+| CFL | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| AFLE, EFA | ✓ | ✓ | — | ✓ | — | — | — |
+
+Absent capabilities are **recorded on the catalogue**, not discovered at
+runtime, so a hub says "not published for this competition" rather than
+rendering an empty section that looks broken.
+
+### Two provider quirks worth knowing
+
+**The free test key serves demo data.** `lookup_all_teams.php` ignores the
+league id on key `3` and returns a fixed set of English football clubs — the
+same 24 teams for the CFL, AFLE and EFA. The team normaliser therefore discards
+rows whose `idLeague` does not match the competition asked for, so a throttled
+or misconfigured key produces nothing rather than a hub full of the wrong teams.
+
+**It works by season, not by date range.** There is no equivalent of ESPN's
+`dates=` parameter, so a whole season is fetched and filtered locally. That is
+cheap: one request per season, and a settled season never changes.
+
+### Coverage not verified locally
+
+The free test key caps every endpoint at about five items, so **the real volume
+of these three competitions could not be measured** during development — only
+that each returns genuine, correctly-attributed scored fixtures. Production uses
+the premium key in `SPORTS_API_KEY` and will determine actual coverage.
+
+If a competition turns out to have too little history, the projection engine
+already handles it correctly: below the data-quality floor it produces no
+projection at all rather than a weak one.
