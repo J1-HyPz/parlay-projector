@@ -47,6 +47,36 @@ services:
       # mount below, or history is lost on every redeploy.
       DATA_DIR: "/data"
 
+      # -------------------------------------------------------------------
+      # Discord notifications
+      # -------------------------------------------------------------------
+      # THE WEBHOOK URL IS A CREDENTIAL. Anyone holding it can post to your
+      # channel, and it cannot be revoked except by deleting the webhook in
+      # Discord and creating a new one.
+      #
+      # Prefer setting it through the TrueNAS app's own environment editor
+      # (Apps -> parlayprojector -> Edit -> Environment Variables) rather than
+      # here, so it is not sitting in a YAML file you might paste or share.
+      # If you do set it here, treat this file as secret and never commit it.
+      #
+      # Notifications are off entirely while this is unset.
+      #
+      # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
+
+      # Which transitions to announce, comma-separated. All four by default:
+      #   kickoff, final, postponed, cancelled
+      # NOTIFY_EVENTS: "kickoff,final"
+
+      # How often fixtures are re-checked, in milliseconds. Floored at 60000.
+      # NOTIFY_POLL_INTERVAL_MS: "300000"
+
+      # Public origin, used only to link each Discord message to its game page.
+      # Leave unset to send messages without links.
+      # APP_BASE_URL: "http://truenas.lan:3000"
+
+      # Only starred games are announced. Star them in the app; there is no
+      # environment variable for the watchlist itself.
+
     ports:
       # host:container — change the host side if 3000 is already taken.
       - "3000:3000"
