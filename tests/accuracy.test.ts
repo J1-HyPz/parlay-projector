@@ -459,7 +459,8 @@ describe('score accuracy', () => {
     assert.equal(accuracy.home_mae, 2);
     assert.equal(accuracy.away_mae, 3);
     assert.equal(accuracy.combined_mae, 5);
-    assert.equal(accuracy.margin_mae, 3.5);
+    // Margins: projected 3 against actual 3, then projected 0 against actual 4.
+    assert.equal(accuracy.margin_mae, 2);
   });
 
   it('ignores predictions with no actual score rather than scoring them zero', () => {
