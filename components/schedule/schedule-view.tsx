@@ -14,7 +14,7 @@
 
 import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
@@ -225,25 +225,21 @@ function Notice({ children }: { children: string }) {
   );
 }
 
-export function ScheduleView() {
+/**
+ * @param initialSport Chip id to open with, from `?sport=` on the route. The
+ *   page resolves it server-side and passes it in, so the first render already
+ *   has the right filter -- reading `window.location` here instead would either
+ *   mismatch hydration or need an effect that re-renders immediately.
+ */
+export function ScheduleView({ initialSport }: { initialSport?: string }) {
   const { state, data, retry } = useSchedule();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [sport, setSport] = useState<string>(ALL_SPORTS);
+  const [sport, setSport] = useState<string>(
+    initialSport && isChipId(initialSport) ? initialSport : ALL_SPORTS,
+  );
   const [league, setLeague] = useState<string>(ALL_LEAGUES);
   const [search, setSearch] = useState('');
-
-  /*
-   * Sidebar shortcuts arrive as /schedule?sport=<chipId>.
-   *
-   * Read after mount rather than during render: the server has no query string,
-   * so seeding state from `window` directly would hydrate to a different value
-   * than the server produced. An unrecognised value is ignored, leaving "All".
-   */
-  useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('sport');
-    if (requested && isChipId(requested)) setSport(requested);
-  }, []);
 
   const timezone = data?.timezone ?? 'Europe/London';
   const dates = useMemo(() => data?.dates ?? [], [data]);
@@ -365,9 +361,9 @@ export function ScheduleView() {
       {/* Filters */}
       <section className="mt-4 space-y-3" aria-label="Schedule filters">
         {unavailable && (
-          <p role="status" className="text-xs text-white/45">
+          <output className="block text-xs text-white/45">
             No {chipLabel(unavailable)} games this week &mdash; showing all sports.
-          </p>
+          </output>
         )}
         <div className="horizontal-cards" aria-label="Sport filters">
           {chips.map((tab) => (
