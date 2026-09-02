@@ -76,14 +76,15 @@ def check_projections():
     return len(projections)
 
 
-def check_parlays():
+def check_parlays(sport="all"):
+    label = f"[{sport}] "
     for risk in ("low", "medium", "high"):
-        body = get(f"/api/parlays?risk={risk}&legs=3")
+        body = get(f"/api/parlays?risk={risk}&sport={sport}&legs=3")
         parlay = body.get("parlay")
 
         if not parlay:
             print(
-                f"  {risk}: no line "
+                f"  {label}{risk}: no line "
                 f"({body.get('eligible', 0)} eligible, {body.get('games_available', 0)} games)"
             )
             continue
@@ -106,7 +107,7 @@ def check_parlays():
         )
 
         print(
-            f"  {risk}: {len(legs)} legs, combined "
+            f"  {label}{risk}: {len(legs)} legs, combined "
             f"{parlay['combined_probability']:.3f}, "
             f"probabilities {[round(leg['probability'], 3) for leg in legs]}"
         )
@@ -117,6 +118,12 @@ def main():
     check_projections()
     print("--- parlays ---")
     check_parlays()
+
+    # Every single-sport filter, not just "all". The football pool spans nine
+    # competitions and is by far the heaviest path; it was the one that failed
+    # in production while "all" passed here.
+    for sport in ("football", "nfl", "nba", "mlb", "nhl"):
+        check_parlays(sport)
     print("projection engine verified against live data")
 
 

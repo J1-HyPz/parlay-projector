@@ -41,13 +41,33 @@ export async function readPredictions(): Promise<PredictionRecordV2[]> {
   }
 }
 
-async function persist(records: readonly PredictionRecordV2[]): Promise<void> {
+/**
+ * Write the store, reporting failure rather than throwing.
+ *
+ * Publishing is a *side effect* of generating a line. If DATA_DIR is not
+ * writable -- an unmounted volume, or dataset permissions that exclude the
+ * container user -- the right outcome is a logged warning and a line the reader
+ * still gets, not a 500 that discards a projection the model computed
+ * perfectly. The cost is that those predictions are not measured later, which
+ * is the lesser loss and is visible in the log.
+ */
+async function persist(records: readonly PredictionRecordV2[]): Promise<boolean> {
   const file = predictionsPath();
   const temporary = `${file}.tmp`;
-  await mkdir(path.dirname(file), { recursive: true });
-  // Temp file then rename: an interrupted write must not truncate the history.
-  await writeFile(temporary, JSON.stringify({ predictions: records }), 'utf-8');
-  await rename(temporary, file);
+
+  try {
+    await mkdir(path.dirname(file), { recursive: true });
+    // Temp file then rename: an interrupted write must not truncate the history.
+    await writeFile(temporary, JSON.stringify({ predictions: records }), 'utf-8');
+    await rename(temporary, file);
+    return true;
+  } catch (error) {
+    logger.warn('predictions_unwritable', {
+      reason: (error as NodeJS.ErrnoException)?.code ?? 'unknown',
+      records: records.length,
+    });
+    return false;
+  }
 }
 
 /** Serialises writes; publishing and settling must not clobber each other. */
@@ -107,7 +127,9 @@ export function publishPredictions(
 
     if (created.length === 0) return 0;
 
-    await persist([...existing, ...created]);
+    const written = await persist([...existing, ...created]);
+    if (!written) return 0;
+
     logger.info('predictions_published', { created: created.length, risk });
     return created.length;
   });
@@ -147,7 +169,9 @@ export function settlePredictions(finals: FinalScores): Promise<number> {
 
     if (changed === 0) return 0;
 
-    await persist(updated);
+    const written = await persist(updated);
+    if (!written) return 0;
+
     logger.info('predictions_settled', { settled: changed });
     return changed;
   });

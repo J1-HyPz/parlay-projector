@@ -106,10 +106,48 @@ const EVENT_LIMIT = 1000;
 /**
  * Default window per request.
  *
- * Comfortably inside the provider's undocumented ~1-year span limit, and small
- * enough that most competitions stay under the event cap.
+ * Deliberately large. Comfortably inside the provider's ~1-year span limit, and
+ * for most competitions one window returns a whole half-season well under the
+ * event cap -- a football league plays ~380 games a season, so a 180-day
+ * request is nowhere near 1000.
+ *
+ * High-volume competitions do exceed it, and the split-on-cap retry below
+ * handles them automatically. Starting small instead would have made every
+ * low-volume league pay for the few that are busy: nine football competitions
+ * cost 27 requests this way against 90 at 45-day windows.
  */
-const DEFAULT_CHUNK_DAYS = 45;
+const DEFAULT_CHUNK_DAYS = 180;
+
+/**
+ * Windows fetched at once.
+ *
+ * A whole pool warming at once was issuing ninety simultaneous requests, which
+ * invites rate limiting and makes the first page load slow enough to look
+ * broken. Bounded, results are cached, and after warm-up only the current
+ * window is refetched.
+ */
+const WINDOW_CONCURRENCY = 4;
+
+/** Run tasks with a bounded number in flight. */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const item = items[cursor];
+      cursor += 1;
+      if (item !== undefined) results.push(await run(item));
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
 
 /** Guard against a pathological split loop; six halvings is well under a day. */
 const MAX_SPLIT_DEPTH = 6;
@@ -146,8 +184,8 @@ async function fetchWindow(
   const halves = halveRange(window);
   if (halves.length < 2) return value.games;
 
-  const parts = await Promise.all(
-    halves.map((half) => fetchWindow(league, half, ttlMs, depth + 1)),
+  const parts = await mapWithConcurrency(halves, WINDOW_CONCURRENCY, (half) =>
+    fetchWindow(league, half, ttlMs, depth + 1),
   );
   return parts.flat();
 }
@@ -174,15 +212,13 @@ export async function fixturesForRange(
 
   const windows = splitRange(startDate, endDate, DEFAULT_CHUNK_DAYS);
 
-  const results = await Promise.all(
-    windows.map((window) =>
-      fetchWindow(
-        league,
-        window,
-        // A window that ended before today can never change again.
-        window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
-        0,
-      ),
+  const results = await mapWithConcurrency(windows, WINDOW_CONCURRENCY, (window) =>
+    fetchWindow(
+      league,
+      window,
+      // A window that ended before today can never change again.
+      window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
+      0,
     ),
   );
 

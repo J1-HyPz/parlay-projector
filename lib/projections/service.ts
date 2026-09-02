@@ -123,12 +123,17 @@ export async function buildPoolModel(
 
   const pool = poolFor(league, config);
 
-  const loaded = await Promise.all(
-    pool.map(async (member) => ({
-      league: member,
-      games: await leagueGames(member, config),
-    })),
-  );
+  /*
+   * Sequential across the pool.
+   *
+   * Each league already fetches its own windows with bounded concurrency, so
+   * running nine football competitions in parallel multiplied that by nine. The
+   * whole thing is cached hard, so this costs wall-clock only on a cold start.
+   */
+  const loaded: { league: League; games: Game[] }[] = [];
+  for (const member of pool) {
+    loaded.push({ league: member, games: await leagueGames(member, config) });
+  }
 
   const all = loaded.flatMap((entry) => entry.games);
   if (all.length === 0) return null;

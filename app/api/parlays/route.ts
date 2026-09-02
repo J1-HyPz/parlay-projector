@@ -15,6 +15,7 @@
  */
 
 import { json, parseSport } from '@/lib/home/api';
+import { logger } from '@/lib/logger';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { optimise } from '@/lib/projections/optimiser';
 import { buildCandidates } from '@/lib/projections/service';
@@ -69,7 +70,15 @@ export async function GET(request: Request): Promise<Response> {
    * against the real result. Idempotent, so pressing Regenerate does not
    * inflate the sample.
    */
-  await publishPredictions(result.parlay.legs, risk);
+  try {
+    await publishPredictions(result.parlay.legs, risk);
+  } catch (error) {
+    // Belt and braces: the store already swallows a write failure, but nothing
+    // about recording a prediction should be able to withhold the line itself.
+    logger.warn('parlay_publish_failed', {
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
 
   return json({
     model_version: MODEL_VERSION,
