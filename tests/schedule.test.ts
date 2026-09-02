@@ -14,6 +14,7 @@ import {
   SPORT_TABS,
   applyFilters,
   chipMatches,
+  visibleChips,
   availableLeagues,
   formatDateHeading,
   formatDayTab,
@@ -316,11 +317,28 @@ describe('schedule filters', () => {
     assert.ok(nfl < epl, 'catalogue order should place NFL before Premier League');
   });
 
-  it('splits the college competitions onto their own chips', () => {
+  it('gives every competition its own chip', () => {
     const ids = SPORT_TABS.map((tab) => tab.id);
     assert.deepEqual(ids, [
-      'all', 'nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'football',
+      'all', 'nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
+      'epl', 'championship', 'league-one', 'ucl', 'uel', 'uecl',
+      'laliga', 'bundesliga', 'seriea',
     ]);
+  });
+
+  it('hides chips with no games in the loaded data', () => {
+    // The fixture has NFL, Premier League and Champions League only.
+    const shown = visibleChips(week).map((chip) => chip.id);
+    assert.deepEqual(shown, ['all', 'nfl', 'epl', 'ucl']);
+
+    // Out-of-season competitions must not appear at all.
+    for (const hidden of ['nba', 'wnba', 'ncaab', 'ncaaf', 'mlb', 'nhl', 'laliga']) {
+      assert.equal(shown.includes(hidden), false, `${hidden} should be hidden`);
+    }
+  });
+
+  it('always keeps All, so the row is never empty', () => {
+    assert.deepEqual(visibleChips([]).map((chip) => chip.id), ['all']);
   });
 
   it('distinguishes the two NCAA chips by emoji', () => {

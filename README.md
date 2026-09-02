@@ -210,13 +210,29 @@ one thing, and a request for college basketball must not return NBA fixtures.
 
 ### Filters
 
-Schedule and Live share two controls. The **sport chips** are broad sports —
-"Basketball" covers the NBA, WNBA and both NCAA divisions — and the **league
-dropdown** narrows to a specific competition. The dropdown is generated from the
-loaded games and follows the chosen sport, so it never offers a competition with
-no fixtures, and picking Basketball does not still offer the Premier League.
-Options are ordered by the catalogue, so the senior competition in each sport
-comes first.
+Schedule and Live share two controls: **chips** for the competition, and a
+**league dropdown** that narrows further where a chip covers more than one.
+
+```
+All  🏈 NFL  🏈 NCAA  🏀 NBA  🏀 WNBA  🏀 NCAA  ⚾ MLB  🏒 NHL
+     ⚽ Premier League  ⚽ Championship  ⚽ League One  ⚽ Champions League
+     ⚽ Europa League  ⚽ Conference League  ⚽ La Liga  ⚽ Bundesliga  ⚽ Serie A
+```
+
+Chips are keyed on **leagues**, not sport ids: NFL and NCAA Football share the
+sport id `nfl`, so a sport-id filter could not tell them apart. The emoji marks
+the sport, which is what distinguishes the two "NCAA" chips; it is decorative
+and hidden from screen readers, which get an aria-label carrying both parts.
+
+**A chip only appears when it has games in the loaded data.** Seventeen chips is
+too many to show at once, and the NBA, WNBA and both NCAA basketball divisions
+are dark for months — a chip that can only return nothing is noise. `All` is
+always present, so the row is never empty, and if a refresh retires the active
+chip the filter falls back to `All` rather than showing nothing.
+
+Men's and women's college basketball share one 🏀 NCAA chip; the league dropdown
+separates them. The dropdown is generated from the loaded games, follows the
+chosen chip, and is ordered by the catalogue.
 
 Tennis is not offered: no configured league supplies it.
 

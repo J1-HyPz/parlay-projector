@@ -215,38 +215,76 @@ export interface SportChip {
   leagues: readonly string[];
 }
 
-/** Football league ids, read from the catalogue so the two stay in step. */
-const FOOTBALL_LEAGUE_IDS = LEAGUES.filter((league) => league.group === 'football').map(
-  (league) => league.id,
-);
+/**
+ * Chip labels for the football competitions.
+ *
+ * The catalogue's short labels (`EFLC`, `UECL`, `LIGA`) are sized for a 32px
+ * badge and are too cryptic for a chip, so chips get readable names.
+ */
+const FOOTBALL_CHIP_LABELS: Record<string, string> = {
+  epl: 'Premier League',
+  championship: 'Championship',
+  'league-one': 'League One',
+  ucl: 'Champions League',
+  uel: 'Europa League',
+  uecl: 'Conference League',
+  laliga: 'La Liga',
+  bundesliga: 'Bundesliga',
+  seriea: 'Serie A',
+};
+
+/** One chip per football competition, derived from the catalogue. */
+const FOOTBALL_CHIPS: SportChip[] = LEAGUES.filter(
+  (league) => league.group === 'football',
+).map((league) => ({
+  id: league.id,
+  label: FOOTBALL_CHIP_LABELS[league.id] ?? league.label,
+  emoji: '\u26BD',
+  leagues: [league.id],
+}));
 
 export const SPORT_TABS: readonly SportChip[] = [
   { id: 'all', label: 'All', emoji: null, leagues: [] },
-  { id: 'nfl', label: 'NFL', emoji: '🏈', leagues: ['nfl'] },
-  { id: 'ncaaf', label: 'NCAA', emoji: '🏈', leagues: ['ncaaf'] },
-  { id: 'nba', label: 'NBA', emoji: '🏀', leagues: ['nba'] },
-  { id: 'wnba', label: 'WNBA', emoji: '🏀', leagues: ['wnba'] },
+  { id: 'nfl', label: 'NFL', emoji: '\u{1F3C8}', leagues: ['nfl'] },
+  { id: 'ncaaf', label: 'NCAA', emoji: '\u{1F3C8}', leagues: ['ncaaf'] },
+  { id: 'nba', label: 'NBA', emoji: '\u{1F3C0}', leagues: ['nba'] },
+  { id: 'wnba', label: 'WNBA', emoji: '\u{1F3C0}', leagues: ['wnba'] },
   // Men's and women's college basketball share one chip; the league dropdown
   // separates them.
-  { id: 'ncaab', label: 'NCAA', emoji: '🏀', leagues: ['ncaam', 'ncaaw'] },
-  { id: 'mlb', label: 'MLB', emoji: '⚾', leagues: ['mlb'] },
-  { id: 'nhl', label: 'NHL', emoji: '🏒', leagues: ['nhl'] },
-  { id: 'football', label: 'Football', emoji: '⚽', leagues: FOOTBALL_LEAGUE_IDS },
+  { id: 'ncaab', label: 'NCAA', emoji: '\u{1F3C0}', leagues: ['ncaam', 'ncaaw'] },
+  { id: 'mlb', label: 'MLB', emoji: '\u26BE', leagues: ['mlb'] },
+  { id: 'nhl', label: 'NHL', emoji: '\u{1F3D2}', leagues: ['nhl'] },
+  ...FOOTBALL_CHIPS,
 ];
 
-/** League *labels* each chip accepts — games carry the label, not the id. */
-const CHIP_LEAGUE_LABELS = new Map<string, Set<string>>(
-  SPORT_TABS.map((chip) => [
-    chip.id,
-    new Set(
-      chip.leagues
-        .map((id) => LEAGUES.find((league) => league.id === id)?.label)
-        .filter((label): label is string => label !== undefined),
-    ),
-  ]),
-);
+/** League label for a catalogue id. */
+const LEAGUE_LABEL_BY_ID = new Map(LEAGUES.map((league) => [league.id, league.label]));
 
 export const ALL_SPORTS = 'all';
+
+/**
+ * Chips with at least one game in the loaded data.
+ *
+ * Out-of-season competitions are hidden rather than shown as chips that can
+ * only ever return nothing — there are seventeen in total, and the NBA, WNBA
+ * and both NCAA basketball divisions are dark for months at a time.
+ *
+ * `All` is always present, so the row is never empty.
+ */
+export function visibleChips(games: readonly Game[]): SportChip[] {
+  const present = new Set(
+    games.map((game) => game.league).filter((label): label is string => label !== null),
+  );
+
+  return SPORT_TABS.filter(
+    (chip) =>
+      chip.id === ALL_SPORTS ||
+      chip.leagues.some((id) => {
+        const label = LEAGUE_LABEL_BY_ID.get(id);
+        return label !== undefined && present.has(label);
+      }),
+  );
+}
 
 /** Whether a game belongs to a chip. */
 export function chipMatches(game: Game, chipId: string): boolean {

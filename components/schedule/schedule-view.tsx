@@ -19,7 +19,7 @@ import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
   ALL_SPORTS,
-  SPORT_TABS,
+  visibleChips,
   badgeLabel,
   chipLabel,
   chipMatches,
@@ -239,17 +239,28 @@ export function ScheduleView() {
   // Today is selected by default; `dates[0]` is today in the app timezone.
   const activeDate = selectedDate ?? dates[0] ?? null;
 
+  // Only competitions with games in the window get a chip — the NBA, WNBA and
+  // both NCAA basketball divisions are dark for months, and a chip that can
+  // only return nothing is noise.
+  const chips = useMemo(() => visibleChips(games), [games]);
+
+  // A refresh can retire the active chip, e.g. the last fixture of a
+  // competition finishing. Fall back to All rather than filtering to nothing.
+  const activeChip = chips.some((chip) => chip.id === sport) ? sport : ALL_SPORTS;
+
   // League options follow the sport chip: picking Basketball should not still
   // offer the Premier League.
   const leagues = useMemo(
-    () => availableLeagues(sport === 'all' ? games : games.filter((g) => chipMatches(g, sport))),
-    [games, sport],
+    () => availableLeagues(
+        activeChip === ALL_SPORTS ? games : games.filter((g) => chipMatches(g, activeChip)),
+      ),
+    [games, activeChip],
   );
   const summary = useMemo(() => summarise(games, dates, timezone), [games, dates, timezone]);
 
   const filtered = useMemo(
-    () => applyFilters(games, { date: activeDate, sport, league, search }, timezone),
-    [games, activeDate, sport, league, search, timezone],
+    () => applyFilters(games, { date: activeDate, sport: activeChip, league, search }, timezone),
+    [games, activeDate, activeChip, league, search, timezone],
   );
 
   const perDayCounts = useMemo(() => groupByDate(games, timezone), [games, timezone]);
@@ -257,7 +268,7 @@ export function ScheduleView() {
   // Why the current view is empty, so the message can be specific.
   const emptyMessage = (() => {
     if (search.trim()) return `No games match “${search.trim()}”.`;
-    if (sport !== ALL_SPORTS) return `No ${chipLabel(sport)} games scheduled for this day.`;
+    if (activeChip !== ALL_SPORTS) return `No ${chipLabel(activeChip)} games scheduled for this day.`;
     if (league !== ALL_LEAGUES) return `No ${league} games scheduled for this day.`;
     return 'No games scheduled for this day.';
   })();
@@ -336,11 +347,11 @@ export function ScheduleView() {
       {/* Filters */}
       <section className="mt-4 space-y-3" aria-label="Schedule filters">
         <div className="horizontal-cards" aria-label="Sport filters">
-          {SPORT_TABS.map((tab) => (
+          {chips.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              aria-pressed={sport === tab.id}
+              aria-pressed={activeChip === tab.id}
               aria-label={chipLabel(tab.id)}
               onClick={() => {
                 setSport(tab.id);
@@ -348,7 +359,7 @@ export function ScheduleView() {
                 setLeague(ALL_LEAGUES);
               }}
               className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-                sport === tab.id
+                activeChip === tab.id
                   ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
                   : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
               }`}

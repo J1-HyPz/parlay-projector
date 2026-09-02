@@ -17,7 +17,7 @@ import type { LiveGame } from '@/lib/live/types';
 import {
   ALL_LEAGUES,
   ALL_SPORTS,
-  SPORT_TABS,
+  visibleChips,
   chipLabel,
   chipMatches,
   availableLeagues,
@@ -199,30 +199,38 @@ export function LiveView() {
   const games = useMemo(() => data?.games ?? [], [data]);
   const timezone = data?.timezone ?? 'Europe/London';
 
+  // Only competitions with live games get a chip.
+  const chips = useMemo(() => visibleChips(games), [games]);
+
+  // A refresh can retire the active chip when its last game ends.
+  const activeChip = chips.some((chip) => chip.id === sport) ? sport : ALL_SPORTS;
+
   // Same helper Schedule uses, so ordering and behaviour match.
   const leagues = useMemo(
-    () => availableLeagues(sport === 'all' ? games : games.filter((g) => chipMatches(g, sport))),
-    [games, sport],
+    () => availableLeagues(
+        activeChip === ALL_SPORTS ? games : games.filter((g) => chipMatches(g, activeChip)),
+      ),
+    [games, activeChip],
   );
 
   const filtered = useMemo(
     () =>
       games.filter((game) => {
-        if (!chipMatches(game, sport)) return false;
+        if (!chipMatches(game, activeChip)) return false;
         if (league !== ALL_LEAGUES && game.league !== league) return false;
         return true;
       }),
-    [games, sport, league],
+    [games, activeChip, league],
   );
 
   const upcoming = useMemo(() => {
     const all = data?.upcoming ?? [];
     return all.filter((game) => {
-      if (!chipMatches(game, sport)) return false;
+      if (!chipMatches(game, activeChip)) return false;
       if (league !== ALL_LEAGUES && game.league !== league) return false;
       return true;
     });
-  }, [data, sport, league]);
+  }, [data, activeChip, league]);
 
   const summary = useMemo(
     () => ({
@@ -270,18 +278,18 @@ export function LiveView() {
         aria-label="Live filters"
       >
         <div className="horizontal-cards" aria-label="Sport filters">
-          {SPORT_TABS.map((tab) => (
+          {chips.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              aria-pressed={sport === tab.id}
+              aria-pressed={activeChip === tab.id}
               aria-label={chipLabel(tab.id)}
               onClick={() => {
                 setSport(tab.id);
                 setLeague(ALL_LEAGUES);
               }}
               className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-                sport === tab.id
+                activeChip === tab.id
                   ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
                   : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
               }`}
@@ -348,7 +356,7 @@ export function LiveView() {
             <p className="text-xs text-white/45">
               {games.length === 0
                 ? 'No games are live right now.'
-                : `No live ${sport === ALL_SPORTS ? '' : `${chipLabel(sport)} `}games match this filter.`}
+                : `No live ${activeChip === ALL_SPORTS ? '' : `${chipLabel(activeChip)} `}games match this filter.`}
             </p>
             <a href="/schedule" className="text-xs text-violet-300 hover:text-violet-200">
               Check the Schedule for upcoming games
