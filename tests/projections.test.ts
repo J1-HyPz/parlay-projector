@@ -27,7 +27,11 @@ import { awaitingSettlement, parsePredictions } from '../lib/projections/store-p
 import { MIN_LEGS, RISK_PROFILES, modelConfigFor } from '../lib/projections/config.ts';
 import { MIN_DATA_QUALITY } from '../lib/projections/types.ts';
 import type { Game } from '../lib/home/types.ts';
-import type { PredictionRecordV2, Selection } from '../lib/projections/types.ts';
+import type {
+  PredictionRecordV2,
+  Selection,
+  SettlementRule,
+} from '../lib/projections/types.ts';
 
 // ---------------------------------------------------------------------------
 // Mathematics
@@ -631,7 +635,7 @@ describe('settlement', () => {
   });
 
   it('settles a double chance', () => {
-    const rule = { kind: 'double_chance', sides: ['home', 'draw'] } as const;
+    const rule: SettlementRule = { kind: 'double_chance', sides: ['home', 'draw'] };
     assert.equal(settle(rule, finished(2, 1)), 'won');
     assert.equal(settle(rule, finished(1, 1)), 'won');
     assert.equal(settle(rule, finished(0, 1)), 'lost');
@@ -651,7 +655,12 @@ describe('settlement', () => {
   });
 
   it('settles a team total', () => {
-    const rule = { kind: 'team_total', side: 'home', direction: 'over', line: 0.5 } as const;
+    const rule: SettlementRule = {
+      kind: 'team_total',
+      side: 'home',
+      direction: 'over',
+      line: 0.5,
+    };
     assert.equal(settle(rule, finished(2, 1)), 'won');
     assert.equal(settle(rule, finished(0, 1)), 'lost');
   });

@@ -26,10 +26,15 @@ export async function GET(
     return json({ error: 'game_not_found', message: 'No such game.' }, 404);
   }
 
-  const detail = await getGameDetail(gameId);
-  if (!detail) {
+  const outcome = await getGameDetail(gameId);
+  if (outcome.kind === 'not_found') {
     return json({ error: 'game_not_found', message: 'No such game.' }, 404);
   }
+  if (outcome.kind === 'failed') {
+    return json({ model_version: MODEL_VERSION, projection: null, reason: 'unavailable' });
+  }
+
+  const detail = outcome.game;
 
   // Only a fixture still to come is projected. A finished game has a result,
   // and projecting one after the fact would be meaningless.
@@ -37,13 +42,14 @@ export async function GET(
     return json({ model_version: MODEL_VERSION, projection: null, reason: 'not_upcoming' });
   }
 
-  // The detail shape carries everything the projector needs from a Game.
+  // The detail shape is a superset of Game; the projector reads only the
+  // fields the two share.
   const game = detail as unknown as Game;
-  const outcome = await projectionForGame(game);
+  const projected = await projectionForGame(game);
 
   return json({
     model_version: MODEL_VERSION,
-    projection: outcome?.projection ?? null,
-    ...(outcome ? {} : { reason: 'insufficient_data' as const }),
+    projection: projected?.projection ?? null,
+    ...(projected ? {} : { reason: 'insufficient_data' as const }),
   });
 }

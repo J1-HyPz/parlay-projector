@@ -8,7 +8,7 @@
  * show a short empty state instead of an empty grid.
  */
 
-import { Info, LineChart, Sparkles, Swords, TrendingUp } from 'lucide-react';
+import { Info, LineChart, Swords, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { GameDetail, FormResult, RecentGame, TeamStanding } from '@/lib/games/types';
 import { formatDate, formatRecord, formatTime, ordinal, scoreNoun } from './game-data';

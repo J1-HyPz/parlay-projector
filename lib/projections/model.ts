@@ -32,7 +32,7 @@ import {
   sampleNormal,
 } from './math.ts';
 import { restDays } from './features.ts';
-import type { RatingSet, TeamRating } from './features.ts';
+import type { RatingSet } from './features.ts';
 import type { SportModelConfig } from './config.ts';
 
 export interface ExpectedScores {
