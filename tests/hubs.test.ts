@@ -482,14 +482,37 @@ describe('transaction normalisation', () => {
   });
 
   it('never invents a fee or a player', () => {
+    // The feed carries neither, for any sport -- including football, which
+    // publishes no transactions at all. Asserting on the keys rather than on
+    // the serialised text, because the provider's own wording may well mention
+    // a player or a fee and that prose is passed through untouched.
     const [transaction] = normaliseTransactions(
-      { items: [{ date: '2026-08-29T07:00Z', description: 'Signed a player.' }] },
+      {
+        items: [
+          {
+            date: '2026-08-29T07:00Z',
+            description: 'Signed G Tyus Jones to a two-year deal worth $14m.',
+          },
+        ],
+      },
       'nba',
       teams,
     );
-    const serialised = JSON.stringify(transaction);
-    for (const term of ['fee', 'player', 'amount', 'currency']) {
-      assert.equal(serialised.includes(term), false, `"${term}" must not appear`);
+
+    assert.deepEqual(Object.keys(transaction).sort(), [
+      'date',
+      'description',
+      'id',
+      'league_id',
+      'team',
+      'type',
+    ]);
+    for (const absent of ['fee', 'player', 'fromTeam', 'toTeam']) {
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(transaction, absent),
+        false,
+        `"${absent}" must not be fabricated`,
+      );
     }
   });
 
