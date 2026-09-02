@@ -1,19 +1,9 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import {
-  Bell,
-  CalendarDays,
-  CircleUserRound,
-  House,
-  Orbit,
-  Radio,
-  Search,
-  Sparkles,
-  Star,
-} from 'lucide-react';
+import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star } from 'lucide-react';
 import { SIDEBAR_SPORTS } from '@/lib/schedule/filters';
 
-export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'profile';
+export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications';
 
 const primaryNavigation: { key: PageKey; label: string; href: string; icon: LucideIcon }[] = [
   { key: 'home', label: 'Home', href: '/', icon: House },
@@ -50,13 +40,12 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <button className="icon-button" aria-label="Search placeholder"><Search className="size-[18px]" /></button>
-          <button className="icon-button relative" aria-label="Notifications placeholder">
+          <a
+            href="/notifications"
+            className={`icon-button relative ${active === 'notifications' ? 'text-violet-300' : ''}`}
+            aria-label="Notifications"
+          >
             <Bell className="size-[18px]" />
-            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-violet-400" />
-          </button>
-          <a href="/profile" className={`icon-button hidden sm:grid ${active === 'profile' ? 'text-violet-300' : ''}`} aria-label="Profile">
-            <CircleUserRound className="size-[19px]" />
           </a>
         </div>
       </header>
@@ -93,8 +82,8 @@ export function AppShell({ active, children }: { active: PageKey; children: Reac
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-5 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
-        {[...primaryNavigation, { key: 'profile' as const, label: 'Profile', href: '/profile', icon: CircleUserRound }].map(({ key, label, href, icon: Icon }) => (
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-4 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+        {primaryNavigation.map(({ key, label, href, icon: Icon }) => (
           <a
             key={key}
             href={href}

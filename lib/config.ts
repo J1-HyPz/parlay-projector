@@ -103,6 +103,78 @@ export const liveConfig = {
 };
 
 /**
+ * Discord notifications.
+ *
+ * The webhook URL is a credential: anyone holding it can post to the channel.
+ * It is read from the environment only, never committed, never logged, and
+ * never sent to the browser -- `/api/internal/notifications` reports whether one
+ * is configured, not what it is.
+ *
+ * Notifications are off unless a URL is set, so the image is inert by default.
+ */
+const discordWebhookUrl = env('DISCORD_WEBHOOK_URL');
+
+/** Only Discord's own webhook hosts, so a misconfiguration cannot post elsewhere. */
+const DISCORD_WEBHOOK_HOSTS = new Set([
+  'discord.com',
+  'discordapp.com',
+  'canary.discord.com',
+  'ptb.discord.com',
+]);
+
+export function isDiscordWebhookUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === 'https:' &&
+      DISCORD_WEBHOOK_HOSTS.has(parsed.hostname) &&
+      parsed.pathname.startsWith('/api/webhooks/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+export const notifyConfig = {
+  webhookUrl: isDiscordWebhookUrl(discordWebhookUrl) ? discordWebhookUrl : '',
+  /** True when a URL was supplied but is not a Discord webhook — surfaced, not silent. */
+  misconfigured: discordWebhookUrl.length > 0 && !isDiscordWebhookUrl(discordWebhookUrl),
+  /**
+   * Which transitions to announce, comma-separated. All four by default.
+   * An unrecognised entry is ignored; an empty list sends nothing while leaving
+   * the poller's state tracking intact.
+   */
+  events: env('NOTIFY_EVENTS', 'kickoff,final,postponed,cancelled')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean),
+  /**
+   * How often the poller compares today's fixtures against the last seen state.
+   *
+   * Floored at 60s: the underlying fixture fetch is cached for minutes anyway,
+   * so polling faster costs requests without improving latency.
+   */
+  pollIntervalMs: Math.max(60_000, envInt('NOTIFY_POLL_INTERVAL_MS', 300_000)),
+  timeoutMs: envInt('NOTIFY_TIMEOUT_MS', 8000),
+  /**
+   * Public base URL, used only to link each notification to its game page.
+   *
+   * Left empty by default: a chat message cannot use a relative path, and
+   * guessing a hostname would produce links that go nowhere. Set APP_BASE_URL
+   * to something reachable from wherever Discord is read.
+   */
+  linkBaseUrl: env('APP_BASE_URL').replace(/\/+$/, ''),
+  /**
+   * Ceiling on games announced in one poll.
+   *
+   * A first run, or a long outage, can see dozens of transitions at once.
+   * Batching keeps that to a couple of messages instead of flooding the channel
+   * and tripping Discord's rate limit.
+   */
+  maxPerPoll: envInt('NOTIFY_MAX_PER_POLL', 20),
+};
+
+/**
  * Directory for persistent application data.
  *
  * Must point at a mounted volume in production: a container filesystem is

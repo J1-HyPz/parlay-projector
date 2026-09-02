@@ -78,6 +78,14 @@ export interface RawFixtureResponse {
   events?: RawFixtureEvent[] | null;
 }
 
+/** ESPN sends scores as strings, and as "0" for a game that has not started. */
+function score(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function str(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   if (typeof value !== 'string') return null;
@@ -141,6 +149,11 @@ export function normaliseFixture(raw: RawFixtureEvent, league: League): Game | n
 
   const venue = competition?.venue;
 
+  // A scheduled fixture reports 0-0, which is not a score. Only a started game
+  // gets one, so nothing downstream has to distinguish "nil-nil" from "not yet".
+  const status = statusFromEspn(raw.status?.type);
+  const started = status === 'live' || status === 'finished';
+
   return {
     id: espnGameId(league.id, eventId),
     sport: league.sport,
@@ -151,7 +164,7 @@ export function normaliseFixture(raw: RawFixtureEvent, league: League): Game | n
     round: str(raw.week?.number),
     start_time:
       startTime && !Number.isNaN(startTime.getTime()) ? startTime.toISOString() : null,
-    status: statusFromEspn(raw.status?.type),
+    status,
     provider_status: str(raw.status?.type?.shortDetail) ?? str(raw.status?.type?.name),
     home_team: {
       id: str(homeSide?.team?.id),
@@ -169,6 +182,9 @@ export function normaliseFixture(raw: RawFixtureEvent, league: League): Game | n
       country: str(venue?.address?.country),
     },
     broadcast: broadcast ?? null,
+    ...(started
+      ? { score: { home: score(homeSide?.score), away: score(awaySide?.score) } }
+      : {}),
   };
 }
 

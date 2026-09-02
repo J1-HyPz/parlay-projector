@@ -191,6 +191,21 @@ and licensing caveats: **[docs/data-providers.md](docs/data-providers.md)**.
 
 ---
 
+## Notifications
+
+Game updates — kick-off, final score, postponements and cancellations — are
+posted to a **Discord webhook**. There is no in-app inbox; the bell links to
+`/notifications`, which reports delivery status only.
+
+Set `DISCORD_WEBHOOK_URL` in the app environment to enable it. That URL is a
+credential: it is never committed, never logged, and never sent to the browser.
+Notifications are off entirely when it is unset.
+
+Transition rules, batching, rate-limit handling and the restart behaviour:
+**[docs/notifications.md](docs/notifications.md)**.
+
+---
+
 ## Leagues, teams and players
 
 A league catalogue covering the professional and collegiate competitions, with

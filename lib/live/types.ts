@@ -8,7 +8,7 @@
  * scoreboard.
  */
 
-import type { Game } from '../home/types';
+import type { Game, Score } from '../home/types';
 
 /**
  * Current state of play.
@@ -26,10 +26,8 @@ export interface GameState {
   clock: string | null;
 }
 
-export interface LiveScore {
-  home: number | null;
-  away: number | null;
-}
+/** Alias of the shared score shape; kept as a name the Live code reads well with. */
+export type LiveScore = Score;
 
 export interface LiveGame extends Game {
   score: LiveScore;

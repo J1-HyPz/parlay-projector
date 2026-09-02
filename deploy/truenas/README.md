@@ -103,6 +103,30 @@ Check what actually came up with:
 curl http://<TRUENAS-IP>:3000/api/internal/providers
 ```
 
+### Discord notifications
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DISCORD_WEBHOOK_URL` | *(empty)* | **Credential.** Where game updates are posted. Notifications are off entirely when unset |
+| `NOTIFY_EVENTS` | `kickoff,final,postponed,cancelled` | Which transitions to announce |
+| `NOTIFY_POLL_INTERVAL_MS` | `300000` | How often fixtures are re-checked. Floored at 60s |
+| `NOTIFY_MAX_PER_POLL` | `20` | Ceiling on games announced in one poll |
+| `APP_BASE_URL` | *(empty)* | Public origin, used only to link each message to its game page |
+
+`DISCORD_WEBHOOK_URL` is the one value here that is a secret: anyone holding it
+can post to your channel. Set it **only** through *Edit → Environment Variables*
+in the TrueNAS app — never in the compose file, never in the repository, never
+in the image. If it leaks, delete the webhook in Discord and create a new one;
+there is no other way to revoke it.
+
+Confirm delivery is configured — this reports presence, never the URL:
+
+```bash
+curl http://<TRUENAS-IP>:3000/api/internal/notifications
+```
+
+Full behaviour, batching and failure rules: `docs/notifications.md`.
+
 That reports each provider's enabled state and health, and returns no
 credentials.
 

@@ -30,6 +30,12 @@ export interface Team {
   logo: string | null;
 }
 
+/** Points scored. Null per side until the provider reports a figure. */
+export interface Score {
+  home: number | null;
+  away: number | null;
+}
+
 export interface Venue {
   name: string | null;
   city: string | null;
@@ -55,6 +61,12 @@ export interface Game {
   venue: Venue;
   /** Null unless the provider supplies broadcast data. */
   broadcast: string | null;
+  /**
+   * Present only once a game has started, and only from providers that report
+   * it on a fixture feed. A scheduled game has no score, so the field is absent
+   * rather than zero-zero.
+   */
+  score?: Score;
 }
 
 export interface NewsArticle {
