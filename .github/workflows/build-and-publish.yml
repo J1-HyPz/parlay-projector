@@ -210,6 +210,18 @@ jobs:
           python3 scripts/verify-accuracy.py http://127.0.0.1:3000 || {
             echo "::error::accuracy verification failed"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
 
+          # The tracker must have logged its own start-up. Independent of the
+          # endpoint above: this proves the instrumentation hook fired inside
+          # the standalone server, which is what makes the whole thing run.
+          if ! docker logs pp-ci 2>&1 | grep -q 'settlement_started'; then
+            echo "::error::the prediction tracker never started"
+            docker logs pp-ci | tail -40
+            docker rm -f pp-ci
+            exit 1
+          fi
+          echo "prediction tracker started inside the container"
+
+
           # An unknown risk level is rejected rather than passed through.
           bad_risk=$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3000/api/parlays?risk=guaranteed')
           echo "GET /api/parlays?risk=guaranteed -> HTTP $bad_risk"

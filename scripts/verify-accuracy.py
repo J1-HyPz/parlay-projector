@@ -195,10 +195,24 @@ def check_windows():
 
 
 def check_tracker():
-    """The background tracker must be running and reporting itself."""
+    """The background tracker must actually be running, not merely enabled."""
     health = get("/api/internal/tracker")
     assert health["enabled"] is True, "the tracker is disabled"
     assert health["interval_seconds"] > 0
+
+    # The decisive check. `enabled` only reflects an environment variable;
+    # last_run_at is set by the tracker executing, which happens once at
+    # start-up. A null here means the instrumentation hook never fired and
+    # nothing would ever settle - the exact failure that would leave the
+    # accuracy figure frozen at zero for ever without any error.
+    assert health["last_run_at"] is not None, (
+        "the tracker has never run - the start-up hook did not fire"
+    )
+    assert health["last_run"] is not None
+    assert health["last_run"]["failed"] is False, (
+        f"the tracker's first run failed: {health['last_run']}"
+    )
+    print(f"  tracker ran at start-up: {health['last_run_at']}")
 
     for key in ("pending", "live", "unsettled"):
         assert health["open"][key] >= 0
