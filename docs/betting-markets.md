@@ -51,16 +51,20 @@ route to placing a bet and passing those through would make it one.
 
 ### Coverage is partial, and that is designed for
 
-Verified at the time of writing:
+Verified against live data:
 
 | Competition | Prices published |
 | --- | --- |
 | NFL, NCAA football, WNBA | Yes, months ahead |
 | Every football competition | Yes, including draw prices — a true 1X2 |
-| NBA | Patchy; near to tip-off |
-| MLB, NHL, NCAA basketball | None |
+| MLB, NBA, NHL, NCAA basketball | Close to the start only |
 
-A competition with no published prices is not a failure. Its selections are
+The second group matters: the same competition is priced today and unpriced
+next week, so **availability is decided per fixture, never per competition.** A
+probe run out of season reported no baseball prices at all; a live run the same
+week found most of that day's card quoted.
+
+A fixture with no published prices is not a failure. Its selections are
 reported as model projections whose availability is unverified, which is the
 truth. **Prices enrich a projection; they are never a precondition for one.**
 
