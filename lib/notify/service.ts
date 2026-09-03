@@ -23,7 +23,7 @@ import { buildPayloads } from './messages';
 import { detectTransitions } from './transitions';
 import { readState, writeState } from './state';
 import { pruneStoredWatchlist, readWatchlist } from '../watchlist/store';
-import { NOTIFY_EVENTS } from './types';
+import { effectiveSettings } from './settings-store';
 import type { NotifyEvent } from './types';
 
 export interface PollResult {
@@ -50,15 +50,6 @@ function settledStates(games: readonly Game[]): Map<string, 'finished' | 'cancel
     }
   }
   return settled;
-}
-
-/** NOTIFY_EVENTS entries that name a real event; anything else is ignored. */
-function enabledEvents(): Set<NotifyEvent> {
-  return new Set(
-    notifyConfig.events.filter((entry): entry is NotifyEvent =>
-      (NOTIFY_EVENTS as readonly string[]).includes(entry),
-    ),
-  );
 }
 
 /**
@@ -89,12 +80,15 @@ export async function pollAndNotify(): Promise<PollResult> {
     // for a game starred midway through. Only the announcement is narrowed.
     const watched = new Set((await readWatchlist()).map((entry) => entry.gameId));
 
-    const wanted = enabledEvents();
+    const settings = await effectiveSettings();
+    // Turned off in the application: still tracks statuses so a later poll can
+    // detect transitions correctly, but announces nothing.
+    const wanted = settings.enabled ? new Set(settings.events) : new Set<NotifyEvent>();
     const selected = notifications
       .filter(
         (notification) => wanted.has(notification.event) && watched.has(notification.gameId),
       )
-      .slice(0, notifyConfig.maxPerPoll);
+      .slice(0, settings.maxPerPoll);
 
     // Pruning is driven by the status just observed, not by whether a message
     // was sent: a game that finishes while notifications are off still leaves
@@ -153,10 +147,7 @@ export function startNotifier(): boolean {
   }, notifyConfig.pollIntervalMs);
   timer.unref?.();
 
-  logger.info('notifier_started', {
-    intervalMs: notifyConfig.pollIntervalMs,
-    events: [...enabledEvents()],
-  });
+  logger.info('notifier_started', { intervalMs: notifyConfig.pollIntervalMs });
   return true;
 }
 

@@ -104,3 +104,25 @@ export async function sendToDiscord(payloads: readonly DiscordPayload[]): Promis
 
   return { sent, failed: 0 };
 }
+
+/**
+ * A one-off message confirming the webhook works.
+ *
+ * Posts to the *configured* webhook only — it never accepts a URL from the
+ * caller, so it cannot be used to send anywhere else. This is the honest way to
+ * answer "is it connected?": the settings page can report what it believes, but
+ * only a delivered message proves the whole path.
+ */
+export async function sendTestMessage(): Promise<boolean> {
+  const { sent } = await sendToDiscord([
+    {
+      content:
+        '\u2705 **Parlay Projector** is connected. ' +
+        'Starred games will be announced here.',
+      allowed_mentions: { parse: [] },
+    },
+  ]);
+
+  logger.info('discord_test_sent', { delivered: sent === 1 });
+  return sent === 1;
+}

@@ -63,11 +63,11 @@ services:
       #
       # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
 
-      # Which transitions to announce, comma-separated. All four by default:
-      #   kickoff, final, postponed, cancelled
+      # Defaults only. Which events fire, how often, and a master on/off are all
+      # editable on the app's Notifications page, which stores them on the
+      # mounted volume and applies them within one poll. Set these if you want
+      # different starting values.
       # NOTIFY_EVENTS: "kickoff,final"
-
-      # How often fixtures are re-checked, in milliseconds. Floored at 60000.
       # NOTIFY_POLL_INTERVAL_MS: "300000"
 
       # Public origin, used only to link each Discord message to its game page.

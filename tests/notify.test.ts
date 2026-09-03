@@ -9,6 +9,14 @@ import {
   formatLine,
 } from '../lib/notify/messages.ts';
 import { parseState } from '../lib/notify/state-parse.ts';
+import {
+  MAX_POLL_SECONDS,
+  MIN_POLL_SECONDS,
+  announces,
+  cleanEvents,
+  parseSettings,
+  resolveSettings,
+} from '../lib/notify/settings.ts';
 import type { GameNotification, NotifyState } from '../lib/notify/types.ts';
 import type { Game, GameStatus } from '../lib/home/types.ts';
 
@@ -189,6 +197,97 @@ describe('discord message formatting', () => {
   it('truncates a single oversized line instead of failing', () => {
     const [payload] = buildPayloads([{ ...base, home: 'X'.repeat(4000) }]);
     assert.ok(payload.content.length <= MAX_CONTENT);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+describe('notification settings', () => {
+  const defaults = {
+    events: ['kickoff', 'final', 'postponed', 'cancelled'],
+    pollIntervalMs: 300_000,
+    maxPerPoll: 20,
+  };
+
+  it('falls back to the environment when nothing is stored', () => {
+    const settings = resolveSettings(defaults, {});
+    assert.equal(settings.enabled, true);
+    assert.deepEqual(settings.events, ['kickoff', 'final', 'postponed', 'cancelled']);
+    assert.equal(settings.pollSeconds, 300);
+    assert.equal(settings.maxPerPoll, 20);
+  });
+
+  it('lets a stored value override the environment', () => {
+    const settings = resolveSettings(defaults, { events: ['final'], pollSeconds: 60 });
+    assert.deepEqual(settings.events, ['final']);
+    assert.equal(settings.pollSeconds, 60);
+    // Untouched fields keep the environment default.
+    assert.equal(settings.maxPerPoll, 20);
+  });
+
+  it('treats an empty event list as a real choice, not a missing one', () => {
+    // Turning every event off must not silently restore the defaults.
+    const settings = resolveSettings(defaults, { events: [] });
+    assert.deepEqual(settings.events, []);
+  });
+
+  it('clamps the poll interval rather than rejecting it', () => {
+    assert.equal(parseSettings({ pollSeconds: 5 }).pollSeconds, MIN_POLL_SECONDS);
+    assert.equal(parseSettings({ pollSeconds: 999_999 }).pollSeconds, MAX_POLL_SECONDS);
+    assert.equal(parseSettings({ pollSeconds: 120 }).pollSeconds, 120);
+  });
+
+  it('clamps the per-poll ceiling', () => {
+    assert.equal(parseSettings({ maxPerPoll: 0 }).maxPerPoll, 1);
+    assert.equal(parseSettings({ maxPerPoll: 5000 }).maxPerPoll, 100);
+  });
+
+  it('drops events it does not recognise', () => {
+    assert.deepEqual(cleanEvents(['kickoff', 'halftime', 'FINAL']), ['kickoff', 'final']);
+    assert.deepEqual(cleanEvents(['kickoff', 'kickoff']), ['kickoff'], 'de-duplicated');
+    assert.equal(cleanEvents('kickoff'), null, 'a non-array means "not specified"');
+    assert.equal(cleanEvents(undefined), null);
+  });
+
+  it('ignores fields of the wrong type instead of failing the update', () => {
+    // A partial or hand-edited file must fall back per field, not wholesale.
+    const parsed = parseSettings({ enabled: 'yes', pollSeconds: 'often', events: ['final'] });
+    assert.equal(parsed.enabled, undefined);
+    assert.equal(parsed.pollSeconds, undefined);
+    assert.deepEqual(parsed.events, ['final']);
+  });
+
+  it('returns nothing usable for junk', () => {
+    assert.deepEqual(parseSettings(null), {});
+    assert.deepEqual(parseSettings('nonsense'), {});
+    assert.deepEqual(parseSettings(42), {});
+  });
+
+  it('never accepts a webhook url', () => {
+    // The credential is environment-only. An endpoint that took one would let
+    // anyone reaching the server redirect the notifications elsewhere.
+    const parsed = parseSettings({
+      webhookUrl: 'https://discord.com/api/webhooks/1/abc',
+      events: ['final'],
+    });
+    assert.equal('webhookUrl' in parsed, false);
+    assert.deepEqual(Object.keys(parsed), ['events']);
+  });
+
+  it('announces only what is enabled', () => {
+    const on = resolveSettings(defaults, { events: ['kickoff'] });
+    assert.equal(announces(on, 'kickoff'), true);
+    assert.equal(announces(on, 'final'), false);
+  });
+
+  it('announces nothing while the master switch is off', () => {
+    const off = resolveSettings(defaults, { enabled: false });
+    for (const event of ['kickoff', 'final', 'postponed', 'cancelled'] as const) {
+      assert.equal(announces(off, event), false, event);
+    }
   });
 });
 
