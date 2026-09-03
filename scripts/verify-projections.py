@@ -104,17 +104,95 @@ def check_parlays(sport="all"):
             assert leg["label"], f"{risk}: a leg with no label"
             assert leg["projection"]["expected_home_score"] >= 0
             product *= probability
+            check_leg_market(leg, f"{risk}: {leg['label']}")
 
         assert abs(parlay["combined_probability"] - product) < 0.001, (
             f"{risk}: combined probability {parlay['combined_probability']} "
             f"is not the product {product}"
         )
 
+        check_parlay_price(parlay, risk)
+
+        verified = sum(
+            1 for leg in legs if leg["market"]["availability"] == "verified"
+        )
         print(
             f"  {label}{risk}: {len(legs)} legs, combined "
             f"{parlay['combined_probability']:.3f}, "
-            f"probabilities {[round(leg['probability'], 3) for leg in legs]}"
+            f"probabilities {[round(leg['probability'], 3) for leg in legs]}, "
+            f"{verified}/{len(legs)} confirmed markets"
         )
+
+
+def check_leg_market(leg, where):
+    """Every leg must say what the bet is, and be honest about availability.
+
+    The failure this whole layer exists to prevent is a line the model invented
+    being presented as one a bookmaker offers. So the two states are checked
+    strictly in both directions: a verified market must carry a real price and
+    name the book that quoted it, and a model-derived one must carry no price at
+    all rather than a leftover from an earlier fetch.
+    """
+    market = leg["market"]
+
+    assert leg["explanation"], f"{where}: no plain-English explanation"
+    assert leg["probability_label"], f"{where}: probability is not labelled"
+    assert market["label"], f"{where}: the market is not named"
+    assert market["availability"] in ("verified", "model_only"), (
+        f"{where}: unknown availability {market['availability']!r}"
+    )
+
+    if market["availability"] == "verified":
+        price = market["price"]
+        assert price, f"{where}: verified with no price"
+        assert price["decimal"] > 1, f"{where}: decimal odds {price['decimal']}"
+        assert market["source"], f"{where}: verified but no book named"
+        assert market["fetchedAt"], f"{where}: verified but not timestamped"
+        # Implied probability has to follow from the price, or the comparison
+        # against the model means nothing.
+        assert abs(price["implied"] - 1 / price["decimal"]) < 0.001, (
+            f"{where}: implied {price['implied']} does not follow from "
+            f"{price['decimal']}"
+        )
+        edge = leg["edge"]
+        assert edge, f"{where}: priced but no comparison against the model"
+        assert abs(edge["edge"] - (leg["probability"] - price["implied"])) < 0.001, (
+            f"{where}: edge {edge['edge']} is not model minus implied"
+        )
+    else:
+        assert market["price"] is None, f"{where}: unverified but priced"
+        assert market["source"] is None, f"{where}: unverified but names a book"
+        assert leg["edge"] is None, f"{where}: unverified but claims an edge"
+
+    # Reasoning is oriented per selection, so the buckets must exist even when
+    # a category happens to be empty.
+    for bucket in ("support", "risks", "context"):
+        assert isinstance(leg["reasoning"][bucket], list), (
+            f"{where}: reasoning bucket {bucket} missing"
+        )
+
+
+def check_parlay_price(parlay, risk):
+    """A combined price exists only when every leg genuinely carries one."""
+    legs = parlay["legs"]
+    all_priced = all(leg["market"]["price"] for leg in legs)
+    price = parlay.get("price")
+
+    if not all_priced:
+        assert price is None, (
+            f"{risk}: a combined price was given with an unpriced leg, which "
+            f"would mean a figure was invented for it"
+        )
+        return
+
+    assert price, f"{risk}: every leg priced but no combined price"
+    expected = 1.0
+    for leg in legs:
+        expected *= leg["market"]["price"]["decimal"]
+    assert abs(price["decimal"] - expected) < 0.01, (
+        f"{risk}: combined odds {price['decimal']} is not the product {expected}"
+    )
+    assert parlay["risk_rationale"], f"{risk}: no explanation of the classification"
 
 
 def check_days():

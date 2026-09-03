@@ -244,14 +244,29 @@ jobs:
 
           # Parlays renders, and carries none of the language this system must
           # never use about a statistical estimate.
+          #
+          # "bookmaker" and "sportsbook" used to be on this list, from when the
+          # application deliberately held no market data at all. Naming the book
+          # is now the mechanism that stops the original problem — a line the
+          # model invented being presented as a bet somebody offers — so the
+          # words are expected, and the promissory half of the guard is the part
+          # that matters and has been widened.
           par=$(curl -s -o /tmp/parlays.html -w '%{http_code}' --max-time 180 http://127.0.0.1:3000/parlays)
           echo "GET /parlays -> HTTP $par"
           [ "$par" = "200" ]             || { echo "::error::parlays page failed, got $par"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
-          if grep -qiE "guaranteed|100% lock|safe bet|sure thing|bookmaker|sportsbook" /tmp/parlays.html; then
+          if grep -qiE "guaranteed|100% lock|safe bet|sure thing|risk.free|can.?not lose|certain to|locked in" /tmp/parlays.html; then
             echo "::error::Parlays page contains language this system must never use"
+            grep -oiE "guaranteed|100% lock|safe bet|sure thing|risk.free|can.?not lose|certain to|locked in" /tmp/parlays.html | sort -u
             docker rm -f pp-ci
             exit 1
           fi
+
+          # The other half of the same guarantee: the page must still tell a
+          # reader that a model-derived line is not a confirmed market. Losing
+          # that wording silently would be the exact regression this work fixed,
+          # so its absence fails the build.
+          grep -qi "unverified" /tmp/parlays.html             || { echo "::error::Parlays page no longer distinguishes unverified model lines"; docker rm -f pp-ci; exit 1; }
+          echo "  parlays page distinguishes confirmed markets from model lines"
 
           # The competition index is the only route to a hub on mobile, where
           # the sidebar is hidden.

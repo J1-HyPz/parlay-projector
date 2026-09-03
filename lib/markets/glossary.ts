@@ -135,7 +135,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   model_edge: {
     term: 'Model Edge',
     definition:
-      'The gap between our model’s probability and the price’s. It marks disagreement, not a guaranteed advantage — the model can be the one that is wrong.',
+      'The gap between our model’s probability and the price’s. It marks disagreement, not an advantage — either side can be wrong, and the model is the one with nothing at stake.',
   },
   model_probability: {
     term: 'Model Probability',
