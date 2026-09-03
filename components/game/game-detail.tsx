@@ -20,6 +20,7 @@ import {
 } from './game-sections';
 import { GameHeader } from './game-header';
 import { useGameDetail } from './game-data';
+import { MarketExplorer } from './market-explorer';
 import { ProjectorAnalysis } from './projector-analysis';
 
 /**
@@ -163,6 +164,11 @@ export function GameDetail({ gameId }: { gameId: string }) {
           </div>
 
           <ProjectorAnalysis gameId={game.id} />
+
+          {/* Every market on the fixture, and a builder for combining them.
+              Only meaningful before kick-off, and the panel says so itself
+              rather than being conditionally hidden here. */}
+          <MarketExplorer gameId={game.id} />
         </div>
       )}
     </div>

@@ -39,6 +39,7 @@ import {
 } from './tracking';
 import { MODEL_VERSION } from './types';
 import type {
+  ParlayKind,
   ParlayRecord,
   PredictionRecordV2,
   PredictionStatus,
@@ -157,9 +158,23 @@ export interface PublishResult {
  * and a line whose legs are unchanged keeps its original id, so pressing
  * Regenerate and landing on the same combination does not inflate the sample.
  */
+export interface PublishOptions {
+  /**
+   * The combined probability the line published.
+   *
+   * Passed in rather than derived here. Multiplying the legs is only correct
+   * for a multi-game line; a same-game line claims a measured joint
+   * probability, and storing the product instead would judge the optimiser
+   * against a number it never gave.
+   */
+  combinedProbability?: number;
+  kind?: ParlayKind;
+}
+
 export function publishPredictions(
   selections: readonly Selection[],
   risk: RiskLevel | null,
+  options: PublishOptions = {},
 ): Promise<PublishResult> {
   return exclusive(async () => {
     if (selections.length === 0) {
@@ -237,8 +252,12 @@ export function publishPredictions(
           id: parlayId,
           risk,
           leg_ids: selections.map((selection) => selection.id),
+          kind: options.kind ?? 'multi_game',
           combined_probability: Number(
-            selections.reduce((product, leg) => product * leg.probability, 1).toFixed(4),
+            (
+              options.combinedProbability ??
+              selections.reduce((product, leg) => product * leg.probability, 1)
+            ).toFixed(4),
           ),
           average_confidence: Number(
             (selections.reduce((sum, l) => sum + l.confidence, 0) / selections.length).toFixed(3),

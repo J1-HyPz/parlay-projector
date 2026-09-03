@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { qualityLabel } from '@/lib/projections/types';
 import type { GameProjection } from '@/lib/projections/types';
+import { ProjectedScore } from '@/components/parlays/market-ui';
 
 type State = 'loading' | 'ready' | 'unavailable' | 'error';
 
@@ -104,16 +105,22 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
             <Bar label={projection.away_team} value={projection.outcome.away} />
           </div>
 
-          <dl className="grid grid-cols-2 gap-3 border-t border-white/7 pt-4 text-xs sm:grid-cols-4">
-            <div>
-              <dt className="text-[10px] uppercase tracking-wider text-white/28">
-                Projected score
-              </dt>
-              <dd className="mt-1 font-medium tabular-nums text-white/70">
-                {projection.expected_home_score.toFixed(1)} –{' '}
-                {projection.expected_away_score.toFixed(1)}
-              </dd>
-            </div>
+          {/* Named sides and a scoreline a game could finish on. An
+              unlabelled "4.5 - 4.6" says neither who is who nor anything a
+              real result could look like. */}
+          <div className="border-t border-white/7 pt-4">
+            <ProjectedScore
+              homeTeam={projection.home_team}
+              awayTeam={projection.away_team}
+              homeScore={projection.expected_home_score}
+              awayScore={projection.expected_away_score}
+              typical={projection.typical_score}
+              homeRange={projection.likely_home_range}
+              awayRange={projection.likely_away_range}
+            />
+          </div>
+
+          <dl className="grid grid-cols-3 gap-3 border-t border-white/7 pt-4 text-xs">
             <div>
               <dt className="text-[10px] uppercase tracking-wider text-white/28">Model line</dt>
               <dd className="mt-1 font-medium tabular-nums text-white/70">

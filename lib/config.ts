@@ -85,6 +85,24 @@ export const espnConfig = {
   cacheTtlMs: envInt('ESPN_CACHE_TTL_SECONDS', 900) * 1000,
 };
 
+/**
+ * Bookmaker prices.
+ *
+ * The sports feed carries market prices alongside the fixtures, and reading
+ * them is what lets the application check its own selections against lines a
+ * book actually offers rather than against lines it invented for itself.
+ *
+ * Two things are deliberately configurable. `enabled` turns the whole market
+ * layer off, in which case every selection is reported as an unverified model
+ * projection — degraded, but never wrong. And the cache is short, because a
+ * price shown as current must actually be current; see MAX_QUOTE_AGE_MS, past
+ * which a quote stops being treated as verified at all.
+ */
+export const oddsConfig = {
+  enabled: (env('ODDS_ENABLED', 'true') || 'true').toLowerCase() !== 'false',
+  cacheTtlMs: envInt('ODDS_CACHE_TTL_SECONDS', 600) * 1000,
+};
+
 export const liveConfig = {
   /**
    * Server-side cache for the live scoreboard.

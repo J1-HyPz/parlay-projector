@@ -153,10 +153,31 @@ export interface Distribution {
   /** Sorted margins (home - away), for reading a spread off the quantiles. */
   margins: number[];
   totals: number[];
+  /**
+   * Per-simulation scores, in simulation order.
+   *
+   * Unlike `margins` and `totals`, these are deliberately *not* sorted: index
+   * `i` in each array belongs to the same simulated game. That is what lets
+   * several selections be evaluated against one simulated game at a time, and
+   * so what makes a same-game joint probability countable rather than assumed.
+   */
   homeScores: number[];
   awayScores: number[];
+  /**
+   * Who won each simulated game: 0 home, 1 away, 2 draw.
+   *
+   * Recorded rather than re-derived from the scores because a tie in a sport
+   * that has no draw is resolved inside the simulation. Re-deriving it here
+   * would disagree with the winner probabilities by exactly the tie rate,
+   * which in low-scoring sports is not small.
+   */
+  winners: Int8Array;
   simulations: number;
 }
+
+export const WINNER_HOME = 0;
+export const WINNER_AWAY = 1;
+export const WINNER_DRAW = 2;
 
 export interface SimulationOptions {
   simulations: number;
@@ -176,6 +197,7 @@ export function simulate(
   const totals: number[] = [];
   const homeScores: number[] = [];
   const awayScores: number[] = [];
+  const winners = new Int8Array(count);
 
   let homeWin = 0;
   let awayWin = 0;
@@ -197,19 +219,34 @@ export function simulate(
       away = Math.max(0, Math.round(sampleNormal(expected.away, config.scoreSd, random)));
     }
 
-    if (home > away) homeWin += 1;
-    else if (away > home) awayWin += 1;
-    else if (config.hasDraw) draw += 1;
-    else {
+    if (home > away) {
+      homeWin += 1;
+      winners[i] = WINNER_HOME;
+    } else if (away > home) {
+      awayWin += 1;
+      winners[i] = WINNER_AWAY;
+    } else if (config.hasDraw) {
+      draw += 1;
+      winners[i] = WINNER_DRAW;
+    } else {
       /*
        * A tie in a sport that does not have one.
        *
        * Overtime decides it, and overtime is close to a coin flip with a slight
        * edge to the better side. Splitting the tie by expectation is closer to
        * the truth than discarding the simulation or awarding it arbitrarily.
+       *
+       * The winner is recorded so that anything reading this simulation later
+       * — a same-game combination, say — resolves the tie the same way rather
+       * than reaching its own answer.
        */
-      if (random() < expected.home / Math.max(expected.home + expected.away, 0.01)) homeWin += 1;
-      else awayWin += 1;
+      if (random() < expected.home / Math.max(expected.home + expected.away, 0.01)) {
+        homeWin += 1;
+        winners[i] = WINNER_HOME;
+      } else {
+        awayWin += 1;
+        winners[i] = WINNER_AWAY;
+      }
     }
 
     margins.push(home - away);
@@ -235,6 +272,7 @@ export function simulate(
     totals,
     homeScores,
     awayScores,
+    winners,
     simulations: count,
   };
 }

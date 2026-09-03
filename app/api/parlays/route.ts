@@ -1,5 +1,5 @@
 /**
- * GET /api/parlays?risk=&sport=&legs=&variant=
+ * GET /api/parlays?risk=&sport=&legs=&variant=&markets=&type=
  *
  * A generated line for the requested risk profile.
  *
@@ -14,9 +14,14 @@
  * the selector can show counts and disable days that cannot produce a line —
  * rather than letting someone pick a day and be told afterwards.
  *
- * Contains no bookmaker data and no monetary figures. `implied_odds` on a leg
- * is the model's own probability expressed as a decimal, and is labelled as
- * such throughout.
+ * `markets` narrows to what a reader can act on: `available` keeps only lines
+ * a bookmaker was confirmed to be offering, `main` keeps the headline markets.
+ * `type` chooses between one leg per fixture and several from a single one.
+ *
+ * Where a bookmaker's prices are available they are carried through, alongside
+ * the implied probability and the gap between it and the model's. That gap is
+ * reported as disagreement, never as an assurance of value. Where no price is
+ * available the selection says so, and no number is invented to fill the space.
  */
 
 import { json, parseSport } from '@/lib/home/api';
@@ -26,11 +31,15 @@ import { APP_TIMEZONE } from '@/lib/config';
 import { scheduleRange } from '@/lib/schedule/range';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { availableDays, optimise, selectionsOnDate } from '@/lib/projections/optimiser';
-import { buildCandidates } from '@/lib/projections/service';
+import type { MarketFilter } from '@/lib/projections/optimiser';
+import { buildSameGame } from '@/lib/projections/same-game';
+import { buildCandidates, gameCandidates } from '@/lib/projections/service';
+import { getGameDetail } from '@/lib/games/service';
+import type { Game } from '@/lib/home/types';
 import { publishPredictions } from '@/lib/projections/store';
 import type { ActualOutcome, PredictionStatus } from '@/lib/projections/types';
 import { MODEL_VERSION } from '@/lib/projections/types';
-import type { RiskLevel } from '@/lib/projections/types';
+import type { RiskLevel, Selection } from '@/lib/projections/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +52,58 @@ interface LegTracking {
 }
 
 const RISKS: readonly RiskLevel[] = ['low', 'medium', 'high'];
+const MARKET_FILTERS: readonly MarketFilter[] = ['any', 'available', 'main'];
+
+/**
+ * The strongest same-game line across the eligible fixtures.
+ *
+ * Tries fixtures in order of their best selection and stops at the first that
+ * yields a combination. Bounded deliberately: each attempt re-simulates a
+ * fixture to count joint probabilities, and a page request must not turn into
+ * two hundred of those.
+ */
+const SAME_GAME_ATTEMPTS = 6;
+
+async function bestSameGame(
+  selections: readonly Selection[],
+  options: { risk: RiskLevel; legs?: number; markets: MarketFilter; variant: number },
+) {
+  // Rank fixtures by their strongest candidate, so the most promising are
+  // tried first rather than whichever happens to come back first.
+  const byGame = new Map<string, number>();
+  for (const selection of selections) {
+    const best = byGame.get(selection.game_id) ?? 0;
+    if (selection.score > best) byGame.set(selection.game_id, selection.score);
+  }
+
+  const ranked = [...byGame.entries()].sort((a, b) => b[1] - a[1]).map(([gameId]) => gameId);
+  // The variant walks the fixture list, so Regenerate moves to another game
+  // rather than re-emitting the same builder.
+  const start = ranked.length > 0 ? options.variant % ranked.length : 0;
+  const rotated = [...ranked.slice(start), ...ranked.slice(0, start)];
+
+  let eligibleCount = 0;
+
+  for (const gameId of rotated.slice(0, SAME_GAME_ATTEMPTS)) {
+    const detail = await getGameDetail(gameId);
+    if (detail.kind !== 'ok') continue;
+
+    const candidates = await gameCandidates(detail.game as unknown as Game);
+    if (!candidates) continue;
+
+    const result = buildSameGame(candidates.selections, candidates.outcome.distribution, {
+      risk: options.risk,
+      legs: options.legs,
+      markets: options.markets,
+      variant: options.variant,
+    });
+
+    eligibleCount = Math.max(eligibleCount, result.eligibleCount);
+    if (result.parlay) return { ...result, gamesAvailable: ranked.length };
+  }
+
+  return { parlay: null, eligibleCount, gamesAvailable: ranked.length };
+}
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
@@ -66,10 +127,21 @@ export async function GET(request: Request): Promise<Response> {
   const rawVariant = Number.parseInt(params.get('variant') ?? '', 10);
   const variant = Number.isFinite(rawVariant) ? Math.abs(rawVariant) : 0;
 
-  const { selections, failedLeagues } = await buildCandidates(sport);
+  const requestedMarkets = (params.get('markets') ?? 'any').toLowerCase();
+  if (!(MARKET_FILTERS as readonly string[]).includes(requestedMarkets)) {
+    return json(
+      { error: 'invalid_markets', message: 'Markets must be any, available or main.' },
+      400,
+    );
+  }
+  const markets = requestedMarkets as MarketFilter;
+
+  const sameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
+
+  const { selections, failedLeagues, pricedGames } = await buildCandidates(sport);
 
   const window = scheduleRange(APP_TIMEZONE);
-  const days = availableDays(selections, window.dates, risk, APP_TIMEZONE);
+  const days = availableDays(selections, window.dates, risk, APP_TIMEZONE, markets);
 
   /*
    * A date outside the window is ignored rather than rejected: the window
@@ -81,7 +153,15 @@ export async function GET(request: Request): Promise<Response> {
     requestedDate && window.dates.includes(requestedDate) ? requestedDate : null;
 
   const pool = date ? selectionsOnDate(selections, date, APP_TIMEZONE) : selections;
-  const result = optimise(pool, { risk, legs, variant });
+
+  /*
+   * A same-game line needs the fixture's simulations, which the bulk candidate
+   * build does not keep — so it re-projects a handful of fixtures rather than
+   * holding ten thousand simulated games each for every fixture on the card.
+   */
+  const result = sameGame
+    ? await bestSameGame(pool, { risk, legs, markets, variant })
+    : optimise(pool, { risk, legs, markets, variant });
 
   if (!result.parlay) {
     return json({
@@ -94,6 +174,9 @@ export async function GET(request: Request): Promise<Response> {
       error: 'insufficient_candidates' as const,
       eligible: result.eligibleCount,
       games_available: result.gamesAvailable,
+      markets,
+      type: sameGame ? ('same_game' as const) : ('multi_game' as const),
+      priced_games: pricedGames,
       ...(failedLeagues.length > 0 ? { partial_failures: failedLeagues.length } : {}),
     });
   }
@@ -107,7 +190,13 @@ export async function GET(request: Request): Promise<Response> {
   let tracking: Record<string, LegTracking> = {};
 
   try {
-    const published = await publishPredictions(result.parlay.legs, risk);
+    const published = await publishPredictions(result.parlay.legs, risk, {
+      // The claimed figure, not a recomputation. A same-game line's estimate
+      // is a measured joint probability; multiplying its legs would store a
+      // number the model never gave and then hold it to that.
+      combinedProbability: result.parlay.combined_probability,
+      kind: result.parlay.kind,
+    });
     if (published.created > 0) {
       // A newly published line changes what the accuracy figures are measuring.
       invalidateAccuracy();
@@ -154,6 +243,9 @@ export async function GET(request: Request): Promise<Response> {
     tracking,
     eligible: result.eligibleCount,
     games_available: result.gamesAvailable,
+    markets,
+    type: sameGame ? ('same_game' as const) : ('multi_game' as const),
+    priced_games: pricedGames,
     ...(failedLeagues.length > 0 ? { partial_failures: failedLeagues.length } : {}),
   });
 }

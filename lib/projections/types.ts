@@ -5,12 +5,23 @@
  * system claims certainty, and no field exists that would let it: there is no
  * "lock", no "guaranteed", and no monetary return.
  *
- * Deliberately contains no bookmaker fields — no odds, no prices, no
- * bookmakers, no markets. `implied_odds` is the model's own probability
- * expressed as a decimal, labelled as such, and is analytics only.
+ * Market data lives in `lib/markets` and is attached to a selection as a
+ * separate object, never merged into the model's own numbers. A probability
+ * here is always Parlay Projector's estimate; a price is always somebody
+ * else's. The two are compared, and they are never conflated.
  */
 
 import type { ConcreteSportId } from '../home/types';
+import type { MarketContext, SettlementRule } from '../markets/types';
+import type { OrientedFactors, ProjectionFactor } from './factors.ts';
+
+/**
+ * Settlement rules and evidence are defined alongside the concepts they belong
+ * to — a settlement rule is a property of a market, not of a model — and
+ * re-exported here so existing importers are unaffected.
+ */
+export type { SettlementRule } from '../markets/types';
+export type { FactorSubject, ProjectionFactor } from './factors.ts';
 
 /** Current model. Stored on every prediction so old ones stay interpretable. */
 export const MODEL_VERSION = 'projection-v1';
@@ -76,17 +87,32 @@ export interface GameProjection {
   data_quality: DataQuality;
   model_version: string;
 
+  /**
+   * A scoreline a game could actually finish on.
+   *
+   * The median simulated score for each side. Shown alongside the expected
+   * score because an expectation of 4.6 runs is not a result anybody can
+   * finish on, and printing it alone invites a reader to treat an average as a
+   * prediction of the scoreline. The median is used rather than the most
+   * frequent exact score because in a high-scoring sport the modal score is
+   * sampling noise.
+   */
+  typical_score: { home: number; away: number } | null;
+  /**
+   * Where the middle half of the simulations landed, per side, inclusive.
+   *
+   * The honest expression of the projection's spread: a range, not a number.
+   */
+  likely_home_range: [number, number] | null;
+  likely_away_range: [number, number] | null;
+
+  /** Why the data quality is what it is, in words. */
+  quality_reasons: string[];
+
   /** What drove the projection, for the explanation shown to the reader. */
   factors: ProjectionFactor[];
   /** ISO-8601 instant this projection was computed. */
   generated_at: string;
-}
-
-/** One contributing reason, positive or negative. */
-export interface ProjectionFactor {
-  /** `+` supports the projection, `-` argues against it. */
-  direction: 'positive' | 'negative';
-  text: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,11 +146,38 @@ export interface Selection {
   fixture: string;
 
   type: SelectionType;
-  /** What is being projected, e.g. `Bills +4.5` or `Arsenal 1+ goals`. */
+  /**
+   * The selection as a betting slip would print it, e.g. `Bills +4.5`.
+   *
+   * The headline on a leg. What kind of bet it is lives in `market.label`,
+   * and what has to happen for it to win lives in `explanation` — the three
+   * used to be one string and a reader had to disentangle them.
+   */
   label: string;
+
+  /**
+   * The bet, as distinct from the prediction.
+   *
+   * Says which market this is, at which line, whether a bookmaker is actually
+   * offering it, and at what price. A selection with
+   * `market.availability === 'model_only'` is analysis: the model derived the
+   * line itself and nothing confirms anyone offers it.
+   */
+  market: MarketContext;
+
+  /** Plain English: what must happen for this selection to win. */
+  explanation: string;
+  /** What the probability below is a probability *of*. */
+  probability_label: string;
 
   /** The model's estimate that this outcome occurs, 0..1. */
   probability: number;
+  /**
+   * The model against the price, where a price exists.
+   *
+   * Null when the market is unverified — there is nothing to disagree with.
+   */
+  edge: EdgeAssessment | null;
   /** How reliable that estimate is, 0..1. Separate from probability. */
   confidence: number;
   data_quality: DataQuality;
@@ -146,23 +199,36 @@ export interface Selection {
   /** Settlement inputs, retained so a result can be judged without re-deriving. */
   settlement: SettlementRule;
 
-  factors: ProjectionFactor[];
+  /**
+   * The fixture's evidence, sorted for *this* selection.
+   *
+   * Supporting, opposing and merely contextual are decided by comparing each
+   * factor against what this selection needs — so the same fact is correctly
+   * a reason on one leg and a caution on another. See `factors.ts`.
+   */
+  reasoning: OrientedFactors;
+
   /** The projection this came from, for the score shown beside the selection. */
   projection: GameProjection;
 }
 
 /**
- * Everything settlement needs, fixed at prediction time.
+ * The model's probability set against the market's.
  *
- * Stored rather than recomputed so a result is judged against the line the
- * model actually published — recomputing later would silently move the target.
+ * Deliberately not called "value". A gap means the model and the price
+ * disagree; it does not establish which of them is right, and the model is the
+ * one with nothing at stake.
  */
-export type SettlementRule =
-  | { kind: 'winner'; side: 'home' | 'away' | 'draw' }
-  | { kind: 'double_chance'; sides: ('home' | 'away' | 'draw')[] }
-  | { kind: 'spread'; side: 'home' | 'away'; line: number }
-  | { kind: 'total'; direction: 'over' | 'under'; line: number }
-  | { kind: 'team_total'; side: 'home' | 'away'; direction: 'over' | 'under'; line: number };
+export interface EdgeAssessment {
+  /** What the price implies, margin included. */
+  implied: number;
+  /** The market's view with the margin removed. Null if only one side is known. */
+  fair: number | null;
+  /** Model probability minus implied. */
+  edge: number;
+  /** Model probability minus fair. The like-for-like comparison. */
+  fair_edge: number | null;
+}
 
 // ---------------------------------------------------------------------------
 // Parlays
@@ -170,19 +236,86 @@ export type SettlementRule =
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 
+/**
+ * Where a line's legs come from.
+ *
+ *   multi_game  one leg per fixture, so the legs are near enough independent
+ *   same_game   several legs from one fixture, which are not
+ */
+export type ParlayKind = 'multi_game' | 'same_game';
+
+/**
+ * How much the legs move together.
+ *
+ * `ratio` is the joint probability divided by the product of the individual
+ * probabilities. One means independent; above one means the legs tend to come
+ * in together; below one means backing one makes the other less likely.
+ *
+ * For a same-game line this is measured rather than assumed: every leg is
+ * evaluated against the same set of simulated games, so the joint probability
+ * is counted directly. See `correlation.ts`.
+ */
+export interface CorrelationAssessment {
+  level: 'low' | 'moderate' | 'high';
+  ratio: number | null;
+  note: string;
+}
+
+/**
+ * The price of a whole line, when every leg carries one.
+ *
+ * Null the moment a single leg is unpriced. A combined price built by
+ * substituting the model's own probability for a missing quote would be a
+ * fabricated headline number, and the reader has no way to tell which legs
+ * were real.
+ */
+export interface ParlayPrice {
+  decimal: number;
+  american: number;
+  fractional: string;
+  /** What the combined price implies, margin included. */
+  implied: number;
+  /** Model probability minus implied. Disagreement, not an advantage. */
+  edge: number;
+  /** Books quoting the legs. */
+  sources: string[];
+}
+
 export interface Parlay {
   risk: RiskLevel;
+  kind: ParlayKind;
   legs: Selection[];
+
   /**
-   * Product of the leg probabilities.
+   * Product of the leg probabilities, treating them as independent.
    *
-   * Valid only because the optimiser takes at most one selection per game, so
-   * the legs are across different fixtures and approximately independent.
-   * Same-game combinations would need a joint model and are not produced.
+   * Sound for a multi-game line, where the optimiser takes at most one
+   * selection per fixture. Reported alongside the combined figure for a
+   * same-game line specifically so the difference correlation makes is
+   * visible rather than hidden inside one number.
+   */
+  independent_probability: number;
+
+  /**
+   * The probability actually claimed for the line.
+   *
+   * Equal to `independent_probability` for a multi-game line. For a same-game
+   * line it is the measured joint probability, which is the honest figure —
+   * multiplying correlated legs would misstate it, usually downwards.
    */
   combined_probability: number;
+
+  correlation: CorrelationAssessment;
+  /** Null unless every leg is quoted by a book. */
+  price: ParlayPrice | null;
+
   average_confidence: number;
   average_data_quality: DataQuality;
+  /** How many legs a bookmaker was confirmed to be offering. */
+  verified_legs: number;
+  /** Why this line came out at this risk level, in words. */
+  risk_rationale: string;
+
   model_version: string;
   generated_at: string;
 }
@@ -207,8 +340,24 @@ export type ParlayStatus = 'pending' | 'live' | 'won' | 'lost' | 'void';
 export interface ParlayRecord {
   id: string;
   risk: RiskLevel;
+  /**
+   * Whether the legs came from different fixtures or from one.
+   *
+   * Optional because records written before same-game lines existed do not
+   * carry it; those are all multi-game by construction. Stored so the two can
+   * be measured apart — they are different claims and a combined success rate
+   * across both would say little about either.
+   */
+  kind?: ParlayKind;
   /** Prediction ids of the legs, in the order they were presented. */
   leg_ids: string[];
+  /**
+   * The probability the line actually claimed when it was published.
+   *
+   * Recorded rather than recomputed. For a same-game line the claim is the
+   * measured joint probability, and multiplying the legs here would store a
+   * figure the model never made — then judge it against that.
+   */
   combined_probability: number;
   average_confidence: number;
   average_data_quality: number;

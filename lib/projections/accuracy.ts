@@ -161,6 +161,16 @@ export interface AccuracyReport {
   all_predictions: AccuracyBlock;
   by_sport: GroupedAccuracy[];
   by_market: GroupedAccuracy[];
+  /**
+   * Sport crossed with market type, e.g. "MLB run line".
+   *
+   * The breakdown that can eventually change what gets generated: a model may
+   * read totals well in one sport and handicaps badly in another, and the
+   * per-sport and per-market figures each average that away. Small groups are
+   * kept with their sample size attached rather than dropped, so thin coverage
+   * is visible instead of flattering the rest.
+   */
+  by_sport_market: GroupedAccuracy[];
   by_risk: GroupedAccuracy[];
   by_model: GroupedAccuracy[];
   by_confidence: GroupedAccuracy[];
@@ -241,6 +251,14 @@ function build(
       headline,
       (record) => record.selection_type,
       (key) => MARKET_LABELS[key] ?? key,
+    ),
+    by_sport_market: groupBy(
+      headline,
+      (record) => `${record.sport}:${record.selection_type}`,
+      (key) => {
+        const [sport, market] = key.split(':');
+        return `${sport.toUpperCase()} ${(MARKET_LABELS[market] ?? market).toLowerCase()}`;
+      },
     ),
     by_risk: byRisk,
     by_model: groupBy(headline, (record) => record.model_version),

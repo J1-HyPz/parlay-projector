@@ -3,30 +3,46 @@
 /**
  * The Parlays workspace.
  *
- * Controls at the top, generated line on the left, summary on the right — the
- * page's existing shape, now driven by the projection engine rather than
- * placeholders.
+ * Controls at the top, the generated line on the left, the slip and summary on
+ * the right. The request is the state: every result is stamped with the query
+ * it answers, so "loading" is derived during render by comparing against the
+ * current query rather than being set inside the fetch — which is what makes
+ * every control feel immediate instead of dead.
  *
- * Two things are deliberately absent. There is no stake field and no projected
- * monetary return: this application has no bookmaker data, so any return figure
- * would be invented. And nothing is described as safe or guaranteed — "low
- * risk" is a relative analytical category, and the page says so.
+ * What changed in the redesign is what the line *says*. Each leg now
+ * distinguishes the bet from the prediction, names the market, states in plain
+ * words what has to happen, and says whether a bookmaker is actually offering
+ * it. The old card printed a label and a percentage and left the rest to be
+ * inferred.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Info, Layers3, LoaderCircle, RefreshCw, Shield, Sparkles, Target } from 'lucide-react';
-import type { Parlay, RiskLevel, Selection } from '@/lib/projections/types';
-import { qualityLabel } from '@/lib/projections/types';
+import { Layers3, LoaderCircle, RefreshCw, Shield, Sparkles, Target } from 'lucide-react';
+import type { Parlay, RiskLevel } from '@/lib/projections/types';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { formatDayTab } from '@/lib/schedule/filters';
-import { LegOutcomeLine, LegStatusBadge } from './leg-status';
-import type { LegOutcome, LegStatus } from './leg-status';
+import { LegCard } from './leg-card';
+import type { LegTracking } from './leg-card';
+import { BetSlip, ParlayHeader, ParlaySummary } from './parlay-summary';
+import { Note } from './market-ui';
 
 const RISKS: { id: RiskLevel; label: string; note: string }[] = [
-  { id: 'low', label: 'Low', note: 'Highest probability, lowest variance' },
-  { id: 'medium', label: 'Medium', note: 'Balanced probability and specificity' },
-  { id: 'high', label: 'High', note: 'Lower probability, more specific outcomes' },
+  {
+    id: 'low',
+    label: 'Low',
+    note: 'The shortest, least specific outcomes the model can stand behind. Fewer legs, higher individual chances.',
+  },
+  {
+    id: 'medium',
+    label: 'Medium',
+    note: 'A balance between how likely each leg is and how specific an outcome it needs.',
+  },
+  {
+    id: 'high',
+    label: 'High',
+    note: 'More specific outcomes the model rates less likely individually. Longer odds, and it comes in less often.',
+  },
 ];
 
 const SPORTS: { id: string; label: string }[] = [
@@ -38,6 +54,25 @@ const SPORTS: { id: string; label: string }[] = [
   { id: 'football', label: 'Football' },
 ];
 
+const MARKETS: { id: string; label: string }[] = [
+  { id: 'any', label: 'Any market' },
+  { id: 'available', label: 'Confirmed available only' },
+  { id: 'main', label: 'Main lines only' },
+];
+
+const TYPES: { id: string; label: string; note: string }[] = [
+  {
+    id: 'multi',
+    label: 'Multi game',
+    note: 'One selection per fixture, so the legs do not depend on one another.',
+  },
+  {
+    id: 'same',
+    label: 'Same game',
+    note: 'Several selections from one fixture, combined by measuring how often they came in together.',
+  },
+];
+
 /** What one day of the window can support, at the current risk level. */
 interface DayAvailability {
   date: string;
@@ -46,20 +81,13 @@ interface DayAvailability {
   buildable: boolean;
 }
 
-/** The tracker's live view of one leg, keyed by prediction id. */
-interface LegTracking {
-  status: LegStatus;
-  result: string | null;
-  actual: { home_score: number; away_score: number } | null;
-  final_pre_game: boolean;
-}
-
 interface ParlayResponse {
   parlay: Parlay | null;
   tracking?: Record<string, LegTracking>;
   error?: string;
   eligible?: number;
   games_available?: number;
+  priced_games?: number;
   model_version?: string;
   date?: string | null;
   dates?: string[];
@@ -70,23 +98,6 @@ const ALL_DAYS = 'all';
 
 /** Keeps the selector's shape while the first response is in flight. */
 const PLACEHOLDER_DAYS = Array.from({ length: 8 }, (_, index) => `placeholder-${index}`);
-
-function percent(value: number, places = 0): string {
-  return `${(value * 100).toFixed(places)}%`;
-}
-
-function kickoff(startTime: string | null): string {
-  if (!startTime) return 'Time to be confirmed';
-  const instant = new Date(startTime);
-  if (Number.isNaN(instant.getTime())) return 'Time to be confirmed';
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(instant);
-}
 
 /**
  * Spinner used wherever work is in flight.
@@ -106,10 +117,9 @@ function Spinner({ className = '' }: { className?: string }) {
 /**
  * Placeholder for one leg.
  *
- * Deliberately shaped like a real leg card — badge row, selection, probability,
- * the three statistics beneath — so the layout does not jump when the real
- * thing arrives, and so it reads as "this is being worked out" rather than as
- * an empty box.
+ * Shaped like a real leg card so the layout does not jump when the real thing
+ * arrives, and so it reads as "this is being worked out" rather than as an
+ * empty box.
  */
 function LoadingLeg({ index }: { index: number }) {
   return (
@@ -132,182 +142,39 @@ function LoadingLeg({ index }: { index: number }) {
         <span className="block h-7 w-16 rounded bg-violet-500/15" />
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {[0, 1, 2].map((cell) => (
-          <span key={cell} className="block h-6 rounded bg-white/[.035]" />
-        ))}
-      </div>
+      <span className="mt-3 block h-4 w-52 rounded-full bg-white/[.04]" />
+      <span className="mt-3 block h-10 rounded-xl bg-white/[.03]" />
     </article>
   );
 }
 
-/**
- * A summary figure that is still being worked out.
- *
- * A pulsing bar rather than `--`: a dash reads as "there is no value", which is
- * what the panel shows when a line genuinely cannot be built, and the two
- * should not look the same.
- */
-function SummaryValue({ loading, children }: { loading: boolean; children: ReactNode }) {
-  if (!loading) return <>{children}</>;
-
+/** A labelled control in the toolbar. */
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span
-      aria-hidden="true"
-      className="block h-4 w-14 rounded bg-white/[.08] motion-safe:animate-pulse motion-reduce:animate-none"
-    />
+    <label className="text-[10px] uppercase tracking-wider text-white/28">
+      {label}
+      {children}
+    </label>
   );
 }
 
-/** One leg: what is projected, how likely, the score behind it, and why. */
-function Leg({
-  selection,
-  index,
-  tracked,
-}: {
-  selection: Selection;
-  index: number;
-  tracked?: LegTracking;
-}) {
-  const { projection } = selection;
-  const supporting = selection.factors.filter((f) => f.direction === 'positive').slice(0, 3);
-  const risks = selection.factors.filter((f) => f.direction === 'negative').slice(0, 2);
-
-  return (
-    <article className="panel p-4">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-        <span className="grid size-5 shrink-0 place-items-center rounded-md bg-violet-500/15 text-[10px] font-medium text-violet-300">
-          {index + 1}
-        </span>
-        <span className="font-medium uppercase tracking-wider text-violet-300">
-          {selection.league ?? selection.sport.toUpperCase()}
-        </span>
-        <span className="text-white/20">·</span>
-        <span className="truncate text-white/40">{kickoff(selection.start_time)}</span>
-        {tracked && (
-          <span className="ml-auto">
-            <LegStatusBadge status={tracked.status} />
-          </span>
-        )}
-      </div>
-
-      <a
-        href={`/games/${selection.game_id}`}
-        className="mt-2 block truncate text-sm text-white/60 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
-      >
-        {selection.fixture}
-      </a>
-
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-3 border-t border-white/7 pt-3">
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">Selection</p>
-          <p className="mt-1 text-base font-semibold text-white/85">{selection.label}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">
-            {tracked && tracked.status !== 'pending'
-              ? 'Pre-game probability'
-              : 'Estimated probability'}
-          </p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-violet-300">
-            {percent(selection.probability)}
-          </p>
-        </div>
-      </div>
-
-      <dl className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-        <div>
-          <dt className="text-white/28">Projected score</dt>
-          <dd className="mt-0.5 tabular-nums text-white/60">
-            {projection.expected_home_score.toFixed(1)} – {projection.expected_away_score.toFixed(1)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-white/28">Model confidence</dt>
-          <dd className="mt-0.5 tabular-nums text-white/60">{percent(selection.confidence)}</dd>
-        </div>
-        <div>
-          <dt className="text-white/28">Data quality</dt>
-          <dd className="mt-0.5 text-white/60">{qualityLabel(selection.data_quality)}</dd>
-        </div>
-      </dl>
-
-      {tracked && (
-        <LegOutcomeLine
-          outcome={
-            {
-              status: tracked.status,
-              result: tracked.result,
-              actual: tracked.actual,
-              projected: {
-                home_score: projection.expected_home_score,
-                away_score: projection.expected_away_score,
-              },
-            } satisfies LegOutcome
-          }
-        />
-      )}
-
-      {supporting.length > 0 && (
-        <div className="mt-3 border-t border-white/7 pt-3">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">Why</p>
-          <ul className="mt-1.5 space-y-1">
-            {supporting.map((factor) => (
-              <li key={factor.text} className="flex gap-2 text-[11px] leading-5 text-white/45">
-                <span aria-hidden="true" className="text-emerald-300">
-                  +
-                </span>
-                <span className="sr-only">Supporting factor:</span>
-                {factor.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {risks.length > 0 && (
-        <div className="mt-2">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">Risk factors</p>
-          <ul className="mt-1.5 space-y-1">
-            {risks.map((factor) => (
-              <li key={factor.text} className="flex gap-2 text-[11px] leading-5 text-white/45">
-                <span aria-hidden="true" className="text-amber-300">
-                  −
-                </span>
-                <span className="sr-only">Risk factor:</span>
-                {factor.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </article>
-  );
-}
+const SELECT_CLASS =
+  'mt-1 block min-h-10 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50';
 
 export function ParlayView() {
   const [risk, setRisk] = useState<RiskLevel>('low');
   const [sport, setSport] = useState('all');
+  const [markets, setMarkets] = useState('any');
+  const [type, setType] = useState('multi');
   const [legs, setLegs] = useState(3);
   const [variant, setVariant] = useState(0);
   const [day, setDay] = useState<string>(ALL_DAYS);
 
-  /*
-   * The request is the state.
-   *
-   * Previously the loading state was only ever set inside the fetch callback,
-   * so changing a control left the *previous* line on screen with no
-   * indication anything was happening — and a request can take a moment. Every
-   * button looked broken.
-   *
-   * The result is stamped with the query it answers, so "loading" is derived
-   * during render by comparing against the current one. That gives immediate
-   * feedback without setting state synchronously in an effect, which would
-   * cost an extra render pass on every click.
-   */
   const query = new URLSearchParams({
     risk,
     sport,
+    markets,
+    type,
     legs: String(legs),
     variant: String(variant),
   });
@@ -355,25 +222,22 @@ export function ParlayView() {
 
   /*
    * The day tabs keep their previous counts while a new request is in flight.
-   *
-   * They are a property of the fixtures, not of the risk level, so blanking
-   * them on every click would make the whole row flicker for no reason.
+   * They are a property of the fixtures rather than of the risk level, so
+   * blanking them on every click would make the whole row flicker for nothing.
    */
   const data = current?.body ?? result?.body ?? null;
 
   // Regenerate steps the variant only. Probabilities are model output and are
   // never touched — a different combination, not different numbers.
-  const regenerate = useCallback(() => setVariant((current) => current + 1), []);
+  const regenerate = useCallback(() => setVariant((value) => value + 1), []);
 
   /*
-   * The line itself is only shown for the request currently on screen.
-   *
-   * `data` falls back to the previous response so the day counts do not
-   * flicker, but the summary must not keep quoting a probability from a line
-   * that is being replaced — it would sit beside a loading skeleton claiming a
-   * figure for a risk level the reader has already moved off.
+   * The line itself is only shown for the request currently on screen, so the
+   * summary never quotes a figure from a line that is being replaced.
    */
   const parlay = current?.body?.parlay ?? null;
+
+  const reset = useCallback(() => setVariant(0), []);
 
   return (
     <>
@@ -391,7 +255,7 @@ export function ParlayView() {
                 aria-pressed={risk === option.id}
                 onClick={() => {
                   setRisk(option.id);
-                  setVariant(0);
+                  reset();
                 }}
                 className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
                   risk === option.id
@@ -403,8 +267,37 @@ export function ParlayView() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-white/32">
+          <p className="mt-2 text-[11px] leading-5 text-white/32">
             {RISKS.find((option) => option.id === risk)?.note}
+          </p>
+        </fieldset>
+
+        <fieldset className="border-0 p-0">
+          <legend className="text-[10px] uppercase tracking-wider text-white/28">
+            Parlay type
+          </legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {TYPES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={type === option.id}
+                onClick={() => {
+                  setType(option.id);
+                  reset();
+                }}
+                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                  type === option.id
+                    ? 'border-violet-500 bg-violet-600 text-white'
+                    : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-white/32">
+            {TYPES.find((option) => option.id === type)?.note}
           </p>
         </fieldset>
 
@@ -412,9 +305,7 @@ export function ParlayView() {
           Day selector, mirroring Schedule's eight-day window.
 
           The counts come from the model, not the fixture list: a day showing
-          four has four fixtures this risk level would actually accept. A day
-          that cannot produce a line is visibly disabled rather than selectable
-          and then empty.
+          four has four fixtures this risk level would actually accept.
         */}
         <div>
           <p className="text-[10px] uppercase tracking-wider text-white/28">Day</p>
@@ -424,7 +315,7 @@ export function ParlayView() {
               aria-pressed={day === ALL_DAYS}
               onClick={() => {
                 setDay(ALL_DAYS);
-                setVariant(0);
+                reset();
               }}
               className={`min-h-[54px] min-w-[84px] shrink-0 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
                 day === ALL_DAYS
@@ -466,7 +357,7 @@ export function ParlayView() {
                   }
                   onClick={() => {
                     setDay(date);
-                    setVariant(0);
+                    reset();
                   }}
                   className={`min-h-[54px] min-w-[92px] flex-1 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
                     isActive
@@ -492,15 +383,14 @@ export function ParlayView() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <label className="text-[10px] uppercase tracking-wider text-white/28">
-            Sport
+          <Field label="Sport">
             <select
               value={sport}
               onChange={(event) => {
                 setSport(event.target.value);
-                setVariant(0);
+                reset();
               }}
-              className="mt-1 block min-h-10 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              className={SELECT_CLASS}
             >
               {SPORTS.map((option) => (
                 <option key={option.id} value={option.id} className="bg-[#0e0c15]">
@@ -508,14 +398,30 @@ export function ParlayView() {
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
 
-          <label className="text-[10px] uppercase tracking-wider text-white/28">
-            Selections
+          <Field label="Markets">
+            <select
+              value={markets}
+              onChange={(event) => {
+                setMarkets(event.target.value);
+                reset();
+              }}
+              className={SELECT_CLASS}
+            >
+              {MARKETS.map((option) => (
+                <option key={option.id} value={option.id} className="bg-[#0e0c15]">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Selections">
             <select
               value={legs}
               onChange={(event) => setLegs(Number(event.target.value))}
-              className="mt-1 block min-h-10 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              className={SELECT_CLASS}
             >
               {Array.from({ length: MAX_LEGS - MIN_LEGS + 1 }, (_, i) => MIN_LEGS + i).map(
                 (count) => (
@@ -525,7 +431,7 @@ export function ParlayView() {
                 ),
               )}
             </select>
-          </label>
+          </Field>
 
           <button
             type="button"
@@ -543,25 +449,25 @@ export function ParlayView() {
         </div>
 
         {/*
-          The work takes a couple of seconds, so it says so.
-
-          `aria-live="polite"` announces it once rather than interrupting, and
-          the element is always present so a screen reader is not surprised by
-          a region appearing and vanishing.
+          The work takes a couple of seconds, so it says so. `aria-live` is
+          polite and the element is always present, so a screen reader is not
+          surprised by a region appearing and vanishing.
         */}
         <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-[11px]">
           {state === 'loading' && (
             <>
               <Spinner className="size-3 text-violet-300" />
               <span className="text-violet-300/80">
-                Projecting fixtures and simulating outcomes…
+                {type === 'same'
+                  ? 'Simulating the fixture and measuring how often the legs come in together…'
+                  : 'Projecting fixtures, checking bookmaker lines and simulating outcomes…'}
               </span>
             </>
           )}
         </output>
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         {/* Generated line */}
         <section className="min-w-0 space-y-3" aria-labelledby="line-heading">
           <h2 id="line-heading" className="flex items-center gap-2 text-base font-semibold">
@@ -571,6 +477,7 @@ export function ParlayView() {
 
           {state === 'loading' && (
             <div className="space-y-3" aria-busy="true" aria-label="Projecting fixtures">
+              <div className="panel h-36 motion-safe:animate-pulse motion-reduce:animate-none" />
               {Array.from({ length: legs }, (_, row) => (
                 <LoadingLeg key={row} index={row} />
               ))}
@@ -589,100 +496,58 @@ export function ParlayView() {
               <p className="mt-1.5 text-[13px] leading-6">
                 {data?.games_available === 0
                   ? day === ALL_DAYS
-                    ? 'No upcoming fixtures currently have enough completed match history to project.'
+                    ? 'No upcoming fixture currently has enough completed match history to project.'
                     : 'No fixture on this day has enough completed match history to project.'
-                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible game${data?.games_available === 1 ? '' : 's'}. Nothing is padded to fill the requested number.`}
+                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible ${data?.games_available === 1 ? 'game' : 'games'}. Nothing is padded to fill the requested number.`}
               </p>
+              {markets === 'available' && (
+                <p className="mt-2 text-[13px] leading-6 text-amber-200/70">
+                  You have asked for confirmed markets only. Bookmaker prices are not published
+                  for every competition — try &ldquo;Any market&rdquo; to include the model&rsquo;s
+                  own lines, which are labelled as unverified.
+                </p>
+              )}
+              {type === 'same' && (
+                <p className="mt-2 text-[13px] leading-6 text-white/32">
+                  A same-game line needs several selections from one fixture to clear the risk
+                  thresholds together. Lower the risk level or ask for fewer selections.
+                </p>
+              )}
             </div>
           )}
 
-          {state === 'ready' &&
-            parlay?.legs.map((selection, index) => (
-              <Leg
-                key={selection.id}
-                selection={selection}
-                index={index}
-                tracked={data?.tracking?.[selection.id]}
-              />
-            ))}
+          {state === 'ready' && parlay && (
+            <>
+              <ParlayHeader parlay={parlay} />
+              <BetSlip parlay={parlay} />
+              {parlay.legs.map((selection, index) => (
+                <LegCard
+                  key={selection.id}
+                  selection={selection}
+                  index={index}
+                  tracked={data?.tracking?.[selection.id]}
+                />
+              ))}
+            </>
+          )}
         </section>
 
         {/* Summary */}
-        <aside className="min-w-0 xl:sticky xl:top-24 xl:h-fit">
-          <section
-            className="panel p-5"
-            aria-labelledby="summary-heading"
-            aria-busy={state === 'loading'}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="summary-heading" className="text-sm font-semibold">
-                Summary
-              </h2>
-              {state === 'loading' ? (
-                <Spinner className="size-4 text-violet-300/70" />
-              ) : (
-                <Shield className="size-4 text-violet-300" aria-hidden="true" />
-              )}
-            </div>
+        <aside className="min-w-0 space-y-4 xl:sticky xl:top-24 xl:h-fit">
+          {state === 'ready' && parlay ? (
+            <ParlaySummary parlay={parlay} />
+          ) : (
+            <section className="panel p-5" aria-label="Parlay summary">
+              <h2 className="text-sm font-semibold">Parlay summary</h2>
+              <p className="mt-3 text-[11px] leading-5 text-white/32">
+                {state === 'loading'
+                  ? 'Working out the line.'
+                  : 'Choose a risk level and a day to generate a line.'}
+              </p>
+            </section>
+          )}
 
-            <dl className="mt-4 space-y-3 text-xs">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Risk level</dt>
-                <dd className="font-medium uppercase text-white/70">{risk}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Selections</dt>
-                <dd className="font-medium tabular-nums text-white/70">
-                  <SummaryValue loading={state === 'loading'}>
-                    {parlay?.legs.length ?? '--'}
-                  </SummaryValue>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t border-white/7 pt-3">
-                <dt className="text-white/38">Estimated combined probability</dt>
-                <dd className="text-lg font-semibold tabular-nums text-violet-300">
-                  <SummaryValue loading={state === 'loading'}>
-                    {parlay ? percent(parlay.combined_probability, 1) : '--'}
-                  </SummaryValue>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Average model confidence</dt>
-                <dd className="font-medium tabular-nums text-white/70">
-                  <SummaryValue loading={state === 'loading'}>
-                    {parlay ? percent(parlay.average_confidence) : '--'}
-                  </SummaryValue>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Data quality</dt>
-                <dd className="font-medium text-white/70">
-                  <SummaryValue loading={state === 'loading'}>
-                    {parlay ? qualityLabel(parlay.average_data_quality) : '--'}
-                  </SummaryValue>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t border-white/7 pt-3">
-                <dt className="text-white/38">Model</dt>
-                <dd className="font-medium text-white/70">
-                  <SummaryValue loading={state === 'loading'}>
-                    {parlay?.model_version ?? data?.model_version ?? '--'}
-                  </SummaryValue>
-                </dd>
-              </div>
-            </dl>
-
-            <p className="mt-4 flex gap-2 border-t border-white/7 pt-4 text-[11px] leading-5 text-white/30">
-              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span>
-                Combined probability multiplies the individual estimates. Selections come from
-                different games to keep them close to independent, but sports outcomes are
-                uncertain and projections may be incorrect.
-              </span>
-            </p>
-          </section>
-
-          <section className="panel mt-4 p-5" aria-labelledby="how-heading">
+          <section className="panel p-5" aria-labelledby="how-heading">
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-violet-300" aria-hidden="true" />
               <h2 id="how-heading" className="text-sm font-semibold">
@@ -697,16 +562,32 @@ export function ParlayView() {
               </li>
               <li className="flex gap-2">
                 <Layers3 className="mt-0.5 size-3.5 shrink-0 text-white/25" aria-hidden="true" />
-                Each fixture is simulated thousands of times, and every probability on this
-                page is read off the same set of simulations.
+                Each fixture is simulated thousands of times, and every probability on this page
+                is read off the same set of simulations.
               </li>
               <li className="flex gap-2">
                 <Shield className="mt-0.5 size-3.5 shrink-0 text-white/25" aria-hidden="true" />
-                One selection per game, so the legs stay independent. Fixtures without enough
-                history are not projected at all.
+                Where a bookmaker&rsquo;s lines are published, the model is run against those
+                exact lines. Where they are not, its own lines are shown and marked unverified.
               </li>
             </ul>
+
+            {typeof data?.priced_games === 'number' && (
+              <p className="mt-3 border-t border-white/7 pt-3 text-[10px] leading-4 text-white/28">
+                {data.priced_games === 0
+                  ? 'No bookmaker prices were published for any fixture in this window, so every line here is a model projection.'
+                  : `Bookmaker prices were published for ${data.priced_games} fixture${data.priced_games === 1 ? '' : 's'} in this window.`}
+              </p>
+            )}
           </section>
+
+          <div className="px-1">
+            <Note>
+              Player markets are not offered. This application has no player statistics, no
+              lineups and no injury data, and no prices for them — so there is nothing to model
+              and nothing to check against.
+            </Note>
+          </div>
         </aside>
       </div>
     </>

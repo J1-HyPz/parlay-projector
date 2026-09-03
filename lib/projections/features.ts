@@ -305,6 +305,67 @@ export function dataQuality(
 }
 
 /**
+ * Why the data quality came out where it did.
+ *
+ * A rating on its own is not useful: "Medium" tells a reader that something is
+ * missing without saying what, and leaves them unable to judge whether it
+ * matters to them. These are the specific gaps, in the order they cost the
+ * most.
+ *
+ * Only shortfalls are listed. A projection standing on everything available
+ * returns an empty list, and the interface says so rather than manufacturing a
+ * caveat to fill the space.
+ */
+export function qualityReasons(
+  home: TeamRating | undefined,
+  away: TeamRating | undefined,
+  config: SportModelConfig,
+  extras: { hasStandings: boolean; hasHeadToHead: boolean },
+): string[] {
+  const reasons: string[] = [];
+  if (!home || !away) return ['No rating could be built for one of the sides.'];
+
+  const thinner = home.games <= away.games ? home : away;
+
+  if (thinner.games < config.minGames) {
+    reasons.push(
+      `${thinner.team} have only ${thinner.games} completed games on record, below the ${config.minGames} this sport needs.`,
+    );
+  } else if (thinner.games < config.targetGames) {
+    reasons.push(
+      `${thinner.team} have ${thinner.games} completed games on record; ${config.targetGames} is where this sport's ratings settle.`,
+    );
+  }
+
+  // A large imbalance matters on its own: the projection is only as good as
+  // the weaker of the two ratings, whatever the stronger one says.
+  const gap = Math.abs(home.games - away.games);
+  if (gap >= config.targetGames / 2) {
+    reasons.push(
+      `The two sides have very different amounts of history (${home.games} against ${away.games}), so the comparison is uneven.`,
+    );
+  }
+
+  if (home.homeAttack === null || away.awayAttack === null) {
+    reasons.push('Home and away splits are not yet separable, so venue is modelled from the sport average.');
+  }
+
+  if (!extras.hasStandings) {
+    reasons.push('No standings table was available to corroborate the ratings.');
+  }
+
+  /*
+   * Stated once, plainly, on every projection. These are not gaps that better
+   * data would close later in the season — the application has no source for
+   * them at all, and a reader comparing this against a service that does needs
+   * to know that.
+   */
+  reasons.push('No lineup, injury or player-availability data exists for any competition here.');
+
+  return reasons;
+}
+
+/**
  * How reliable the probability estimate is, 0..1.
  *
  * Distinct from the probability itself. A model can be quite sure a team wins

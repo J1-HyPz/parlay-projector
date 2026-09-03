@@ -21,7 +21,7 @@ export async function GET(request: Request): Promise<Response> {
     return json({ error: 'invalid_sport', message: 'Unknown sport.' }, 400);
   }
 
-  const { projections, failedLeagues, skipped } = await buildCandidates(sport);
+  const { projections, failedLeagues, skipped, pricedGames } = await buildCandidates(sport);
 
   return json({
     model_version: MODEL_VERSION,
@@ -29,7 +29,10 @@ export async function GET(request: Request): Promise<Response> {
     // Fixtures that were eligible but had too little history behind them.
     // Surfaced so thin coverage is diagnosable rather than mysterious.
     skipped_insufficient_data: skipped,
-    projections: projections.map((outcome) => outcome.projection),
+    // Fixtures a bookmaker was quoting. The rest produce model-derived lines
+    // whose availability is unverified, which is worth being able to see.
+    priced_games: pricedGames,
+    projections,
     ...(failedLeagues.length > 0 ? { partial_failures: failedLeagues.length } : {}),
   });
 }

@@ -40,8 +40,10 @@ import { buildRatings, toResults } from './features';
 import type { RatingSet } from './features';
 import { candidateSelections, projectGame } from './project';
 import type { ProjectionOutcome } from './project';
+import { marketsForLeagues } from '../odds/service';
+import type { GameMarkets } from '../markets/types';
 import type { Game, ConcreteSportId } from '../home/types';
-import type { Selection } from './types';
+import type { GameProjection, Selection } from './types';
 
 /** Ratings change only when a game finishes. */
 const RATINGS_TTL_MS = 3 * 60 * 60_000;
@@ -170,11 +172,23 @@ export async function buildPoolModel(
 
 export interface CandidateResult {
   selections: Selection[];
-  projections: ProjectionOutcome[];
+  /**
+   * The projections behind them.
+   *
+   * Deliberately the projection only, not the simulated distribution. A
+   * distribution is four arrays of ten thousand numbers, and holding one per
+   * fixture in a cached result put tens of megabytes behind a five-minute key
+   * for the sake of a field almost nothing read. Anything needing the
+   * distribution — a same-game combination, the market explorer — asks for one
+   * fixture at a time through `gameCandidates`.
+   */
+  projections: GameProjection[];
   /** Competitions whose data could not be loaded; the rest still produced output. */
   failedLeagues: string[];
   /** Fixtures skipped for insufficient history, for the empty-state message. */
   skipped: number;
+  /** Fixtures a bookmaker was quoting prices for. */
+  pricedGames: number;
 }
 
 function leaguesFor(sport: ConcreteSportId | 'all'): League[] {
@@ -224,8 +238,26 @@ async function computeCandidates(
   const leagues = leaguesFor(sport);
   const failedLeagues: string[] = [];
   const selections: Selection[] = [];
-  const projections: ProjectionOutcome[] = [];
+  const projections: GameProjection[] = [];
   let skipped = 0;
+
+  /*
+   * Bookmaker prices for the fixtures that could appear.
+   *
+   * Only the forward window, which is where the eligible fixtures are — there
+   * is no point asking for prices on games that have already been played. A
+   * competition with no prices returns nothing and its selections come out as
+   * model projections, which is the honest description of them.
+   */
+  const today = todayInAppTimezone();
+  let quotes = new Map<string, GameMarkets>();
+  try {
+    quotes = await marketsForLeagues(leagues, today, addDays(today, 7));
+  } catch (error) {
+    logger.warn('odds_lookup_failed', {
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
 
   // One entry per pool, so competitions sharing ratings are loaded once.
   const pools = new Map<string, League>();
@@ -273,11 +305,15 @@ async function computeCandidates(
           continue;
         }
 
-        projections.push(outcome);
-        selections.push(...candidateSelections(game, outcome, config));
+        projections.push(outcome.projection);
+        selections.push(
+          ...candidateSelections(game, outcome, config, quotes.get(game.id) ?? null, asOf),
+        );
       }
     }
   }
+
+  const pricedGames = projections.filter((projection) => quotes.has(projection.game_id)).length;
 
   logger.info('projection_candidates_built', {
     sport,
@@ -285,10 +321,12 @@ async function computeCandidates(
     projected: projections.length,
     skipped,
     selections: selections.length,
+    priced: pricedGames,
+    verified: selections.filter((s) => s.market.availability === 'verified').length,
     failed: failedLeagues.length,
   });
 
-  return { selections, projections, failedLeagues, skipped };
+  return { selections, projections, failedLeagues, skipped, pricedGames };
 }
 
 /**
@@ -322,6 +360,60 @@ export async function projectionForGame(
   );
 
   return value;
+}
+
+/**
+ * Everything one fixture supports: the projection, its simulations, its
+ * markets, and every selection they produce.
+ *
+ * The single-fixture counterpart to `buildCandidates`. It exists because a
+ * same-game combination, a bet builder and a market explorer all need the
+ * simulated distribution — which the bulk candidate build deliberately does
+ * not keep, because holding one per fixture costs tens of megabytes for
+ * something almost nothing reads.
+ *
+ * Here it is one fixture at a time, so the distribution is affordable and the
+ * joint probabilities that make a same-game line honest can be counted.
+ */
+export interface GameCandidates {
+  game: Game;
+  outcome: ProjectionOutcome;
+  selections: Selection[];
+  markets: GameMarkets | null;
+}
+
+export async function gameCandidates(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<GameCandidates | null> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (!league) return null;
+
+  const config = modelConfigForLeague(league.id, league.sport);
+  if (!config) return null;
+
+  const outcome = await projectionForGame(game, asOf);
+  if (!outcome) return null;
+
+  const today = todayInAppTimezone();
+  let markets: GameMarkets | null = null;
+  try {
+    const quotes = await marketsForLeagues([league], today, addDays(today, 7));
+    markets = quotes.get(game.id) ?? null;
+  } catch (error) {
+    // Prices enrich a projection; they are never a precondition for one.
+    logger.warn('odds_lookup_failed', {
+      game: game.id,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+
+  return {
+    game,
+    outcome,
+    selections: candidateSelections(game, outcome, config, markets, asOf),
+    markets,
+  };
 }
 
 export const projectionTimezone = APP_TIMEZONE;
