@@ -37,6 +37,19 @@ def get(path):
         return json.load(response)
 
 
+def post(path, payload):
+    request = urllib.request.Request(
+        f"{BASE}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        if response.status != 200:
+            raise SystemExit(f"::error::POST {path} returned {response.status}")
+        return json.load(response)
+
+
 def check_projections():
     body = get("/api/projections/games")
     projections = body.get("projections", [])
@@ -195,6 +208,115 @@ def check_parlay_price(parlay, risk):
     assert parlay["risk_rationale"], f"{risk}: no explanation of the classification"
 
 
+def check_market_explorer():
+    """Every market on one fixture, and the builder that combines them.
+
+    The builder is the one place a reader can assemble correlated selections,
+    so its arithmetic is the thing most worth checking against live data: a
+    combination must be *counted* across the fixture's simulations, not
+    multiplied, and a pair that cannot both come in must be refused rather than
+    quietly given a small number.
+    """
+    projections = get("/api/projections/games").get("projections", [])
+    assert projections, "no projections to explore markets for"
+
+    # First fixture whose markets actually resolve. A projected fixture can
+    # still fail here if it kicks off between the two requests.
+    for projection in projections[:5]:
+        body = get(f"/api/games/{projection['game_id']}/markets")
+        if body.get("groups"):
+            break
+    else:
+        raise AssertionError("no projected fixture returned any markets")
+
+    groups = body["groups"]
+    picks = body.get("model_picks") or []
+    assert picks, "no model picks ranked"
+
+    total = 0
+    for group in groups:
+        assert group["label"], f"market group {group['market']} is not named"
+        assert group["selections"], f"market group {group['market']} is empty"
+        for selection in group["selections"]:
+            check_leg_market(selection, f"{group['market']}: {selection['label']}")
+            total += 1
+
+    # Ranked by the optimiser's score, not by raw probability.
+    scores = [pick["score"] for pick in picks]
+    assert scores == sorted(scores, reverse=True), "model picks are not ranked"
+
+    priced = sum(
+        1
+        for group in groups
+        for selection in group["selections"]
+        if selection["market"]["availability"] == "verified"
+    )
+    print(
+        f"  {len(groups)} markets, {total} selections, {priced} confirmed"
+        + (f", priced by {body['pricing']['source']}" if body.get("pricing") else ", unpriced")
+    )
+
+    check_builder(projection["game_id"], groups)
+
+
+def check_builder(game_id, groups):
+    """A slip the reader assembled, evaluated jointly."""
+    flat = [s for group in groups for s in group["selections"]]
+    by_type = {}
+    for selection in flat:
+        by_type.setdefault(selection["market"]["type"], []).append(selection)
+
+    # One leg first: the joint and the product must agree, which is the
+    # property that keeps a leg's own number and its contribution consistent.
+    single = post(f"/api/games/{game_id}/markets", {"selections": [flat[0]["id"]]})["slip"]
+    assert single, "a single-selection slip was refused"
+    assert abs(single["combined_probability"] - single["independent_probability"]) < 0.002, (
+        "one leg disagrees with itself: "
+        f"{single['combined_probability']} vs {single['independent_probability']}"
+    )
+
+    # Two legs from different markets on the same fixture: related, so the
+    # measured figure must not simply be the product.
+    pair = [group[0] for group in by_type.values()][:2]
+    if len(pair) == 2:
+        slip = post(
+            f"/api/games/{game_id}/markets", {"selections": [s["id"] for s in pair]}
+        )["slip"]
+        assert slip, "a two-selection slip was refused"
+        assert slip["correlation"]["level"] in ("low", "moderate", "high")
+        product = pair[0]["probability"] * pair[1]["probability"]
+        assert abs(slip["independent_probability"] - product) < 0.002, (
+            f"independent figure {slip['independent_probability']} is not the "
+            f"product {product}"
+        )
+        assert 0 < slip["combined_probability"] < 1, "joint probability out of range"
+        print(
+            f"  builder: {pair[0]['market']['type']} + {pair[1]['market']['type']} "
+            f"-> joint {slip['combined_probability']:.3f} against product "
+            f"{slip['independent_probability']:.3f}, "
+            f"{slip['correlation']['level']} correlation"
+        )
+
+    # Both sides of one market cannot both come in, so one must be dropped
+    # rather than the pair being priced as though they could.
+    opposing = next((sel for sel in by_type.values() if len(sel) >= 2), None)
+    if opposing:
+        slip = post(
+            f"/api/games/{game_id}/markets",
+            {"selections": [opposing[0]["id"], opposing[1]["id"]]},
+        )["slip"]
+        assert slip, "an opposing-selection slip returned nothing at all"
+        assert slip["dropped"] >= 1 or len(slip["legs"]) == 1, (
+            "two sides of one market were both accepted"
+        )
+        print(f"  builder: incompatible pair reduced to {len(slip['legs'])} leg")
+
+    # A slip of ids that do not belong to this fixture is reported, not guessed.
+    unknown = post(f"/api/games/{game_id}/markets", {"selections": ["not-a-selection"]})
+    assert unknown.get("slip") is None, "an unknown selection was silently accepted"
+    print("  builder: unknown selections reported rather than dropped")
+
+
 def check_days():
     """The day selector must agree with what a day can actually build."""
     body = get("/api/parlays?risk=low&legs=3")
@@ -273,6 +395,9 @@ def main():
     # in production while "all" passed here.
     for sport in ("football", "nfl", "nba", "mlb", "nhl"):
         check_parlays(sport)
+
+    print("--- market explorer and builder ---")
+    check_market_explorer()
 
     print("--- day selector ---")
     check_days()
