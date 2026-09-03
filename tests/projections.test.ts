@@ -40,6 +40,8 @@ import {
 import { MIN_DATA_QUALITY } from '../lib/projections/types.ts';
 import { halveRange, splitRange } from '../lib/providers/espn/fixture-normalise.ts';
 import type { Game } from '../lib/home/types.ts';
+import { priceFromDecimal } from '../lib/markets/price.ts';
+import type { MarketContext } from '../lib/markets/types.ts';
 import type {
   PredictionRecordV2,
   Selection,
@@ -478,6 +480,13 @@ describe('candidate selections', () => {
 // Risk and the optimiser
 // ---------------------------------------------------------------------------
 
+/**
+ * A selection built by hand, for the optimiser tests.
+ *
+ * Carries a real market so the pricing and availability paths are exercised
+ * rather than skipped: `priced` decides whether a bookmaker is quoting it,
+ * which is what the optimiser's market filter and the combined price turn on.
+ */
 function selection(id: string, gameId: string, overrides: Partial<Selection> = {}): Selection {
   const base = {
     probability: 0.75,
@@ -487,6 +496,23 @@ function selection(id: string, gameId: string, overrides: Partial<Selection> = {
     sport: 'nfl' as const,
   };
   const merged = { ...base, ...overrides };
+  const price = priceFromDecimal(1.5)!;
+
+  const market: MarketContext = {
+    type: 'moneyline',
+    period: 'full_game',
+    label: 'Moneyline',
+    selection: `${id} label`,
+    line: null,
+    availability: 'verified',
+    price,
+    source: 'Test Book',
+    // Fresh by construction: staleness is covered in tests/markets.test.ts.
+    fetchedAt: new Date().toISOString(),
+    fairProbability: 0.66,
+    margin: 0.05,
+  };
+
   return {
     id,
     game_id: gameId,
@@ -496,13 +522,22 @@ function selection(id: string, gameId: string, overrides: Partial<Selection> = {
     fixture: `${gameId} fixture`,
     type: merged.type,
     label: `${id} label`,
+    market,
+    explanation: 'Home must win the game.',
+    probability_label: 'Win probability',
     probability: merged.probability,
+    edge: {
+      implied: price.implied,
+      fair: 0.66,
+      edge: Number((merged.probability - price.implied).toFixed(4)),
+      fair_edge: Number((merged.probability - 0.66).toFixed(4)),
+    },
     confidence: merged.confidence,
     data_quality: merged.data_quality,
     score: selectionScore(merged.probability, merged.confidence, merged.data_quality),
     correlation_group: gameId,
     settlement: { kind: 'winner', side: 'home' },
-    factors: [],
+    reasoning: { support: [], risks: [], context: [] },
     projection: {
       game_id: gameId,
       sport: merged.sport,
@@ -519,6 +554,10 @@ function selection(id: string, gameId: string, overrides: Partial<Selection> = {
       confidence: merged.confidence,
       data_quality: merged.data_quality,
       model_version: 'projection-v1',
+      typical_score: { home: 27, away: 23 },
+      likely_home_range: [20, 34],
+      likely_away_range: [16, 30],
+      quality_reasons: [],
       factors: [],
       generated_at: '2026-09-01T00:00:00.000Z',
     },

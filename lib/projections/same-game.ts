@@ -73,7 +73,14 @@ export function evaluateCombination(
   return {
     independent: Number(independent.toFixed(4)),
     joint: Number(joint.toFixed(4)),
-    correlation: describeCorrelation(joint, independent, legs.length > 1),
+    correlation:
+      legs.length > 1
+        ? describeCorrelation(joint, independent, true)
+        : {
+            level: 'low',
+            ratio: 1,
+            note: 'A single selection has nothing to be correlated with.',
+          },
   };
 }
 

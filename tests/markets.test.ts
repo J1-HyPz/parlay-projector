@@ -678,8 +678,14 @@ describe('same-game combinations', () => {
   it('gives one leg the same answer either way', () => {
     const leg = find((s) => s.type === 'winner');
     const assessment = evaluateCombination([leg], distribution);
-    assert.ok(Math.abs(assessment.joint - assessment.independent) < 1e-9);
+    // Both are reported to four decimal places, so they agree to within
+    // rounding rather than to the bit.
+    assert.ok(
+      Math.abs(assessment.joint - assessment.independent) < 1e-3,
+      `${assessment.joint} vs ${assessment.independent}`,
+    );
     assert.equal(assessment.correlation.level, 'low');
+    assert.match(assessment.correlation.note, /single selection/);
   });
 
   it('scores a contradictory addition at zero', () => {
