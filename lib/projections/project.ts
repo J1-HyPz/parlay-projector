@@ -552,8 +552,7 @@ function quotedSelections(context: BuildContext): Selection[] {
  * bookmaker offers them, and every one is labelled accordingly.
  */
 function derivedSelections(context: BuildContext, config: SportModelConfig): Selection[] {
-  const { game, outcome } = context;
-  const { projection, distribution } = outcome;
+  const { projection, distribution } = context.outcome;
   const selections: Selection[] = [];
 
   const favouredHome = projection.expected_margin >= 0;

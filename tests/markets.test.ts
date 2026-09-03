@@ -21,6 +21,7 @@ import {
   selectionLabel,
   whatNeedsToHappen,
 } from '../lib/markets/explain.ts';
+import type { FixtureNames } from '../lib/markets/explain.ts';
 import { GLOSSARY, glossaryKeyForMarket } from '../lib/markets/glossary.ts';
 import { marketTypeOf, quoteIsFresh } from '../lib/markets/types.ts';
 import type { SettlementRule } from '../lib/markets/types.ts';
@@ -97,7 +98,11 @@ function syntheticSeason(count: number, sport: 'football' | 'nfl' = 'football'):
   return games;
 }
 
-const NAMES = { homeTeam: 'Houston Astros', awayTeam: 'Chicago White Sox', sport: 'mlb' as const };
+const NAMES: FixtureNames = {
+  homeTeam: 'Houston Astros',
+  awayTeam: 'Chicago White Sox',
+  sport: 'mlb',
+};
 
 // ---------------------------------------------------------------------------
 // Odds arithmetic
@@ -220,7 +225,7 @@ describe('what needs to happen', () => {
 
   it('handles a larger handicap in whole units', () => {
     assert.match(
-      say({ kind: 'spread', side: 'away', line: 7.5 }, { ...NAMES, sport: 'nfl' }),
+      say({ kind: 'spread', side: 'away', line: 7.5 }, { ...NAMES, sport: 'nfl' } as FixtureNames),
       /win, or lose by no more than 7 points/,
     );
   });
@@ -245,21 +250,21 @@ describe('what needs to happen', () => {
   });
 
   it('says a draw loses where a draw is possible', () => {
-    const football = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' as const };
+    const football: FixtureNames = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' };
     assert.match(say({ kind: 'winner', side: 'home' }, football), /A draw loses this selection/);
     // Baseball has no draw, so the caveat would be noise.
     assert.doesNotMatch(say({ kind: 'winner', side: 'home' }), /draw/i);
   });
 
   it('names what can beat a double chance', () => {
-    const football = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' as const };
+    const football: FixtureNames = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' };
     const text = say({ kind: 'double_chance', sides: ['home', 'draw'] }, football);
     assert.match(text, /Arsenal or the draw/);
     assert.match(text, /Only a Chelsea win loses/);
   });
 
   it('reduces a sub-one team total to "must score"', () => {
-    const football = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' as const };
+    const football: FixtureNames = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' };
     assert.match(
       say({ kind: 'team_total', side: 'home', direction: 'over', line: 0.5 }, football),
       /Arsenal must score at least one goal/,
