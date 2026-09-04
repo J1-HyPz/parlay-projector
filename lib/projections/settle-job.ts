@@ -98,8 +98,15 @@ export async function runSettlement(): Promise<TrackerRun> {
     const states = new Map<string, GameState>();
     let reachable = 0;
 
-    // Only competitions the engine projects can hold open predictions.
-    const leagues = LEAGUES.filter((league) => modelConfigFor(league.sport) !== null);
+    /*
+     * Competitions the engine projects. Motorsport qualifies through its own
+     * model rather than the scoring one, so it is included explicitly — an
+     * open race prediction that nothing ever looks up would sit unsettled
+     * until the abandonment rule quietly voided it.
+     */
+    const leagues = LEAGUES.filter(
+      (league) => modelConfigFor(league.sport) !== null || league.format === 'race',
+    );
 
     await Promise.all(
       leagues.map(async (league) => {
@@ -131,6 +138,20 @@ export async function runSettlement(): Promise<TrackerRun> {
                 status: 'finished',
                 home: game.score?.home ?? null,
                 away: game.score?.away ?? null,
+                // A race is judged on where each competitor was classified.
+                ...(game.entrants
+                  ? {
+                      order: game.entrants
+                        .filter(
+                          (entrant): entrant is typeof entrant & { position: number } =>
+                            entrant.position !== null,
+                        )
+                        .map((entrant) => ({
+                          entrant: entrant.name,
+                          position: entrant.position,
+                        })),
+                    }
+                  : {}),
               });
             }
           }

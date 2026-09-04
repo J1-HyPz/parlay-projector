@@ -306,6 +306,15 @@ export interface GameState {
   status: 'scheduled' | 'live' | 'finished' | 'cancelled' | 'postponed';
   home: number | null;
   away: number | null;
+  /**
+   * The classified finishing order, for an event contested by a field.
+   *
+   * A race has no score, so this is what its predictions are settled against.
+   * A retirement appears here with the position it was classified in, which is
+   * what makes a retired driver lose a top-ten selection rather than voiding
+   * it.
+   */
+  order?: readonly { entrant: string; position: number }[];
 }
 
 export type GameStates = ReadonlyMap<string, GameState>;
@@ -426,8 +435,20 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
 
       if (state.status !== 'finished') return record;
 
-      // --- finished, but the score has not arrived --------------------------
-      if (typeof state.home !== 'number' || typeof state.away !== 'number') {
+      /*
+       * A race is settled against its finishing order, not a scoreline.
+       *
+       * Kept on the same path as everything else so the retry backoff, the
+       * abandonment rule and the audit trail all behave identically — only the
+       * thing being compared differs.
+       */
+      const racing =
+        record.settlement.kind === 'finish_position' ||
+        record.settlement.kind === 'head_to_head';
+      const order = state.order ?? null;
+
+      // --- finished, but the result has not arrived -------------------------
+      if (racing ? !order || order.length === 0 : typeof state.home !== 'number' || typeof state.away !== 'number') {
         if (isAbandoned(record, now)) {
           summary.abandoned += 1;
           return {
@@ -448,9 +469,44 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
         };
       }
 
-      // --- finished with a score -------------------------------------------
-      const final: FinalScore = { home: state.home, away: state.away, status: 'finished' };
+      // --- finished with a result -------------------------------------------
+      const final: FinalScore = racing
+        ? { home: 0, away: 0, status: 'finished', order: order ?? [] }
+        : { home: state.home ?? 0, away: state.away ?? 0, status: 'finished' };
       const outcome = settle(record.settlement, final);
+
+      /*
+       * What actually happened, in the shape the prediction can be read
+       * against later: a scoreline for a fixture, a classified position for a
+       * race.
+       */
+      const classified = racing
+        ? (order ?? []).find(
+            (entry) =>
+              entry.entrant ===
+              (record.settlement.kind === 'finish_position' ||
+              record.settlement.kind === 'head_to_head'
+                ? record.settlement.entrant
+                : ''),
+          ) ?? null
+        : null;
+
+      const actual = racing
+        ? {
+            home_score: 0,
+            away_score: 0,
+            margin: 0,
+            total: 0,
+            position: classified?.position ?? null,
+            field_size: (order ?? []).length,
+          }
+        : actualOutcome(state.home ?? 0, state.away ?? 0);
+
+      const resultText = racing
+        ? classified
+          ? `Classified P${classified.position} of ${(order ?? []).length}`
+          : 'Did not take part'
+        : describeResult(final);
 
       summary.settled += 1;
       logger.info('prediction_settled', {
@@ -464,8 +520,8 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
       return {
         ...record,
         status: outcome,
-        result: describeResult(final),
-        actual: actualOutcome(state.home, state.away),
+        result: resultText,
+        actual,
         settled_at: timestamp,
         next_attempt_at: null,
       };
