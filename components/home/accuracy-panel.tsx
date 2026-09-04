@@ -11,6 +11,7 @@
 
 import { Activity, Sparkles } from 'lucide-react';
 import { useHomeData, useSectionFailed } from './home-data';
+import { RecentResults } from './recent-results';
 
 /** Track colour matches the original `.accuracy-ring` definition. */
 const TRACK = 'rgba(255,255,255,.075)';
@@ -92,6 +93,10 @@ export function AccuracyPanel() {
               ? `Based on ${accuracy.settled} settled predictions.`
               : 'No settled predictions yet.'}
       </div>
+
+      {/* What the percentage above is made of. Loads on its own, so a failure
+          here cannot take the accuracy figure with it. */}
+      <RecentResults />
     </aside>
   );
 }

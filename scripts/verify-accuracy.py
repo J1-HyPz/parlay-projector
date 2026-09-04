@@ -179,10 +179,54 @@ def check_sections():
         "trend",
         "models",
         "recent",
+        "recent-parlays",
     ):
         body = get(f"/api/accuracy?section={section}")
         assert isinstance(body, dict) and body, f"section {section} returned nothing"
-    print("  all 10 accuracy sections respond")
+    print("  all 11 accuracy sections respond")
+
+
+def check_recent_parlay_results():
+    """The homepage results scroller only ever shows settled lines.
+
+    A fresh container has nothing settled, so the honest answer is an empty
+    list — which is exactly what the empty state on the homepage renders. The
+    invariants are asserted against whatever is there, so this keeps working
+    once real history accumulates.
+    """
+    body = get("/api/accuracy?section=recent-parlays&limit=10")
+    parlays = body.get("parlays")
+    assert isinstance(parlays, list), "recent-parlays did not return a list"
+    assert len(parlays) <= 10, f"limit ignored: {len(parlays)} returned"
+
+    previous = None
+    for entry in parlays:
+        assert entry["status"] in ("won", "lost", "void"), (
+            f"unsettled line {entry['id']} reached the results scroller"
+        )
+        assert entry["correct_legs"] <= entry["total_legs"], "more correct legs than legs"
+        assert len(entry["legs"]) == entry["total_legs"], "leg count disagrees with the legs"
+
+        for leg in entry["legs"]:
+            # Never undefined, null-as-zero, or NaN reaching the interface.
+            for field in ("home_score", "away_score"):
+                value = leg[field]
+                assert value is None or isinstance(value, (int, float)), (
+                    f"{field} is {value!r}"
+                )
+
+        # A void line was never tested, so it claims nothing either way.
+        if entry["status"] == "void":
+            assert entry["went_right"] is None and entry["went_wrong"] is None, (
+                "a void line claimed a summary"
+            )
+
+        settled = entry["settled_at"] or ""
+        if previous is not None:
+            assert settled <= previous, "results are not newest first"
+        previous = settled
+
+    print(f"  results scroller: {len(parlays)} settled lines, all final")
 
 
 def check_windows():
@@ -249,6 +293,7 @@ def main():
 
     print("--- sections and windows ---")
     check_sections()
+    check_recent_parlay_results()
     check_windows()
 
     print("--- tracker ---")

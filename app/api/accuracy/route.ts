@@ -9,11 +9,16 @@
  *
  * `section` narrows the response for callers that want one slice:
  *   summary | sports | markets | risk | calibration | score | parlays |
- *   trend | models | recent
+ *   trend | models | recent | recent-parlays
  */
 
 import { json } from '@/lib/home/api';
-import { getAccuracyReport, parseWindow, recentSettled } from '@/lib/projections/accuracy';
+import {
+  getAccuracyReport,
+  parseWindow,
+  recentParlayResults,
+  recentSettled,
+} from '@/lib/projections/accuracy';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +26,20 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const window = parseWindow(params.get('window'));
   const section = (params.get('section') ?? '').toLowerCase();
+
+  /*
+   * Settled lines, for the homepage results scroller.
+   *
+   * Handled before the report is built because it needs neither the aggregates
+   * nor their cache — it is a join across two stores the settlement job already
+   * maintains, and computing a full accuracy report to serve it would be waste
+   * on every homepage load.
+   */
+  if (section === 'recent-parlays') {
+    const requested = Number.parseInt(params.get('limit') ?? '', 10);
+    const parlays = await recentParlayResults(Number.isFinite(requested) ? requested : 10);
+    return json({ window, parlays });
+  }
 
   if (section === 'recent') {
     const limit = Number.parseInt(params.get('limit') ?? '', 10);

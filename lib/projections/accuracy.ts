@@ -32,6 +32,8 @@ import type {
 import { markFinalPreGame, sampleStrength } from './tracking';
 import type { SampleStrength } from './tracking';
 import { readParlays, readPredictions } from './store';
+import { recentResults } from './results';
+import type { ParlayResult } from './results';
 import type { ParlayRecord, PredictionRecordV2 } from './types';
 
 export type AccuracyWindow = 'today' | '7d' | '30d' | 'all-time';
@@ -334,6 +336,19 @@ export async function getAccuracyReport(
  * For a results feed. Returns what happened alongside what was predicted, so a
  * reader can see the model being checked rather than only its scoreboard.
  */
+/**
+ * Recently settled lines, ready for display.
+ *
+ * Reads the two stores the settlement job already maintains and joins them.
+ * No provider is called and nothing is recomputed — a homepage load must not
+ * become a round of network requests, and the verdicts were decided against
+ * rules frozen at publication.
+ */
+export async function recentParlayResults(limit = 10): Promise<ParlayResult[]> {
+  const [parlays, predictions] = await Promise.all([readParlays(), readPredictions()]);
+  return recentResults(parlays, predictions, limit);
+}
+
 export async function recentSettled(limit = 20): Promise<PredictionRecordV2[]> {
   const records = await readPredictions();
 

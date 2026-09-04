@@ -157,6 +157,11 @@ function withDefaults(record: Record<string, unknown>): PredictionRecordV2 {
     ...(record as unknown as PredictionRecordV2),
     final_pre_game: record.final_pre_game === true,
     parlay_id: typeof record.parlay_id === 'string' ? record.parlay_id : null,
+    // Absent on anything published before results were shown on the homepage.
+    // Null rather than a placeholder: the interface omits a scoreline it
+    // cannot label, which is better than labelling it wrongly.
+    home_team: typeof record.home_team === 'string' ? record.home_team : null,
+    away_team: typeof record.away_team === 'string' ? record.away_team : null,
     projected: outcome(record.projected),
     actual: outcome(record.actual),
     attempts:

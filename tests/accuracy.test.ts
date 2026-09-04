@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  missReason,
+  recentResults,
+  summariseRight,
+  summariseWrong,
+} from '../lib/projections/results.ts';
+
+import {
   FINALISATION_HOURS,
   actualOutcome,
   applyParlayStatus,
@@ -691,5 +698,275 @@ describe('the parlay store', () => {
   it('returns empty for junk', () => {
     assert.deepEqual(parseParlays(null), []);
     assert.deepEqual(parseParlays('nonsense'), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Settled results, for the homepage scroller
+// ---------------------------------------------------------------------------
+
+const NAMED = { home_team: 'Arsenal', away_team: 'Chelsea' };
+
+function scored(home: number, away: number) {
+  return { home_score: home, away_score: away, margin: home - away, total: home + away };
+}
+
+describe('recent parlay results', () => {
+  /** A settled leg with a real scoreline behind it. */
+  const leg = (
+    id: string,
+    status: 'won' | 'lost',
+    overrides: Partial<PredictionRecordV2> = {},
+  ): PredictionRecordV2 =>
+    record({
+      id,
+      status,
+      settled_at: '2026-09-10T17:00:00.000Z',
+      actual: scored(2, 1),
+      ...NAMED,
+      ...overrides,
+    });
+
+  const line = (overrides: Partial<ParlayRecord> = {}): ParlayRecord => ({
+    id: 'p1',
+    risk: 'low',
+    kind: 'multi_game',
+    leg_ids: ['a', 'b'],
+    combined_probability: 0.5,
+    average_confidence: 0.8,
+    average_data_quality: 0.8,
+    model_version: 'projection-v1',
+    created_at: '2026-09-10T09:00:00.000Z',
+    first_start: KICKOFF,
+    status: 'won',
+    settled_at: '2026-09-10T17:00:00.000Z',
+    ...overrides,
+  });
+
+  it('joins a line to its legs', () => {
+    const results = recentResults([line()], [leg('a', 'won'), leg('b', 'won')]);
+    assert.equal(results.length, 1);
+    assert.equal(results[0].total_legs, 2);
+    assert.equal(results[0].correct_legs, 2);
+    assert.equal(results[0].legs[0].selection, 'Arsenal to win');
+  });
+
+  it('shows only lines with a final verdict', () => {
+    // Pending and live lines belong on the Parlays page, not in a results reel.
+    const results = recentResults(
+      [
+        line({ id: 'won', status: 'won' }),
+        line({ id: 'lost', status: 'lost' }),
+        line({ id: 'void', status: 'void' }),
+        line({ id: 'pending', status: 'pending', settled_at: null }),
+        line({ id: 'live', status: 'live', settled_at: null }),
+      ],
+      [leg('a', 'won'), leg('b', 'won')],
+    );
+    assert.deepEqual(
+      results.map((entry) => entry.id),
+      ['won', 'lost', 'void'],
+    );
+  });
+
+  it('puts the newest first', () => {
+    const results = recentResults(
+      [
+        line({ id: 'older', settled_at: '2026-09-01T12:00:00.000Z' }),
+        line({ id: 'newer', settled_at: '2026-09-12T12:00:00.000Z' }),
+      ],
+      [leg('a', 'won'), leg('b', 'won')],
+    );
+    assert.deepEqual(
+      results.map((entry) => entry.id),
+      ['newer', 'older'],
+    );
+  });
+
+  it('honours the limit rather than loading the whole history', () => {
+    const lines = Array.from({ length: 25 }, (_, i) =>
+      line({ id: `p${i}`, settled_at: `2026-09-${String(i + 1).padStart(2, '0')}T12:00:00.000Z` }),
+    );
+    assert.equal(recentResults(lines, [leg('a', 'won'), leg('b', 'won')], 10).length, 10);
+  });
+
+  it('drops a line whose legs cannot be found', () => {
+    // Half a card is worse than one card fewer.
+    assert.deepEqual(recentResults([line()], [leg('a', 'won')]), []);
+  });
+
+  it('never invents a score that was not recorded', () => {
+    const [result] = recentResults(
+      [line({ id: 'p2', leg_ids: ['a'] })],
+      [leg('a', 'won', { actual: null })],
+    );
+    assert.equal(result.legs[0].home_score, null);
+    assert.equal(result.legs[0].away_score, null);
+  });
+
+  it('keeps team names optional for older predictions', () => {
+    const [result] = recentResults(
+      [line({ leg_ids: ['a', 'b'] })],
+      [leg('a', 'won'), leg('b', 'won', { home_team: null, away_team: null })],
+    );
+    assert.equal(result.legs[0].home_team, 'Arsenal');
+    assert.equal(result.legs[1].home_team, null);
+  });
+
+  it('says nothing went right or wrong on a void line', () => {
+    // It was never tested, so there is nothing to summarise.
+    const [result] = recentResults([line({ status: 'void' })], [leg('a', 'won'), leg('b', 'lost')]);
+    assert.equal(result.went_right, null);
+    assert.equal(result.went_wrong, null);
+  });
+});
+
+describe('result summaries', () => {
+  const leg = (status: 'won' | 'lost', overrides: Partial<PredictionRecordV2> = {}) =>
+    record({ status, actual: scored(2, 1), ...NAMED, ...overrides });
+
+  it('sums up a clean sweep', () => {
+    assert.equal(
+      summariseRight([leg('won'), leg('won'), leg('won')], 3),
+      'All 3 selections were correct.',
+    );
+  });
+
+  it('names the winners when there are few enough to name', () => {
+    const right = summariseRight(
+      [leg('won'), leg('lost', { settlement: { kind: 'winner', side: 'away' } })],
+      2,
+    );
+    assert.equal(right, 'The Arsenal selection came in.');
+  });
+
+  it('counts the winners when naming them would run long', () => {
+    const legs = [leg('won'), leg('won'), leg('won'), leg('lost')];
+    assert.equal(summariseRight(legs, 4), '3 of 4 selections were correct.');
+  });
+
+  it('says nothing at all when there is nothing to say', () => {
+    assert.equal(summariseRight([leg('lost')], 1), null);
+    assert.equal(summariseWrong([leg('won')], 1), null);
+  });
+
+  it('explains a single miss specifically', () => {
+    // Arsenal 2-1 Chelsea, so a Chelsea moneyline lost by one.
+    const wrong = summariseWrong([leg('lost', { settlement: { kind: 'winner', side: 'away' } })], 1);
+    assert.equal(wrong, 'Chelsea were projected to win but lost by 1 goal.');
+  });
+
+  it('leads with a count when several missed', () => {
+    const legs = [
+      leg('lost', { settlement: { kind: 'winner', side: 'away' } }),
+      leg('lost', { settlement: { kind: 'total', direction: 'over', line: 4.5 } }),
+    ];
+    const wrong = summariseWrong(legs, 3)!;
+    assert.match(wrong, /^2 of 3 selections missed\./);
+    assert.match(wrong, /lost by 1 goal/);
+  });
+
+  it('keeps every summary to a sentence or two', () => {
+    const legs = [leg('won'), leg('won'), leg('lost')];
+    for (const text of [summariseRight(legs, 3), summariseWrong(legs, 3)]) {
+      assert.ok(text && text.length < 180, text ?? 'missing');
+    }
+  });
+});
+
+describe('why a leg missed', () => {
+  const at = (overrides: Partial<PredictionRecordV2>) =>
+    record({ home_team: 'Bills', away_team: 'Chiefs', sport: 'nfl', ...overrides });
+
+  it('reports a projected winner that lost', () => {
+    assert.equal(
+      missReason(at({ settlement: { kind: 'winner', side: 'home' }, actual: scored(20, 27) })),
+      'Bills were projected to win but lost by 7 points.',
+    );
+  });
+
+  it('reports a projected winner that drew', () => {
+    assert.match(
+      missReason(
+        at({
+          settlement: { kind: 'winner', side: 'home' },
+          actual: scored(1, 1),
+          sport: 'football',
+        }),
+      )!,
+      /the match was drawn/,
+    );
+  });
+
+  it('reports a handicap the margin outran', () => {
+    assert.equal(
+      missReason(
+        at({ settlement: { kind: 'spread', side: 'home', line: 4.5 }, actual: scored(20, 27) }),
+      ),
+      'Bills lost by 7 points, outside the 4.5 they were given.',
+    );
+  });
+
+  it('reports a favourite that won by too little', () => {
+    assert.equal(
+      missReason(
+        at({ settlement: { kind: 'spread', side: 'home', line: -6.5 }, actual: scored(27, 24) }),
+      ),
+      'Bills won by 3 points but had to win by more than 6.5.',
+    );
+  });
+
+  it('reports a total on the wrong side of the line', () => {
+    assert.equal(
+      missReason(
+        at({
+          settlement: { kind: 'total', direction: 'under', line: 44.5 },
+          actual: scored(27, 24),
+        }),
+      ),
+      'The teams combined for 51 points, above the 44.5 line.',
+    );
+  });
+
+  it('reports a team total that fell short', () => {
+    assert.equal(
+      missReason(
+        at({
+          settlement: { kind: 'team_total', side: 'away', direction: 'over', line: 27.5 },
+          actual: scored(27, 24),
+        }),
+      ),
+      'Chiefs scored 24 points, below the 27.5 line.',
+    );
+  });
+
+  it('uses the unit the sport is scored in', () => {
+    assert.match(
+      missReason(
+        at({
+          sport: 'mlb',
+          settlement: { kind: 'total', direction: 'over', line: 8.5 },
+          actual: scored(3, 4),
+        }),
+      )!,
+      /7 runs/,
+    );
+  });
+
+  it('says nothing when no scoreline was recorded', () => {
+    // Describing a result we do not have would be worse than saying less.
+    assert.equal(missReason(at({ actual: null })), null);
+  });
+
+  it('falls back to a neutral name when the sides were never stored', () => {
+    const reason = missReason(
+      at({
+        home_team: null,
+        away_team: null,
+        settlement: { kind: 'winner', side: 'home' },
+        actual: scored(20, 27),
+      }),
+    );
+    assert.equal(reason, 'the home side were projected to win but lost by 7 points.');
   });
 });

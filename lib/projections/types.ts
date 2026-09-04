@@ -461,6 +461,20 @@ export interface PredictionRecordV2 {
   selection_type: SelectionType;
   selection: string;
   settlement: SettlementRule;
+
+  /**
+   * The two sides, frozen with the prediction.
+   *
+   * Stored because a settled result is unreadable without them: `2-1` says
+   * nothing, `Arsenal 2-1 Chelsea` says everything. The fixture is not
+   * re-fetched to find out — a result page must not depend on a provider still
+   * carrying a game from three weeks ago.
+   *
+   * Optional: records written before this existed do not have them, and the
+   * interface omits the scoreline rather than inventing a name for it.
+   */
+  home_team?: string | null;
+  away_team?: string | null;
   model_probability: number;
   model_confidence: number;
   data_quality: number;

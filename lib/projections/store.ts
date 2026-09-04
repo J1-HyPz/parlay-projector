@@ -202,6 +202,8 @@ export function publishPredictions(
         selection_type: selection.type,
         selection: selection.label,
         settlement: selection.settlement,
+        home_team: projection.home_team,
+        away_team: projection.away_team,
         model_probability: selection.probability,
         model_confidence: selection.confidence,
         data_quality: selection.data_quality,
