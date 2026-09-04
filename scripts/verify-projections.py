@@ -384,6 +384,55 @@ def check_controls_are_responsive():
     print(f"  slowest control change {worst:.2f}s, candidate set reused")
 
 
+def check_formula_one():
+    """Formula 1 arrives as a field, not as two sides.
+
+    The whole point of widening the domain: a Grand Prix session carries its
+    entrants and no home or away team. If anything in the pipeline had quietly
+    nominated two drivers to fill those slots, this is where it would show.
+
+    Out of season the calendar is legitimately empty, so the shape is asserted
+    against whatever comes back rather than a count being demanded.
+    """
+    games = get("/api/schedule?sport=f1").get("games", [])
+
+    if not games:
+        print("  formula 1: no sessions in the current window (out of season)")
+        return
+
+    sessions = set()
+    for game in games:
+        assert game.get("home_team") is None, f"{game['id']} was given a home team"
+        assert game.get("away_team") is None, f"{game['id']} was given an away team"
+        assert isinstance(game.get("entrants"), list), f"{game['id']} carries no field"
+        assert game.get("title"), f"{game['id']} has no event name"
+
+        for entrant in game["entrants"]:
+            assert entrant.get("name"), "an entrant with no name"
+            position = entrant.get("position")
+            assert position is None or (isinstance(position, int) and position > 0), (
+                f"bad finishing position {position!r}"
+            )
+
+        if game.get("session"):
+            sessions.add(game["session"])
+
+    listed = ", ".join(sorted(sessions)) or "unnamed"
+    print(f"  formula 1: {len(games)} sessions across {len(sessions)} kinds ({listed})")
+
+
+def check_race_sessions_are_not_projected():
+    """A race must never reach the scoring model.
+
+    That model is built on two sides and a score. Asked about a Grand Prix it
+    should produce nothing at all, rather than a number derived from a fixture
+    shape the event does not have.
+    """
+    body = get("/api/parlays?sport=f1&risk=medium")
+    assert body.get("parlay") is None, "the two-sided model produced a line for a race"
+    print("  formula 1: correctly absent from the two-sided projection engine")
+
+
 def main():
     print("--- projections ---")
     check_projections()
@@ -404,6 +453,11 @@ def main():
 
     print("--- control responsiveness ---")
     check_controls_are_responsive()
+
+    print("--- formula 1 ---")
+    check_formula_one()
+    check_race_sessions_are_not_projected()
+
     print("projection engine verified against live data")
 
 
