@@ -103,6 +103,17 @@ export interface RawStandingsEntry {
     abbreviation?: unknown;
     logos?: { href?: unknown }[];
   };
+  /**
+   * An individual competitor, where the standing is of people rather than
+   * clubs — a drivers' championship. The constructors' table alongside it uses
+   * `team` like everything else.
+   */
+  athlete?: {
+    id?: unknown;
+    displayName?: unknown;
+    shortName?: unknown;
+    flag?: { href?: unknown } | null;
+  };
   stats?: RawStandingsStat[];
 }
 
@@ -128,8 +139,10 @@ export function statDisplay(stats: RawStandingsStat[] | undefined, name: string)
 }
 
 export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | null {
-  const id = str(raw?.team?.id);
-  const name = str(raw?.team?.displayName);
+  // A drivers' championship ranks people, not clubs. The row shape is the same
+  // either way, so the competitor is read from whichever field carries one.
+  const id = str(raw?.team?.id) ?? str(raw?.athlete?.id);
+  const name = str(raw?.team?.displayName) ?? str(raw?.athlete?.displayName);
   if (!id || !name) return null;
 
   const logos = Array.isArray(raw.team?.logos) ? raw.team.logos : [];
@@ -137,8 +150,9 @@ export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | 
   return {
     team_id: id,
     team_name: name,
-    abbreviation: str(raw.team?.abbreviation),
-    logo: str(logos[0]?.href),
+    abbreviation: str(raw.team?.abbreviation) ?? str(raw.athlete?.shortName),
+    // A driver has a national flag where a club has a crest.
+    logo: str(logos[0]?.href) ?? str(raw.athlete?.flag?.href),
     rank: statValue(raw.stats, 'playoffSeed') ?? statValue(raw.stats, 'rank'),
     games_played: statValue(raw.stats, 'gamesPlayed'),
     wins: statValue(raw.stats, 'wins'),
@@ -149,7 +163,9 @@ export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | 
     points_for: statValue(raw.stats, 'pointsFor'),
     points_against: statValue(raw.stats, 'pointsAgainst'),
     point_differential: statValue(raw.stats, 'pointDifferential'),
-    points: statValue(raw.stats, 'points'),
+    // Motorsport calls them championship points; every other competition here
+    // just calls them points.
+    points: statValue(raw.stats, 'points') ?? statValue(raw.stats, 'championshipPts'),
     /** Provider's own summary, e.g. `11-2`. */
     record: statDisplay(raw.stats, 'overall') ?? statDisplay(raw.stats, 'record'),
     streak: statDisplay(raw.stats, 'streak'),

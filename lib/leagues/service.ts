@@ -85,8 +85,47 @@ export async function getStandings(league: League): Promise<StandingsGroup[] | n
   }
 }
 
+/**
+ * The drivers, taken from the championship table.
+ *
+ * The first group is the drivers' championship and the second the
+ * constructors'; the group is matched by name rather than by position, so a
+ * provider reordering them does not turn drivers into constructors.
+ */
+async function driversFromStandings(league: League): Promise<TeamProfile[] | null> {
+  const groups = await getStandings(league);
+  if (!groups || groups.length === 0) return null;
+
+  const drivers =
+    groups.find((group) => /driver/i.test(group.name)) ?? groups[0];
+
+  const profiles = drivers.rows.map((row) => ({
+    id: row.team_id,
+    name: row.team_name,
+    short_name: row.abbreviation,
+    abbreviation: row.abbreviation,
+    location: null,
+    logo: row.logo,
+    colour: null,
+  }));
+
+  return profiles.length > 0 ? profiles : null;
+}
+
 export async function getTeams(league: League): Promise<TeamProfile[] | null> {
   if (league.provider === 'thesportsdb') return getSportsdbTeams(league);
+
+  /*
+   * Motorsport has no teams endpoint, and a constructor list would not be what
+   * the hub is asking for anyway — it says "Drivers".
+   *
+   * They come from the drivers' championship, which is already fetched and
+   * already carries every name, flag and position. Deriving them costs nothing
+   * and states only what the standings state; the alternative is a second set
+   * of requests to assemble a list we effectively already hold.
+   */
+  if (league.format === 'race') return driversFromStandings(league);
+
   const espnPath = league.espnPath;
   if (!espnConfig.enabled || !espnPath) return null;
 
