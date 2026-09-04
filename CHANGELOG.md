@@ -22,8 +22,8 @@ Categories, used consistently:
 
 ## Unreleased
 
-The Parlays redesign, a results scroller on Home, and Formula 1 as a full
-sport. 70 files, 640 tests.
+The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
+and sport and competition filtering for parlays. 660 tests.
 
 ### Added
 
@@ -87,11 +87,35 @@ sport. 70 files, 640 tests.
   retirement loses rather than voids.
 - Documented in [docs/f1.md](docs/f1.md).
 
+**Choosing what a parlay is built from**
+
+- A **competition selector** on the Parlays page, alongside the sport. Pick
+  Football and then the Premier League, or every football competition; pick
+  Formula 1 and get Formula 1. Only the competitions belonging to the chosen
+  sport are ever offered.
+- **Your choice is binding.** A five-leg request in a competition where three
+  matches qualify returns three legs and says so. It never reaches into another
+  competition — or another sport — for a fourth, however much better that
+  selection scores.
+- **Selection counts that cannot be produced are greyed out** before you pick
+  one, with the reason: one leg per fixture means three eligible matches cannot
+  make a four-leg line. The number of eligible events and model-backed
+  selections for the current choice is shown under the buttons.
+- The generated line states which sport and competition produced it, and each
+  leg names both.
+- An empty result names what was filtered to, and suggests what to widen —
+  without widening it for you.
+- Settled lines on the Home scroller now show which competition they came from.
+
 **Elsewhere**
 
 - Accuracy is broken down by sport crossed with market type, so the model can
   eventually be steered toward what it reads well.
+- Published lines record the sport, competition and leg count they were built
+  under, and each prediction records its competition id. Groundwork for success
+  rates read per competition rather than only across everything at once.
 - A dev-server launch config on a pinned port.
+- Documented in [docs/parlay-filters.md](docs/parlay-filters.md).
 
 ### Changed
 
@@ -119,6 +143,14 @@ sport. 70 files, 640 tests.
   Chelsea" instead of a bare score.
 - Bookmaker prices are fetched four competitions at a time rather than one
   after another.
+- The Parlays sport list now comes from the league registry instead of being
+  held on the page. It had drifted: six sports, with neither tennis nor
+  Formula 1, months after both were added. A competition added to the registry
+  now appears in the selector on its own.
+- The selection count is a row of buttons rather than a dropdown, so a count
+  that cannot be produced can say so before it is chosen.
+- Tennis is listed and disabled with the reason — no competition is tracked for
+  it yet — rather than being absent from a page it belongs on.
 
 ### Fixed
 

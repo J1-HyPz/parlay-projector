@@ -76,7 +76,13 @@ function Figure({
  * are chosen — the category is a consequence of the selections, never an input
  * that reaches back and changes them.
  */
-export function ParlayHeader({ parlay }: { parlay: Parlay }) {
+/** The sport and competition a line was built under. */
+export interface HeaderScope {
+  sport_label: string;
+  league_label: string;
+}
+
+export function ParlayHeader({ parlay, scope }: { parlay: Parlay; scope?: HeaderScope }) {
   return (
     <section className="panel p-5" aria-label="Line summary">
       <div className="flex flex-wrap items-center gap-2">
@@ -89,6 +95,25 @@ export function ParlayHeader({ parlay }: { parlay: Parlay }) {
           {parlay.verified_legs} of {parlay.legs.length} available
         </span>
       </div>
+
+      {/*
+        What this was built from.
+
+        Stated on the line itself rather than only in the controls above it, so
+        a line read on its own — or scrolled back to — still says which sport
+        and competition produced it.
+      */}
+      {scope && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-white/45">
+          <span className="font-medium text-white/60">{scope.sport_label}</span>
+          {scope.league_label !== scope.sport_label && (
+            <>
+              <span className="text-white/20">·</span>
+              <span>{scope.league_label}</span>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Figure

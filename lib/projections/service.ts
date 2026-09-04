@@ -32,6 +32,8 @@ import { APP_TIMEZONE, projectionConfig, todayInAppTimezone } from '../config';
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
+import { resolveScope } from '../leagues/catalogue';
+import type { ParlayScope } from '../leagues/catalogue';
 import { fixturesForRange } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
 import { modelConfigFor, modelConfigForLeague } from './config';
@@ -172,6 +174,18 @@ export async function buildPoolModel(
   return { ratings, upcoming };
 }
 
+/**
+ * Which sport and competition a build is confined to.
+ *
+ * `league` is a catalogue id, never a display name: "Premier League" is what a
+ * competition is called this season, `epl` is what it is.
+ */
+export interface CandidateFilter {
+  sport: ConcreteSportId | 'all';
+  /** Catalogue league id, or null/absent for every competition in the sport. */
+  league?: string | null;
+}
+
 export interface CandidateResult {
   selections: Selection[];
   /**
@@ -193,9 +207,26 @@ export interface CandidateResult {
   pricedGames: number;
 }
 
-function leaguesFor(sport: ConcreteSportId | 'all'): League[] {
-  const supported = LEAGUES.filter((league) => modelConfigFor(league.sport) !== null);
-  return sport === 'all' ? supported : supported.filter((league) => league.sport === sport);
+/**
+ * What a request is allowed to draw on.
+ *
+ * A filter is binding, not advisory: whatever comes back from here is the
+ * entire universe the rest of the build sees. There is no later stage that
+ * could reach past it — which is the point. Someone who asked for the Premier
+ * League and got two eligible matches must be told there were two, never
+ * quietly handed a third leg from the NBA because it scored better.
+ *
+ * An unresolvable filter yields nothing rather than everything. Failing open
+ * here would mean a typo in a league id silently returned the whole card.
+ */
+export function scopeFor(filter: CandidateFilter): ParlayScope {
+  const scope = resolveScope(filter.sport, filter.league ?? null);
+  return scope ?? { sport: filter.sport, league: filter.league ?? null, leagues: [] };
+}
+
+/** Competitions in scope that the scoring model can project. */
+function fixtureLeagues(scope: ParlayScope): League[] {
+  return scope.leagues.filter((league) => modelConfigFor(league.sport) !== null);
 }
 
 /**
@@ -220,24 +251,26 @@ const CANDIDATES_TTL_MS = 5 * 60_000;
  * succession share a single build rather than queueing several.
  */
 export async function buildCandidates(
-  sport: ConcreteSportId | 'all' = 'all',
+  filter: CandidateFilter = { sport: 'all' },
   asOf: number = Date.now(),
 ): Promise<CandidateResult> {
+  const league = filter.league ?? 'all';
   const { value } = await cached(
-    `projection:candidates:${sport}:${projectionConfig.modelVersion}:${Math.floor(
+    `projection:candidates:${filter.sport}:${league}:${projectionConfig.modelVersion}:${Math.floor(
       asOf / CANDIDATES_TTL_MS,
     )}`,
     CANDIDATES_TTL_MS,
-    () => computeCandidates(sport, asOf),
+    () => computeCandidates(filter, asOf),
   );
   return value;
 }
 
 async function computeCandidates(
-  sport: ConcreteSportId | 'all',
+  filter: CandidateFilter,
   asOf: number,
 ): Promise<CandidateResult> {
-  const leagues = leaguesFor(sport);
+  const scope = scopeFor(filter);
+  const leagues = fixtureLeagues(scope);
   const failedLeagues: string[] = [];
   const selections: Selection[] = [];
   const projections: GameProjection[] = [];
@@ -309,7 +342,11 @@ async function computeCandidates(
 
         projections.push(outcome.projection);
         selections.push(
-          ...candidateSelections(game, outcome, config, quotes.get(game.id) ?? null, asOf),
+          ...candidateSelections(game, outcome, config, quotes.get(game.id) ?? null, asOf).map(
+            // Stamped here because this is the one place that holds the
+            // competition itself rather than the label a fixture carries.
+            (selection) => ({ ...selection, league_id: league.id }),
+          ),
         );
       }
     }
@@ -317,12 +354,13 @@ async function computeCandidates(
 
   // Races are a separate model on the same pipeline: same fixtures adapter,
   // same cache, same Selection shape out the other end.
-  selections.push(...(await raceCandidates(sport, asOf)));
+  selections.push(...(await raceCandidates(scope, asOf)));
 
   const pricedGames = projections.filter((projection) => quotes.has(projection.game_id)).length;
 
   logger.info('projection_candidates_built', {
-    sport,
+    sport: scope.sport,
+    league: scope.league ?? 'all',
     pools: pools.size,
     projected: projections.length,
     skipped,
@@ -343,13 +381,8 @@ async function computeCandidates(
  * two meet again at `Selection`, which is what lets a race leg travel through
  * the optimiser, the store and the accuracy figures like any other.
  */
-async function raceCandidates(
-  sport: ConcreteSportId | 'all',
-  asOf: number,
-): Promise<Selection[]> {
-  const leagues = LEAGUES.filter(
-    (league) => league.format === 'race' && (sport === 'all' || league.sport === sport),
-  );
+async function raceCandidates(scope: ParlayScope, asOf: number): Promise<Selection[]> {
+  const leagues = scope.leagues.filter((league) => league.format === 'race');
   if (leagues.length === 0) return [];
 
   const today = todayInAppTimezone();
@@ -433,7 +466,12 @@ async function raceCandidates(
         });
         if (!outcome) continue;
 
-        selections.push(...raceSelections(race, outcome, ratings));
+        selections.push(
+          ...raceSelections(race, outcome, ratings).map((selection) => ({
+            ...selection,
+            league_id: league.id,
+          })),
+        );
       }
 
       logger.info('race_candidates_built', {
@@ -537,7 +575,10 @@ export async function gameCandidates(
   return {
     game,
     outcome,
-    selections: candidateSelections(game, outcome, config, markets, asOf),
+    selections: candidateSelections(game, outcome, config, markets, asOf).map((selection) => ({
+      ...selection,
+      league_id: league.id,
+    })),
     markets,
   };
 }

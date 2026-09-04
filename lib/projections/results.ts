@@ -44,11 +44,29 @@ export interface ResultLeg {
   away_score: number | null;
 }
 
+/**
+ * The sport and competition a settled line covered.
+ *
+ * Read from the legs rather than from the request that built the line, so it
+ * describes what the line actually was: a filter set to "all football" that
+ * produced three Premier League legs reads as the Premier League, because that
+ * is what was predicted. `null` where the legs disagree, which is the honest
+ * answer for a mixed line rather than naming whichever came first.
+ */
+export interface ResultScope {
+  sport: string | null;
+  competition: string | null;
+  /** Distinct competitions across the legs, for a mixed line's count. */
+  competitions: number;
+}
+
 export interface ParlayResult {
   id: string;
   risk: RiskLevel;
   kind: ParlayKind;
   status: ResultStatus;
+  /** What the line covered, for a compact heading. */
+  scope: ResultScope;
   /** Legs that came in. Push and void legs count as neither. */
   correct_legs: number;
   total_legs: number;
@@ -290,6 +308,24 @@ export function summariseWrong(
 // Assembly
 // ---------------------------------------------------------------------------
 
+/** One value if every leg agrees on it, null otherwise. */
+function shared(values: readonly (string | null)[]): string | null {
+  const present = values.filter((value): value is string => value !== null && value !== '');
+  if (present.length === 0) return null;
+  const first = present[0];
+  return present.every((value) => value === first) ? first : null;
+}
+
+function scopeOf(legs: readonly PredictionRecordV2[]): ResultScope {
+  return {
+    sport: shared(legs.map((leg) => leg.sport)),
+    competition: shared(legs.map((leg) => leg.league)),
+    competitions: new Set(
+      legs.map((leg) => leg.league).filter((league): league is string => !!league),
+    ).size,
+  };
+}
+
 function toLeg(record: PredictionRecordV2): ResultLeg {
   return {
     id: record.id,
@@ -342,6 +378,7 @@ export function recentResults(
       risk: parlay.risk,
       kind: parlay.kind ?? 'multi_game',
       status: parlay.status,
+      scope: scopeOf(legs),
       correct_legs: legs.filter((leg) => leg.status === 'won').length,
       total_legs: legs.length,
       settled_at: parlay.settled_at,

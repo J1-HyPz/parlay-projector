@@ -19,6 +19,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, History } from 'lucide-react';
+import type { SportId } from '@/lib/home/types';
+import { sportLabel } from '@/lib/schedule/filters';
 
 /** Slow enough to read a three-leg card without hurrying. */
 const ROTATE_MS = 7000;
@@ -33,9 +35,17 @@ interface ResultLeg {
   away_score: number | null;
 }
 
+/** What the line covered. Null where its legs did not agree. */
+interface ResultScope {
+  sport: string | null;
+  competition: string | null;
+  competitions: number;
+}
+
 interface ParlayResult {
   id: string;
   risk: string;
+  scope?: ResultScope;
   status: 'won' | 'lost' | 'void';
   correct_legs: number;
   total_legs: number;
@@ -45,6 +55,14 @@ interface ParlayResult {
 }
 
 type State = 'loading' | 'ready' | 'empty' | 'error';
+
+/** A compact description of what a settled line covered. */
+function scopeLabel(scope: ResultScope | undefined): string | null {
+  if (!scope) return null;
+  if (scope.competition) return scope.competition;
+  if (scope.sport) return sportLabel(scope.sport as SportId);
+  return scope.competitions > 1 ? `${scope.competitions} competitions` : null;
+}
 
 const VERDICT: Record<string, { label: string; mark: string; tone: string }> = {
   won: { label: 'Success', mark: '✓', tone: 'text-emerald-300' },
@@ -225,6 +243,15 @@ export function RecentResults() {
             <span aria-hidden="true">{verdict.mark} </span>
             {verdict.label}
           </span>
+          {/*
+            Where the line came from, when its legs agree on one answer.
+
+            A mixed line says how many competitions rather than naming one of
+            them, which would be true of a third of it.
+          */}
+          {scopeLabel(result.scope) && (
+            <span className="truncate text-[11px] text-white/34">{scopeLabel(result.scope)}</span>
+          )}
           <span className="ml-auto text-[11px] tabular-nums text-white/32">
             {result.correct_legs} / {result.total_legs} correct
           </span>

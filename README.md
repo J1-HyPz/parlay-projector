@@ -232,8 +232,15 @@ There is no stake field, no projected return and no bookmaker data: without real
 odds a monetary figure would be invented. Player projections and tennis are
 absent because the required data does not exist — see the doc.
 
+A line is built from a chosen sport and competition, and that choice is
+binding: a request for the Premier League that only three matches qualify for
+returns three legs and says so, rather than reaching into another competition
+for a fourth. The selector is derived from the league registry, so a
+competition added there appears in it with no further change.
+
 Models, risk thresholds, correlation handling, calibration and the provider
-audit: **[docs/projection-engine.md](docs/projection-engine.md)**.
+audit: **[docs/projection-engine.md](docs/projection-engine.md)**. Sport and
+competition filtering: **[docs/parlay-filters.md](docs/parlay-filters.md)**.
 
 ---
 

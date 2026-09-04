@@ -14,12 +14,20 @@
  * words what has to happen, and says whether a bookmaker is actually offering
  * it. The old card printed a label and a percentage and left the rest to be
  * inferred.
+ *
+ * The sport and competition selectors come from the league catalogue over
+ * `/api/leagues`, not from a list held here. The list held here had been wrong
+ * for months — six sports, no tennis, no Formula 1 — because nothing connected
+ * it to the registry. Now adding a competition to the registry is the whole
+ * change; this file learns about it on its own.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Layers3, LoaderCircle, RefreshCw, Shield, Sparkles, Target } from 'lucide-react';
 import type { Parlay, RiskLevel } from '@/lib/projections/types';
+import type { SportOption } from '@/lib/leagues/catalogue';
+import { ALL_COMPETITIONS, ALL_SPORTS } from '@/lib/leagues/catalogue';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
 import { formatDayTab } from '@/lib/schedule/filters';
 import { LegCard } from './leg-card';
@@ -43,15 +51,6 @@ const RISKS: { id: RiskLevel; label: string; note: string }[] = [
     label: 'High',
     note: 'More specific outcomes the model rates less likely individually. Longer odds, and it comes in less often.',
   },
-];
-
-const SPORTS: { id: string; label: string }[] = [
-  { id: 'all', label: 'All sports' },
-  { id: 'nfl', label: 'American football' },
-  { id: 'nba', label: 'Basketball' },
-  { id: 'mlb', label: 'Baseball' },
-  { id: 'nhl', label: 'Ice hockey' },
-  { id: 'football', label: 'Football' },
 ];
 
 const MARKETS: { id: string; label: string }[] = [
@@ -81,17 +80,33 @@ interface DayAvailability {
   buildable: boolean;
 }
 
+/** The filter a response was built under, echoed back for the heading. */
+interface ScopeBlock {
+  sport: string;
+  league: string | null;
+  sport_label: string;
+  league_label: string;
+}
+
 interface ParlayResponse {
   parlay: Parlay | null;
   tracking?: Record<string, LegTracking>;
   error?: string;
   eligible?: number;
   games_available?: number;
+  /** Legs this filter can actually support, so impossible counts are greyed out. */
+  max_legs?: number;
+  scope?: ScopeBlock;
   priced_games?: number;
   model_version?: string;
   date?: string | null;
   dates?: string[];
   days?: DayAvailability[];
+}
+
+/** The sports and competitions the engine can build from. */
+interface CatalogueResponse {
+  sports?: SportOption[];
 }
 
 const ALL_DAYS = 'all';
@@ -159,20 +174,93 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const SELECT_CLASS =
-  'mt-1 block min-h-10 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50';
+  'mt-1 block min-h-10 w-full rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50';
+
+/**
+ * Which competition a sport should start on.
+ *
+ * A sport with one tracked competition selects it outright — offering "all"
+ * and a single identical choice beneath it is a decision that isn't one. A
+ * sport with several starts on all of them.
+ */
+function defaultCompetition(option: SportOption | undefined): string {
+  if (!option || option.competitions.length !== 1) return ALL_COMPETITIONS;
+  return option.competitions[0].id;
+}
+
+/**
+ * Competition options for one sport, grouped where the catalogue knows a
+ * region.
+ *
+ * Only football carries regions, and only football has enough competitions for
+ * a flat list to be hard to read. Everything else renders ungrouped rather
+ * than having headings invented for it.
+ */
+function groupCompetitions(option: SportOption): { label: string | null; items: SportOption['competitions'] }[] {
+  const groups: { label: string | null; items: SportOption['competitions'] }[] = [];
+
+  for (const competition of option.competitions) {
+    const label = competition.group;
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(competition);
+    else groups.push({ label, items: [competition] });
+  }
+
+  return groups;
+}
 
 export function ParlayView() {
   const [risk, setRisk] = useState<RiskLevel>('low');
-  const [sport, setSport] = useState('all');
+  const [sport, setSport] = useState<string>(ALL_SPORTS);
+  const [league, setLeague] = useState<string>(ALL_COMPETITIONS);
   const [markets, setMarkets] = useState('any');
   const [type, setType] = useState('multi');
   const [legs, setLegs] = useState(3);
   const [variant, setVariant] = useState(0);
   const [day, setDay] = useState<string>(ALL_DAYS);
 
+  /*
+   * The catalogue, loaded once.
+   *
+   * Static registry data, so it is fetched a single time and kept — it cannot
+   * change while the page is open, and re-reading it on every control change
+   * would be a request for nothing.
+   */
+  const [catalogue, setCatalogue] = useState<SportOption[] | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        const response = await fetch('/api/leagues', {
+          signal: controller.signal,
+          headers: { accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error(String(response.status));
+        const body = (await response.json()) as CatalogueResponse;
+        if (!controller.signal.aborted) setCatalogue(body.sports ?? []);
+      } catch {
+        // The selector falls back to "All sports", which still generates a
+        // line. A catalogue outage narrows the choices; it does not break the
+        // page.
+        if (!controller.signal.aborted) setCatalogue([]);
+      }
+    }
+
+    void load();
+    return () => controller.abort();
+  }, []);
+
+  const sportOption = useMemo(
+    () => catalogue?.find((entry) => entry.id === sport),
+    [catalogue, sport],
+  );
+
   const query = new URLSearchParams({
     risk,
     sport,
+    league,
     markets,
     type,
     legs: String(legs),
@@ -238,6 +326,48 @@ export function ParlayView() {
   const parlay = current?.body?.parlay ?? null;
 
   const reset = useCallback(() => setVariant(0), []);
+
+  /*
+   * Changing sport clears the competition.
+   *
+   * Leaving "Premier League" selected under Basketball would be a filter that
+   * describes nothing, and the request behind it is a 400. The new sport
+   * starts on everything it tracks, or on its single competition where it has
+   * only one.
+   */
+  const chooseSport = useCallback(
+    (next: string) => {
+      setSport(next);
+      setLeague(defaultCompetition(catalogue?.find((entry) => entry.id === next)));
+      reset();
+    },
+    [catalogue, reset],
+  );
+
+  /*
+   * How many legs the current filter can support.
+   *
+   * A multi-game line takes one selection per fixture, so a filter with three
+   * qualifying fixtures cannot make four legs however it is asked. The counts
+   * above that are shown greyed with the reason rather than accepted and
+   * quietly under-delivered.
+   *
+   * Held from the last response for the current request only; while a new one
+   * is in flight the previous ceiling still applies, which stops the row
+   * flickering between every keystroke of a filter change.
+   */
+  const maxLegs = data?.max_legs ?? MAX_LEGS;
+  const eligibleGames = data?.games_available ?? null;
+
+  /*
+   * Which count to show as chosen.
+   *
+   * A request for five that only three fixtures can support produces three
+   * legs, so three is what the row highlights. The request itself is left at
+   * five: widen the competition again and the five-leg line comes back without
+   * having to ask for it a second time.
+   */
+  const shownLegs = Math.min(legs, maxLegs);
 
   return (
     <>
@@ -382,24 +512,113 @@ export function ParlayView() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        {/*
+          Sport, then competition.
+
+          Two controls rather than one list of every competition in the
+          application: the second only ever offers what belongs to the first,
+          so picking Basketball cannot leave the Premier League on screen. On a
+          phone they stack; there is no two-column dropdown.
+        */}
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Sport">
             <select
               value={sport}
-              onChange={(event) => {
-                setSport(event.target.value);
-                reset();
-              }}
+              onChange={(event) => chooseSport(event.target.value)}
               className={SELECT_CLASS}
             >
-              {SPORTS.map((option) => (
-                <option key={option.id} value={option.id} className="bg-[#0e0c15]">
+              <option value={ALL_SPORTS} className="bg-[#0e0c15]">
+                All sports
+              </option>
+              {(catalogue ?? []).map((option) => (
+                <option
+                  key={option.id}
+                  value={option.id}
+                  // A sport with no model is shown and disabled rather than
+                  // removed: someone who knows the application tracks it
+                  // should be told what is missing, not left guessing.
+                  disabled={!option.supported}
+                  className="bg-[#0e0c15]"
+                >
                   {option.label}
+                  {option.supported ? '' : ' — projections unavailable'}
                 </option>
               ))}
             </select>
           </Field>
 
+          <Field label="Competition">
+            <select
+              value={league}
+              onChange={(event) => {
+                setLeague(event.target.value);
+                reset();
+              }}
+              // Across every sport at once, a single list of all twenty-one
+              // competitions would be a worse control than no control.
+              disabled={sport === ALL_SPORTS || !sportOption}
+              className={`${SELECT_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              {sport === ALL_SPORTS || !sportOption ? (
+                <option value={ALL_COMPETITIONS} className="bg-[#0e0c15]">
+                  All competitions
+                </option>
+              ) : (
+                <>
+                  {sportOption.all_label && (
+                    <option value={ALL_COMPETITIONS} className="bg-[#0e0c15]">
+                      {sportOption.all_label}
+                    </option>
+                  )}
+                  {groupCompetitions(sportOption).map((group) =>
+                    group.label === null ? (
+                      group.items.map((competition) => (
+                        <option
+                          key={competition.id}
+                          value={competition.id}
+                          className="bg-[#0e0c15]"
+                        >
+                          {competition.label}
+                        </option>
+                      ))
+                    ) : (
+                      <optgroup key={group.label} label={group.label} className="bg-[#0e0c15]">
+                        {group.items.map((competition) => (
+                          <option
+                            key={competition.id}
+                            value={competition.id}
+                            className="bg-[#0e0c15]"
+                          >
+                            {competition.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ),
+                  )}
+                </>
+              )}
+            </select>
+          </Field>
+        </div>
+
+        {/*
+          Sports the engine cannot build from.
+
+          Named rather than removed. A reader who knows the application tracks
+          tennis should be told what is missing, not left to conclude the page
+          has quietly lost it — and the option above is disabled, so nobody can
+          choose one and then be failed by it.
+        */}
+        {(catalogue ?? []).some((option) => !option.supported) && (
+          <p className="text-[11px] leading-5 text-white/32">
+            {(catalogue ?? [])
+              .filter((option) => !option.supported)
+              .map((option) => `${option.label}: ${option.unavailable}`)
+              .join(' ')}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-3">
           <Field label="Markets">
             <select
               value={markets}
@@ -414,22 +633,6 @@ export function ParlayView() {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </Field>
-
-          <Field label="Selections">
-            <select
-              value={legs}
-              onChange={(event) => setLegs(Number(event.target.value))}
-              className={SELECT_CLASS}
-            >
-              {Array.from({ length: MAX_LEGS - MIN_LEGS + 1 }, (_, i) => MIN_LEGS + i).map(
-                (count) => (
-                  <option key={count} value={count} className="bg-[#0e0c15]">
-                    {count}
-                  </option>
-                ),
-              )}
             </select>
           </Field>
 
@@ -449,6 +652,73 @@ export function ParlayView() {
         </div>
 
         {/*
+          Selections.
+
+          Buttons rather than a dropdown, because a count that cannot be
+          produced needs to say so before it is chosen. One leg per fixture is
+          the rule for a multi-game line, so three qualifying fixtures means
+          four legs is not a shorter line — it is not a line at all.
+        */}
+        <fieldset className="border-0 p-0">
+          <legend className="text-[10px] uppercase tracking-wider text-white/28">
+            Selections
+          </legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Array.from({ length: MAX_LEGS - MIN_LEGS + 1 }, (_, i) => MIN_LEGS + i).map(
+              (count) => {
+                const unreachable = count > maxLegs;
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    aria-pressed={shownLegs === count}
+                    disabled={unreachable}
+                    title={
+                      unreachable
+                        ? `Only ${maxLegs} eligible ${maxLegs === 1 ? 'event' : 'events'} for this selection.`
+                        : undefined
+                    }
+                    onClick={() => {
+                      setLegs(count);
+                      reset();
+                    }}
+                    className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                      unreachable
+                        ? 'cursor-not-allowed border-white/6 bg-white/[.01] text-white/18'
+                        : shownLegs === count
+                          ? 'border-violet-500 bg-violet-600 text-white'
+                          : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                    }`}
+                  >
+                    {count}
+                  </button>
+                );
+              },
+            )}
+          </div>
+
+          {/*
+            What the filter currently supports.
+
+            A count of fixtures the risk profile would actually accept, not of
+            fixtures on the card — the two differ, and the useful one is this.
+          */}
+          {eligibleGames !== null && (
+            <p className="mt-2 text-[11px] leading-5 text-white/32">
+              {eligibleGames === 0
+                ? 'No eligible events for this selection.'
+                : `${eligibleGames} eligible ${eligibleGames === 1 ? 'event' : 'events'}${
+                    typeof data?.eligible === 'number'
+                      ? `, ${data.eligible} model-backed selection${data.eligible === 1 ? '' : 's'}`
+                      : ''
+                  }.`}
+              {legs > maxLegs &&
+                ` A ${legs}-leg line is not possible here, so this one has ${maxLegs}. Nothing is padded to fill the difference.`}
+            </p>
+          )}
+        </fieldset>
+
+        {/*
           The work takes a couple of seconds, so it says so. `aria-live` is
           polite and the element is always present, so a screen reader is not
           surprised by a region appearing and vanishing.
@@ -460,7 +730,11 @@ export function ParlayView() {
               <span className="text-violet-300/80">
                 {type === 'same'
                   ? 'Simulating the fixture and measuring how often the legs come in together…'
-                  : 'Projecting fixtures, checking bookmaker lines and simulating outcomes…'}
+                  : `Projecting ${
+                      sport === ALL_SPORTS
+                        ? 'upcoming events'
+                        : `${(sportOption?.label ?? sport).toLowerCase()} events`
+                    }, checking bookmaker lines and simulating outcomes…`}
               </span>
             </>
           )}
@@ -492,14 +766,36 @@ export function ParlayView() {
 
           {state === 'empty' && (
             <div className="rounded-xl border border-white/8 bg-white/[.02] px-4 py-6 text-sm text-white/40">
-              <p className="font-medium text-white/60">No line available</p>
+              <p className="font-medium text-white/60">
+                No line available
+                {current?.body?.scope && current.body.scope.sport !== ALL_SPORTS
+                  ? ` for ${current.body.scope.league_label}`
+                  : ''}
+              </p>
               <p className="mt-1.5 text-[13px] leading-6">
                 {data?.games_available === 0
                   ? day === ALL_DAYS
-                    ? 'No upcoming fixture currently has enough completed match history to project.'
-                    : 'No fixture on this day has enough completed match history to project.'
-                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible ${data?.games_available === 1 ? 'game' : 'games'}. Nothing is padded to fill the requested number.`}
+                    ? 'No upcoming event in this selection has enough completed history to project.'
+                    : 'No event on this day in this selection has enough completed history to project.'
+                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible ${data?.games_available === 1 ? 'event' : 'events'}. Nothing is padded to fill the requested number.`}
               </p>
+
+              {/*
+                What to widen, in the order that costs the reader least.
+
+                Never done for them: a filter is a choice, and silently
+                reaching into another competition to fill a line would answer a
+                question nobody asked.
+              */}
+              {current?.body?.scope && current.body.scope.sport !== ALL_SPORTS && (
+                <p className="mt-2 text-[13px] leading-6 text-white/32">
+                  Try{' '}
+                  {current.body.scope.league !== null
+                    ? 'every competition in this sport, a lower risk level, or fewer selections.'
+                    : 'another sport, a lower risk level, or fewer selections.'}{' '}
+                  This selection is used exactly as chosen — no leg is taken from outside it.
+                </p>
+              )}
               {markets === 'available' && (
                 <p className="mt-2 text-[13px] leading-6 text-amber-200/70">
                   You have asked for confirmed markets only. Bookmaker prices are not published
@@ -518,7 +814,7 @@ export function ParlayView() {
 
           {state === 'ready' && parlay && (
             <>
-              <ParlayHeader parlay={parlay} />
+              <ParlayHeader parlay={parlay} scope={current?.body?.scope} />
               <BetSlip parlay={parlay} />
               {parlay.legs.map((selection, index) => (
                 <LegCard

@@ -751,6 +751,27 @@ describe('recent parlay results', () => {
     assert.equal(results[0].legs[0].selection, 'Arsenal to win');
   });
 
+  it('names the competition when every leg agrees on one', () => {
+    const [result] = recentResults([line()], [leg('a', 'won'), leg('b', 'won')]);
+    assert.deepEqual(result.scope, {
+      sport: 'football',
+      competition: 'Premier League',
+      competitions: 1,
+    });
+  });
+
+  it('names no competition for a mixed line', () => {
+    // Naming one of them would be true of half the line. The count is what is
+    // actually known, so that is what is reported.
+    const [result] = recentResults(
+      [line()],
+      [leg('a', 'won'), leg('b', 'won', { sport: 'nba', league: 'NBA' })],
+    );
+    assert.equal(result.scope.sport, null);
+    assert.equal(result.scope.competition, null);
+    assert.equal(result.scope.competitions, 2);
+  });
+
   it('shows only lines with a final verdict', () => {
     // Pending and live lines belong on the Parlays page, not in a results reel.
     const results = recentResults(

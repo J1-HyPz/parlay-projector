@@ -41,6 +41,7 @@ import { MODEL_VERSION } from './types';
 import type {
   ParlayKind,
   ParlayRecord,
+  ParlayScopeRecord,
   PredictionRecordV2,
   PredictionStatus,
   RiskLevel,
@@ -169,6 +170,14 @@ export interface PublishOptions {
    */
   combinedProbability?: number;
   kind?: ParlayKind;
+  /**
+   * The filter the line was built under.
+   *
+   * Stored on the line rather than inferred from its legs: "every football
+   * competition" and "the Premier League, which happened to supply every leg"
+   * are different claims, and only the request knows which was made.
+   */
+  scope?: ParlayScopeRecord;
 }
 
 export function publishPredictions(
@@ -200,6 +209,7 @@ export function publishPredictions(
         game_id: selection.game_id,
         sport: selection.sport,
         league: selection.league,
+        league_id: selection.league_id ?? null,
         selection_type: selection.type,
         selection: selection.label,
         settlement: selection.settlement,
@@ -269,6 +279,7 @@ export function publishPredictions(
           risk,
           leg_ids: selections.map((selection) => selection.id),
           kind: options.kind ?? 'multi_game',
+          ...(options.scope ? { scope: options.scope } : {}),
           combined_probability: Number(
             (
               options.combinedProbability ??

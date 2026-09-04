@@ -19,6 +19,7 @@
  */
 
 import { probabilityMeaning } from '@/lib/markets/explain';
+import { sportLabel } from '@/lib/schedule/filters';
 import { glossaryKeyForMarket } from '@/lib/markets/glossary';
 import type { Selection } from '@/lib/projections/types';
 import { qualityLabel } from '@/lib/projections/types';
@@ -157,9 +158,23 @@ export function LegCard({
         <span className="grid size-5 shrink-0 place-items-center rounded-md bg-violet-500/15 text-[10px] font-medium text-violet-300">
           {index + 1}
         </span>
+        {/*
+          Sport, then competition.
+
+          Both, because across a mixed line "Serie A" and "NCAA Football" do
+          not place themselves for every reader — and on a line filtered to one
+          competition the sport is the redundant half, so it is dropped rather
+          than repeated.
+        */}
         <span className="font-medium uppercase tracking-wider text-violet-300">
-          {selection.league ?? selection.sport.toUpperCase()}
+          {sportLabel(selection.sport)}
         </span>
+        {selection.league && selection.league !== sportLabel(selection.sport) && (
+          <>
+            <span className="text-white/20">·</span>
+            <span className="truncate text-white/45">{selection.league}</span>
+          </>
+        )}
         <span className="text-white/20">·</span>
         <span className="truncate text-white/40">{kickoff(selection.start_time)}</span>
         {tracked && (

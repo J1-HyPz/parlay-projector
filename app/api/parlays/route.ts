@@ -1,7 +1,13 @@
 /**
- * GET /api/parlays?risk=&sport=&legs=&variant=&markets=&type=
+ * GET /api/parlays?risk=&sport=&league=&legs=&variant=&markets=&type=&date=
  *
  * A generated line for the requested risk profile.
+ *
+ * `sport` and `league` narrow the candidate pool *before* anything is
+ * projected, and they are binding. A request for the Premier League that only
+ * two matches qualify for returns two legs and says so; it never reaches into
+ * another competition for a third, however much better that leg would score.
+ * The filter is the reader's, and nothing here is entitled to overrule it.
  *
  * Every leg traces back to real results: fixtures and scores from the shared
  * provider layer, ratings derived from them, a sport-specific model, a
@@ -24,7 +30,8 @@
  * available the selection says so, and no number is invented to fill the space.
  */
 
-import { json, parseSport } from '@/lib/home/api';
+import { json } from '@/lib/home/api';
+import { describeScope, resolveScope } from '@/lib/leagues/catalogue';
 import { logger } from '@/lib/logger';
 import { invalidateAccuracy } from '@/lib/projections/accuracy';
 import { APP_TIMEZONE } from '@/lib/config';
@@ -114,10 +121,25 @@ export async function GET(request: Request): Promise<Response> {
   }
   const risk = requestedRisk as RiskLevel;
 
-  const sport = parseSport(params.get('sport'));
-  if (sport === null) {
-    return json({ error: 'invalid_sport', message: 'Unknown sport.' }, 400);
+  /*
+   * The sport and competition, resolved together.
+   *
+   * Rejected rather than widened when either is unknown, or when the
+   * competition belongs to another sport. Failing open would mean a stale
+   * bookmark quietly returned a line from somewhere the reader did not ask
+   * about, which is the one outcome a filter exists to prevent.
+   */
+  const scope = resolveScope(params.get('sport'), params.get('league'));
+  if (scope === null) {
+    return json(
+      {
+        error: 'invalid_scope',
+        message: 'Unknown sport or competition, or the two do not belong together.',
+      },
+      400,
+    );
   }
+  const sport = scope.sport;
 
   const rawLegs = Number.parseInt(params.get('legs') ?? '', 10);
   const legs = Number.isFinite(rawLegs)
@@ -138,7 +160,10 @@ export async function GET(request: Request): Promise<Response> {
 
   const sameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
 
-  const { selections, failedLeagues, pricedGames } = await buildCandidates(sport);
+  const { selections, failedLeagues, pricedGames } = await buildCandidates({
+    sport,
+    league: scope.league,
+  });
 
   const window = scheduleRange(APP_TIMEZONE);
   const days = availableDays(selections, window.dates, risk, APP_TIMEZONE, markets);
@@ -163,10 +188,31 @@ export async function GET(request: Request): Promise<Response> {
     ? await bestSameGame(pool, { risk, legs, markets, variant })
     : optimise(pool, { risk, legs, markets, variant });
 
+  /*
+   * How many legs this filter can actually support.
+   *
+   * A multi-game line takes at most one selection per fixture, so the number of
+   * qualifying fixtures *is* the ceiling — which lets the selector grey out leg
+   * counts it cannot reach rather than accepting a request for five and
+   * returning three without explanation. A same-game line draws several legs
+   * from one fixture, so no such ceiling applies to it.
+   */
+  const maxLegs = sameGame ? MAX_LEGS : Math.min(result.gamesAvailable, MAX_LEGS);
+
+  const described = describeScope(scope);
+  const scopeBlock = {
+    sport,
+    league: scope.league,
+    sport_label: described.sport,
+    league_label: described.competition,
+  };
+
   if (!result.parlay) {
     return json({
       model_version: MODEL_VERSION,
       risk,
+      scope: scopeBlock,
+      max_legs: maxLegs,
       date,
       dates: window.dates,
       days,
@@ -191,6 +237,9 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const published = await publishPredictions(result.parlay.legs, risk, {
+      // Frozen with the line, so a success rate can later be read per
+      // competition rather than only across everything at once.
+      scope: { sport, league: scope.league, legs: result.parlay.legs.length },
       // The claimed figure, not a recomputation. A same-game line's estimate
       // is a measured joint probability; multiplying its legs would store a
       // number the model never gave and then hold it to that.
@@ -236,6 +285,8 @@ export async function GET(request: Request): Promise<Response> {
   return json({
     model_version: MODEL_VERSION,
     risk,
+    scope: scopeBlock,
+    max_legs: maxLegs,
     date,
     dates: window.dates,
     days,

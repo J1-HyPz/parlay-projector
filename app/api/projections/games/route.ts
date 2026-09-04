@@ -21,7 +21,7 @@ export async function GET(request: Request): Promise<Response> {
     return json({ error: 'invalid_sport', message: 'Unknown sport.' }, 400);
   }
 
-  const { projections, failedLeagues, skipped, pricedGames } = await buildCandidates(sport);
+  const { projections, failedLeagues, skipped, pricedGames } = await buildCandidates({ sport });
 
   return json({
     model_version: MODEL_VERSION,

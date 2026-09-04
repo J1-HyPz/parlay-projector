@@ -144,7 +144,18 @@ export interface Selection {
   id: string;
   game_id: string;
   sport: ConcreteSportId;
+  /** Display name of the competition, as a fixture carries it. */
   league: string | null;
+  /**
+   * Catalogue id of the competition, e.g. `epl`.
+   *
+   * The stable identity, as distinct from the label above: "Premier League" is
+   * what a competition is called, `epl` is what it is. Filtering, accuracy by
+   * competition and anything else that has to still mean the same thing next
+   * season key on this. Optional because a selection built outside the
+   * catalogue-aware service does not carry one.
+   */
+  league_id?: string | null;
   start_time: string | null;
   /** Readable fixture, e.g. `Arsenal v Chelsea`. */
   fixture: string;
@@ -404,6 +415,16 @@ export type ParlayStatus = 'pending' | 'live' | 'won' | 'lost' | 'void';
  * Stores the combined probability it claimed, so that estimate can be checked
  * against how often lines of that strength actually came in.
  */
+/** The filter a line was generated under, frozen with it. */
+export interface ParlayScopeRecord {
+  /** `all`, or a concrete sport id. */
+  sport: string;
+  /** Catalogue league id, or null when every competition was in scope. */
+  league: string | null;
+  /** Legs requested. The line may hold fewer — nothing is ever padded. */
+  legs: number;
+}
+
 export interface ParlayRecord {
   id: string;
   risk: RiskLevel;
@@ -416,6 +437,15 @@ export interface ParlayRecord {
    * across both would say little about either.
    */
   kind?: ParlayKind;
+  /**
+   * The sport and competition filter the line was built under.
+   *
+   * Recorded so success rates can later be read per competition — a Premier
+   * League figure means something, an average across every football
+   * competition on the card means considerably less. Absent on records written
+   * before the filter existed, which were all built across everything.
+   */
+  scope?: ParlayScopeRecord;
   /** Prediction ids of the legs, in the order they were presented. */
   leg_ids: string[];
   /**
@@ -535,6 +565,8 @@ export interface PredictionRecordV2 {
   game_id: string;
   sport: string;
   league: string | null;
+  /** Catalogue id of the competition. Absent on records written before it existed. */
+  league_id?: string | null;
   selection_type: SelectionType;
   selection: string;
   settlement: SettlementRule;
