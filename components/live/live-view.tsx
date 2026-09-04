@@ -13,7 +13,7 @@ import { Activity, Radio, RefreshCw, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
-import { EventBody, eventLabel } from '@/components/sports/event-body';
+import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import type { LiveGame } from '@/lib/live/types';
 import {
@@ -115,7 +115,7 @@ function GameCard({ game }: { game: LiveGame }) {
   return (
     <div className="relative">
       <a
-        href={`/games/${game.id}`}
+        href={eventHref(game)}
         aria-label={
           sides
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, live, view game details`
@@ -200,7 +200,7 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative">
       <a
-        href={`/games/${game.id}`}
+        href={eventHref(game)}
         aria-label={
           sides
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`

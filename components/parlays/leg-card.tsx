@@ -170,7 +170,8 @@ export function LegCard({
       </div>
 
       <a
-        href={`/games/${selection.game_id}`}
+        // A race has no detail page, so its leg points at the hub instead.
+        href={race ? `/sports/${selection.sport}` : `/games/${selection.game_id}`}
         className="mt-2 block truncate text-sm text-white/60 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
       >
         {selection.fixture}

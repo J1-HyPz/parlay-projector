@@ -16,7 +16,7 @@ import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
-import { EventBody, eventLabel } from '@/components/sports/event-body';
+import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
@@ -95,7 +95,7 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative border-b border-white/[.065] last:border-b-0">
       <a
-        href={`/games/${game.id}`}
+        href={eventHref(game)}
         aria-label={
           sides
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
@@ -153,7 +153,7 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative">
       <a
-        href={`/games/${game.id}`}
+        href={eventHref(game)}
         aria-label={
           sides
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`

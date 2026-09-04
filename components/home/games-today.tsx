@@ -11,7 +11,7 @@
 
 import { SectionHeading, PlaceholderLine } from '@/components/dashboard-ui';
 import { sidesOf } from '@/lib/home/types';
-import { EventBody, eventLabel } from '@/components/sports/event-body';
+import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import { WatchButton } from '@/components/watchlist/watch-button';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
@@ -56,7 +56,7 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative min-w-[245px] flex-1">
       <a
-        href={`/games/${game.id}`}
+        href={eventHref(game)}
         aria-label={
           sides
             ? `${sides.away.name} versus ${sides.home.name}, view game details`

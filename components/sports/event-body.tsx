@@ -24,6 +24,18 @@ function finishers(game: Game): Entrant[] {
 }
 
 /**
+ * Where an event card should point.
+ *
+ * A race has no detail page: the provider serves no summary endpoint for
+ * motorsport, so `/games/:id` would load nothing and show an error. The hub is
+ * where a Grand Prix weekend actually lives, so that is where the card goes —
+ * a working destination rather than a broken one.
+ */
+export function eventHref(game: Game): string {
+  return Array.isArray(game.entrants) ? `/sports/${game.sport}` : `/games/${game.id}`;
+}
+
+/**
  * A label describing the event, for a card's `aria-label`.
  *
  * "Italian Grand Prix, Qualifying" rather than a pair of names that do not
