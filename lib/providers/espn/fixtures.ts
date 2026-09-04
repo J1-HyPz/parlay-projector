@@ -25,6 +25,22 @@ import type { RawFixtureResponse } from './fixture-normalise';
 import { normaliseRaceFixtures } from './racing';
 import type { RawRaceResponse } from './racing';
 
+/**
+ * Read a scoreboard payload according to how the competition is contested.
+ *
+ * A race weekend is one event carrying several sessions, each with a field
+ * rather than two sides. Both shapes come from the same endpoint, so the choice
+ * is made here — once — rather than at each of the two places that fetch one.
+ */
+function normalisePayload(
+  payload: RawFixtureResponse & RawRaceResponse,
+  league: League,
+): Game[] {
+  return league.format === 'race'
+    ? normaliseRaceFixtures(payload, league)
+    : normaliseFixtures(payload, league);
+}
+
 export {
   ESPN_ID_PREFIX,
   compactDate,
@@ -69,15 +85,7 @@ export async function fixturesForLeague(
           `${espnPath}/scoreboard`,
           `dates=${range}&limit=200`,
         );
-        /*
-         * A race weekend is a different shape from a fixture: one event
-         * carrying several sessions, each contested by the whole field. It
-         * comes from the same endpoint and the same request, so it is read
-         * here rather than through a second pipeline.
-         */
-        return league.format === 'race'
-          ? normaliseRaceFixtures(payload, league)
-          : normaliseFixtures(payload, league);
+        return normalisePayload(payload, league);
       } catch (error) {
         // An out-of-season competition 404s on a date range — NCAA basketball
         // does this all summer. That is "no fixtures", not a provider failure,
@@ -176,11 +184,11 @@ async function fetchWindow(
 
   const { value } = await cached(`espn:history:${league.id}:${range}`, ttlMs, async () => {
     try {
-      const payload = await fetchEspn<RawFixtureResponse>(
+      const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse>(
         `${espnPath}/scoreboard`,
         `dates=${range}&limit=${EVENT_LIMIT}`,
       );
-      const games = normaliseFixtures(payload, league);
+      const games = normalisePayload(payload, league);
       return { games, capped: (payload?.events?.length ?? 0) >= EVENT_LIMIT };
     } catch (error) {
       // Out of season for this window. Empty, not a failure.
