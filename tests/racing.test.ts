@@ -19,7 +19,6 @@ import {
   simulateRace,
   toRaceResults,
 } from '../lib/projections/race-model.ts';
-import type { RaceResult } from '../lib/projections/race-model.ts';
 import { gridFrom, projectRace, raceSelections } from '../lib/projections/race-selections.ts';
 import { settle } from '../lib/projections/settlement.ts';
 import { whatNeedsToHappen, selectionLabel } from '../lib/markets/explain.ts';
