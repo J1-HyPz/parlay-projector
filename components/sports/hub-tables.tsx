@@ -11,7 +11,7 @@
 
 import { ArrowRight, Users } from 'lucide-react';
 import type { StandingsGroup, StandingsRow, TeamProfile } from '@/lib/leagues/types';
-import { hasRank, standingsColumns } from '@/lib/sports/standings-columns';
+import { competitorLabel, hasRank, standingsColumns } from '@/lib/sports/standings-columns';
 import {
   TRANSACTION_TYPE_LABEL,
   type Transaction,
@@ -61,7 +61,11 @@ export function StandingsTable({
       {/* Wide tables scroll inside their own container rather than the page. */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[420px] border-collapse text-sm">
-          <caption className="sr-only">{group.name} standings</caption>
+          {/* "Driver Standings" is already a full name; appending the word
+              again reads as "Driver Standings standings". */}
+          <caption className="sr-only">
+            {/standings/i.test(group.name) ? group.name : `${group.name} standings`}
+          </caption>
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-white/28">
               {showRank && (
@@ -70,7 +74,7 @@ export function StandingsTable({
                 </th>
               )}
               <th scope="col" className="px-3 py-2 text-left font-medium">
-                Team
+                {competitorLabel(leagueGroup, group.name)}
               </th>
               {columns.map((column) => (
                 <th key={column.key} scope="col" className="px-2 py-2 text-right font-medium">

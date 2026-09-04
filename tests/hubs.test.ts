@@ -20,7 +20,11 @@ import {
   supportsEditorialData,
 } from '../lib/leagues/registry.ts';
 import { previewSections, seasonLabel, splitGames } from '../lib/sports/split.ts';
-import { hasRank, standingsColumns } from '../lib/sports/standings-columns.ts';
+import {
+  competitorLabel,
+  hasRank,
+  standingsColumns,
+} from '../lib/sports/standings-columns.ts';
 import {
   classifyTransaction,
   normaliseTransactions,
@@ -425,6 +429,27 @@ describe('standings columns', () => {
     const labels = standingsColumns(rows, 'american-football').map((c) => c.label);
     assert.equal(labels.includes('GB'), false);
     assert.equal(labels.includes('Streak'), false);
+  });
+
+  it('shows championship points for motorsport', () => {
+    /*
+     * A driver does not lose a Grand Prix, so the win/loss shape leaves every
+     * column empty and all of them get filtered out — a championship table of
+     * names with nothing to rank them by.
+     */
+    const rows = [row({ points: 242 })];
+    assert.deepEqual(
+      standingsColumns(rows, 'motorsport').map((column) => column.label),
+      ['Pts'],
+    );
+  });
+
+  it('names the competitor column for what it ranks', () => {
+    // Neither a driver nor a marque is a "Team".
+    assert.equal(competitorLabel('motorsport', 'Driver Standings'), 'Driver');
+    assert.equal(competitorLabel('motorsport', 'Constructor Standings'), 'Constructor');
+    assert.equal(competitorLabel('basketball', 'Eastern Conference'), 'Team');
+    assert.equal(competitorLabel('football', 'Premier League'), 'Team');
   });
 
   it('never fabricates a statistic', () => {

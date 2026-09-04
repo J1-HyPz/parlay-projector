@@ -43,6 +43,9 @@ Every figure on screen is a placeholder.
 | `/api/leagues/:id/teams/:teamId/roster` | Players on a team |
 | `/api/internal/providers` | Provider health diagnostics |
 
+What has changed between deployments is recorded in
+**[CHANGELOG.md](CHANGELOG.md)**.
+
 ---
 
 ## GitHub is the source of truth

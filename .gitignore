@@ -56,3 +56,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# TypeScript incremental build cache, written by a local `pnpm typecheck`.
+*.tsbuildinfo

@@ -64,17 +64,49 @@ const RECORD_COLUMNS: StandingsColumn[] = [
 ];
 
 /**
+ * Motorsport: a championship is points, and little else.
+ *
+ * There is no win/loss record to show — a driver does not lose a Grand Prix,
+ * they finish it somewhere. Without this the record columns are all empty and
+ * every one is filtered out, leaving a table of names and nothing to rank them
+ * by, which is precisely what a championship table exists to show.
+ */
+const CHAMPIONSHIP_COLUMNS: StandingsColumn[] = [
+  { key: 'points', label: 'Pts', title: 'Championship points', value: (r) => integer(r.points) },
+  { key: 'wins', label: 'Wins', title: 'Wins', value: (r) => integer(r.wins) },
+];
+
+/**
  * Columns worth rendering for these rows.
  *
- * `football` selects the table shape; everything else uses the record shape.
- * A column with no values in any row is dropped rather than rendered empty.
+ * The sport selects the table shape; a column with no values in any row is
+ * dropped rather than rendered empty.
  */
 export function standingsColumns(
   rows: readonly StandingsRow[],
   group: string,
 ): StandingsColumn[] {
-  const candidates = group === 'football' ? FOOTBALL_COLUMNS : RECORD_COLUMNS;
+  const candidates =
+    group === 'football'
+      ? FOOTBALL_COLUMNS
+      : group === 'motorsport'
+        ? CHAMPIONSHIP_COLUMNS
+        : RECORD_COLUMNS;
   return candidates.filter((column) => rows.some((row) => column.value(row) !== null));
+}
+
+/**
+ * What the competitor column is called.
+ *
+ * A drivers' championship ranks people and a constructors' championship ranks
+ * marques; neither is a "Team". Read from the group's own name, which the
+ * provider supplies, rather than assumed from the sport.
+ */
+export function competitorLabel(group: string, name: string): string {
+  if (group !== 'motorsport') return 'Team';
+  if (/constructor/i.test(name)) return 'Constructor';
+  if (/driver/i.test(name)) return 'Driver';
+  return 'Competitor';
 }
 
 /**
