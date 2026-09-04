@@ -143,6 +143,11 @@ sport. 70 files, 640 tests.
   screen once results were stacked under it.
 - Race cards linked to a game-detail page that does not exist for motorsport,
   landing on an error; they now point at the hub.
+- **Controls too small to hit on a phone.** On the Parlays page the Analysis
+  toggle — the primary way to open a leg — was 17px tall, and the glossary
+  terms 17–18px, below the 24px minimum. Now 33px and 25px. Schedule, the hubs
+  and Home were already clean, and the championship tables correctly scroll
+  inside their own container rather than pushing the page sideways.
 - A build could fail at random. Two diagnostic previews in the CI script piped
   into `head -c 200`, which closes the pipe early; the writer took a broken
   pipe and, under `pipefail`, failed the step. Whether it tripped depended on

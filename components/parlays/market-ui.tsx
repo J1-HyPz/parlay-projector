@@ -118,7 +118,13 @@ export function GlossaryTerm({
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex items-center gap-1 border-b border-dotted border-white/30 text-left transition hover:border-violet-300/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        /*
+         * `py-1 -my-1` widens the tap target without moving anything: the
+         * padding extends the hit area and the negative margin takes the space
+         * back out of the layout. A bare 17px-tall control is below the 24px
+         * minimum and genuinely hard to hit on a phone.
+         */
+        className="inline-flex items-center gap-1 border-b border-dotted border-white/30 py-1 -my-1 text-left transition hover:border-violet-300/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
       >
         {children}
         <CircleHelp className="size-3 shrink-0 opacity-50" aria-hidden="true" />
@@ -519,7 +525,9 @@ export function Expandable({
         onClick={toggle}
         aria-expanded={open}
         aria-controls={id}
-        className="flex w-full items-center justify-between gap-2 text-left text-[11px] text-white/40 transition hover:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        // Padded to a comfortable target: this is the primary way to open a
+        // leg's analysis on a phone, and it was 17px tall.
+        className="flex w-full items-center justify-between gap-2 py-2 text-left text-[11px] text-white/40 transition hover:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
       >
         {label}
         <ChevronDown
