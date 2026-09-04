@@ -6,7 +6,7 @@
  * already in progress) is a correctness question about *when not to send*.
  */
 
-import { fixtureLabel } from '../home/types';
+import { fixtureLabel } from '../home/types.ts';
 import type { Game, GameStatus } from '../home/types';
 import type { GameNotification, NotifyEvent, NotifyState } from './types';
 

@@ -51,6 +51,7 @@ describe('hub slugs', () => {
       'nfl', 'ncaaf', 'cfl', 'afle', 'efa', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl',
       'epl', 'championship', 'league-one', 'ucl', 'uel', 'uecl',
       'laliga', 'bundesliga', 'seriea',
+      'f1',
     ]);
   });
 
@@ -159,7 +160,7 @@ describe('navigation', () => {
     assert.ok(SIDEBAR_HUBS.length < HUBS.length, 'every competition would be unusable');
     assert.deepEqual(
       SIDEBAR_HUBS.map((entry) => entry.slug),
-      ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'epl', 'ucl'],
+      ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'epl', 'ucl', 'f1'],
     );
   });
 
@@ -198,13 +199,15 @@ describe('navigation', () => {
     const groups = hubGroups();
     assert.deepEqual(
       groups.map((group) => group.id),
-      ['american-football', 'basketball', 'baseball', 'hockey', 'football'],
+      ['american-football', 'basketball', 'baseball', 'hockey', 'football', 'motorsport'],
     );
     // Football carries nine competitions; the sidebar only has room for two.
     assert.equal(groups.find((group) => group.id === 'football')?.hubs.length, 9);
     assert.equal(groups.find((group) => group.id === 'basketball')?.hubs.length, 3);
     // NFL, NCAA, CFL and the two European competitions.
     assert.equal(groups.find((group) => group.id === 'american-football')?.hubs.length, 5);
+    // Formula 1 stands alone: the only competition contested by a field.
+    assert.equal(groups.find((group) => group.id === 'motorsport')?.hubs.length, 1);
   });
 
   it('puts each hub in exactly one group', () => {
