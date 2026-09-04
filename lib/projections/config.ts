@@ -345,9 +345,25 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
     defaultLegs: 3,
     minDataQuality: 0.6,
     minConfidence: 0.6,
-    // Conservative shapes only: a generous handicap, a double chance, a
-    // low team-total threshold.
-    allowedTypes: ['double_chance', 'spread', 'team_total', 'winner', 'total'],
+    /*
+     * Conservative shapes only: a generous handicap, a double chance, a low
+     * team-total threshold — and in motorsport, a strong driver to finish in
+     * the points or to beat one particular rival.
+     *
+     * The probability band does the real work of separating the levels. A
+     * points finish for a leading driver clears 80%; a podium sits around
+     * 60% and lands in Medium; a race win is nearer 30% and clears none of
+     * them, which is the honest answer rather than a forced inclusion.
+     */
+    allowedTypes: [
+      'double_chance',
+      'spread',
+      'team_total',
+      'winner',
+      'total',
+      'finish_position',
+      'head_to_head',
+    ],
   },
   medium: {
     minProbability: 0.58,
@@ -355,7 +371,15 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
     defaultLegs: 4,
     minDataQuality: 0.5,
     minConfidence: 0.5,
-    allowedTypes: ['winner', 'spread', 'total', 'team_total', 'double_chance'],
+    allowedTypes: [
+      'winner',
+      'spread',
+      'total',
+      'team_total',
+      'double_chance',
+      'finish_position',
+      'head_to_head',
+    ],
   },
   high: {
     minProbability: 0.45,
@@ -363,7 +387,14 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
     defaultLegs: 5,
     minDataQuality: 0.45,
     minConfidence: 0.45,
-    allowedTypes: ['winner', 'spread', 'total', 'team_total'],
+    allowedTypes: [
+      'winner',
+      'spread',
+      'total',
+      'team_total',
+      'finish_position',
+      'head_to_head',
+    ],
   },
 };
 
