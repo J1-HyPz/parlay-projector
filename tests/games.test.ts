@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { sidesOf } from '../lib/home/types.ts';
 import { describe, it } from 'node:test';
 
 import {
@@ -50,9 +51,11 @@ describe('game normalisation', () => {
     assert.equal(game.league, 'Argentinian Primera Division');
     assert.equal(game.status, 'scheduled');
     assert.equal(game.provider_status, 'NS');
-    assert.equal(game.home_team.name, 'Instituto');
-    assert.equal(game.away_team.name, 'San Lorenzo');
-    assert.equal(game.home_team.logo, 'https://example.test/home.png');
+    const sides = sidesOf(game);
+    assert.ok(sides, 'a football fixture has two sides');
+    assert.equal(sides.home.name, 'Instituto');
+    assert.equal(sides.away.name, 'San Lorenzo');
+    assert.equal(sides.home.logo, 'https://example.test/home.png');
     assert.equal(game.venue.name, 'Estadio Juan Domingo Peron');
     assert.equal(game.venue.city, 'Argentina');
     assert.equal(game.start_time, '2026-09-01T00:15:00.000Z');

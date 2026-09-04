@@ -93,7 +93,11 @@ export function matchesSearch(game: Game, query: string): boolean {
     game.sport,
   ];
 
-  return haystack.some((field) => field !== null && field.toLowerCase().includes(term));
+  // `typeof` rather than a null check: the two sides are optional now, so an
+  // absent one is undefined rather than null.
+  return haystack.some(
+    (field) => typeof field === 'string' && field.toLowerCase().includes(term),
+  );
 }
 
 /**

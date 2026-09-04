@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { sidesOf } from '../lib/home/types.ts';
 import { describe, it } from 'node:test';
 
 import {
@@ -125,8 +126,10 @@ describe('fixture normalisation', () => {
     assert.equal(game.season, '2026');
     assert.equal(game.round, '1');
     assert.equal(game.status, 'scheduled');
-    assert.equal(game.home_team.name, 'Buffalo Bills');
-    assert.equal(game.away_team.name, 'Kansas City Chiefs');
+    const sides = sidesOf(game);
+    assert.ok(sides, 'an NFL fixture has two sides');
+    assert.equal(sides.home.name, 'Buffalo Bills');
+    assert.equal(sides.away.name, 'Kansas City Chiefs');
     assert.equal(game.venue.name, 'Highmark Stadium');
     assert.equal(game.venue.city, 'Orchard Park');
     assert.equal(game.broadcast, 'CBS');

@@ -31,8 +31,12 @@ function str(value: unknown): string | null {
 }
 
 function positiveInt(value: unknown): number | null {
-  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : null;
+  }
+  if (typeof value !== 'string') return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 // ---------------------------------------------------------------------------
