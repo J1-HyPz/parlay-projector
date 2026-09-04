@@ -376,8 +376,11 @@ jobs:
           # games are in progress.
           live=$(curl -s --max-time 60 http://127.0.0.1:3000/api/live) || {
             echo "::error::/api/live did not respond"; docker logs pp-ci; docker rm -f pp-ci; exit 1; }
-          printf '%s' "$live" | head -c 200
-          echo
+          # Substring expansion rather than `| head -c`: head exits after its
+          # 200 bytes and closes the pipe, printf takes SIGPIPE, and under
+          # `pipefail` that fails the whole step. A diagnostic preview must
+          # never be able to fail the build.
+          echo "live -> ${live:0:200}"
           for field in '"updated_at"' '"refresh_interval_ms"' '"games"' '"upcoming"'; do
             if ! printf '%s' "$live" | grep -q "$field"; then
               echo "::error::/api/live response missing $field"
@@ -420,7 +423,7 @@ jobs:
           # Provider diagnostics must report the registry and leak no secrets.
           prov=$(curl -s --max-time 30 http://127.0.0.1:3000/api/internal/providers) || {
             echo "::error::/api/internal/providers did not respond"; docker rm -f pp-ci; exit 1; }
-          echo "providers -> $(printf '%s' "$prov" | head -c 200)"
+          echo "providers -> ${prov:0:200}"
           for id in thesportsdb espn rss; do
             if ! printf '%s' "$prov" | grep -q "\"$id\""; then
               echo "::error::provider '$id' missing from diagnostics"

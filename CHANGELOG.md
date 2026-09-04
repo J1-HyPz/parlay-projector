@@ -143,6 +143,10 @@ sport. 70 files, 640 tests.
   screen once results were stacked under it.
 - Race cards linked to a game-detail page that does not exist for motorsport,
   landing on an error; they now point at the hub.
+- A build could fail at random. Two diagnostic previews in the CI script piped
+  into `head -c 200`, which closes the pipe early; the writer took a broken
+  pipe and, under `pipefail`, failed the step. Whether it tripped depended on
+  how large that day's payload was.
 
 ### Removed
 
