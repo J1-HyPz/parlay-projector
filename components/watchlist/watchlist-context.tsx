@@ -28,8 +28,29 @@ export interface WatchableGame {
   sport: string;
   league: string | null;
   start_time: string | null;
-  home_team: { name: string };
-  away_team: { name: string };
+  /**
+   * Both sides, for a fixture that has them.
+   *
+   * A race weekend does not: it is named for itself and contested by a field.
+   * Such an event supplies `title` instead, and `watchableLabel` picks whichever
+   * is there.
+   */
+  home_team?: { name: string };
+  away_team?: { name: string };
+  title?: string | null;
+}
+
+/**
+ * What to call a watched event.
+ *
+ * The two sides where there are two, the event's own name otherwise — a Grand
+ * Prix is called the Italian Grand Prix, not a pairing of two of its drivers.
+ */
+export function watchableLabel(game: WatchableGame): string {
+  if (game.home_team && game.away_team) {
+    return `${game.away_team.name} v ${game.home_team.name}`;
+  }
+  return game.title ?? game.league ?? 'Event';
 }
 
 interface WatchlistValue {
@@ -47,7 +68,7 @@ const WatchlistContext = createContext<WatchlistValue | null>(null);
 function snapshot(game: WatchableGame): Omit<WatchlistEntry, 'addedAt'> {
   return {
     gameId: game.id,
-    label: `${game.away_team.name} v ${game.home_team.name}`,
+    label: watchableLabel(game),
     league: game.league,
     sport: game.sport,
     startTime: game.start_time,

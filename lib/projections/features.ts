@@ -22,6 +22,7 @@ import {
   standardDeviation,
   weightedMean,
 } from './math.ts';
+import { sidesOf } from '../home/types.ts';
 import type { SportModelConfig } from './config.ts';
 import type { Game } from '../home/types';
 
@@ -57,10 +58,18 @@ export function toResults(games: readonly Game[], asOf: number): ResultRecord[] 
     const away = game.score?.away;
     if (typeof home !== 'number' || typeof away !== 'number') continue;
 
+    /*
+     * Two sides and a score, or it is not a result this model can learn from.
+     * A race finishes in an order rather than a scoreline, and rating drivers
+     * needs a different model — see lib/projections/racing.ts.
+     */
+    const sides = sidesOf(game);
+    if (!sides) continue;
+
     results.push({
       date,
-      homeTeam: game.home_team.name,
-      awayTeam: game.away_team.name,
+      homeTeam: sides.home.name,
+      awayTeam: sides.away.name,
       homeScore: home,
       awayScore: away,
     });

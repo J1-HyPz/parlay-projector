@@ -80,8 +80,12 @@ export function matchesSearch(game: Game, query: string): boolean {
   if (!term) return true;
 
   const haystack = [
-    game.home_team.name,
-    game.away_team.name,
+    game.home_team?.name,
+    game.away_team?.name,
+    // A race is searched for by what it is called and who is in it, since it
+    // has no two sides to match on.
+    game.title,
+    ...(game.entrants ?? []).map((entrant) => entrant.name),
     game.league,
     game.venue.name,
     game.venue.city,
@@ -334,6 +338,7 @@ export function chipLabel(chipId: string): string {
  * shows when it has no league of its own.
  */
 const SPORT_LABELS: Record<SportId, string> = {
+  f1: 'Formula 1',
   all: 'All',
   nfl: 'American Football',
   nba: 'Basketball',

@@ -11,6 +11,8 @@
 
 import type { ReactNode } from 'react';
 import { CircleAlert, Inbox } from 'lucide-react';
+import { sidesOf } from '@/lib/home/types';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game, NewsArticle } from '@/lib/home/types';
 import { badgeLabel, formatKickoff, separatorFor } from '@/lib/schedule/filters';
 import { STATUS_LABEL, statusTone } from '@/lib/schedule/status';
@@ -114,6 +116,8 @@ function TeamSide({
  * anchor is invalid and would fight the navigation.
  */
 export function HubGameRow({ game, timezone }: { game: Game; timezone: string }) {
+  // Null for a race, which has a field rather than two sides.
+  const sides = sidesOf(game);
   const score = game.score ?? null;
   const started = game.status === 'live' || game.status === 'finished';
 
@@ -125,7 +129,11 @@ export function HubGameRow({ game, timezone }: { game: Game; timezone: string })
     <div className="relative">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
+            : `${eventLabel(game)}, view details`
+        }
         className="panel block p-3 pr-12 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
       >
         <div className="flex items-center gap-2 text-[11px]">
@@ -143,20 +151,24 @@ export function HubGameRow({ game, timezone }: { game: Game; timezone: string })
           </span>
         </div>
 
-        <div className="mt-2.5 space-y-1.5">
-          <TeamSide
-            name={game.away_team.name}
-            logo={game.away_team.logo}
-            score={started ? (score?.away ?? null) : null}
-            emphasise={game.status === 'live'}
-          />
-          <TeamSide
-            name={game.home_team.name}
-            logo={game.home_team.logo}
-            score={started ? (score?.home ?? null) : null}
-            emphasise={game.status === 'live'}
-          />
-        </div>
+        {sides ? (
+          <div className="mt-2.5 space-y-1.5">
+            <TeamSide
+              name={sides.away.name}
+              logo={sides.away.logo}
+              score={started ? (score?.away ?? null) : null}
+              emphasise={game.status === 'live'}
+            />
+            <TeamSide
+              name={sides.home.name}
+              logo={sides.home.logo}
+              score={started ? (score?.home ?? null) : null}
+              emphasise={game.status === 'live'}
+            />
+          </div>
+        ) : (
+          <EventBody game={game} compact />
+        )}
 
         {(detail ?? game.venue.name ?? game.broadcast) && (
           <p className="mt-2.5 truncate border-t border-white/7 pt-2 text-[11px] text-white/30">

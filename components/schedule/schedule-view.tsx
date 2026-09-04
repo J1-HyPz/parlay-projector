@@ -15,6 +15,8 @@
 import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { sidesOf } from '@/lib/home/types';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
@@ -63,7 +65,7 @@ function StatCard({
   );
 }
 
-function TeamLine({ team }: { team: Game['home_team'] }) {
+function TeamLine({ team }: { team: NonNullable<Game['home_team']> }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       {team.logo ? (
@@ -88,11 +90,17 @@ const ROW_GRID =
   'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px_44px]';
 
 function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
+  const sides = sidesOf(game);
+
   return (
     <div className="relative border-b border-white/[.065] last:border-b-0">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
+            : `${eventLabel(game)}, view details`
+        }
         className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 px-4 py-3 transition hover:bg-violet-500/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400/50`}
       >
       <div className="flex min-w-0 items-center gap-2">
@@ -108,8 +116,14 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
       </div>
 
       <div className="min-w-0 space-y-2">
-        <TeamLine team={game.away_team} />
-        <TeamLine team={game.home_team} />
+        {sides ? (
+          <>
+            <TeamLine team={sides.away} />
+            <TeamLine team={sides.home} />
+          </>
+        ) : (
+          <EventBody game={game} compact />
+        )}
       </div>
 
       <div className="min-w-0 text-xs leading-5 text-white/38">
@@ -134,11 +148,17 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
 }
 
 function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
+  const sides = sidesOf(game);
+
   return (
     <div className="relative">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
+            : `${eventLabel(game)}, view details`
+        }
         className="panel block p-4 transition hover:border-violet-400/35 active:bg-white/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
       >
       <div className="flex items-center justify-between gap-3 border-b border-white/7 pb-3 pr-10">
@@ -152,11 +172,17 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
       </div>
 
       <div className="my-4 space-y-3">
-        <TeamLine team={game.away_team} />
-        <div className="pl-[42px] text-[10px] uppercase tracking-wider text-white/25">
-          {separatorFor(game.sport)}
-        </div>
-        <TeamLine team={game.home_team} />
+        {sides ? (
+          <>
+            <TeamLine team={sides.away} />
+            <div className="pl-[42px] text-[10px] uppercase tracking-wider text-white/25">
+              {separatorFor(game.sport)}
+            </div>
+            <TeamLine team={sides.home} />
+          </>
+        ) : (
+          <EventBody game={game} />
+        )}
       </div>
 
       <div className="flex items-end justify-between gap-3 text-[11px]">

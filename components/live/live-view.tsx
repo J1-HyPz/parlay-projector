@@ -12,6 +12,8 @@
 import { Activity, Radio, RefreshCw, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { sidesOf } from '@/lib/home/types';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import type { LiveGame } from '@/lib/live/types';
 import {
@@ -77,7 +79,13 @@ function Score({ value }: { value: number | null }) {
   );
 }
 
-function TeamRow({ team, score }: { team: LiveGame['home_team']; score: number | null }) {
+function TeamRow({
+  team,
+  score,
+}: {
+  team: NonNullable<LiveGame['home_team']>;
+  score: number | null;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -102,11 +110,17 @@ function TeamRow({ team, score }: { team: LiveGame['home_team']; score: number |
 }
 
 function GameCard({ game }: { game: LiveGame }) {
+  const sides = sidesOf(game);
+
   return (
     <div className="relative">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, live, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, live, view game details`
+            : `${eventLabel(game)}, live, view details`
+        }
         className="panel block p-4 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06] md:p-5"
       >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-10">
@@ -128,8 +142,14 @@ function GameCard({ game }: { game: LiveGame }) {
       </div>
 
       <div className="mt-4 space-y-3 border-t border-white/7 pt-4">
-        <TeamRow team={game.away_team} score={game.score.away} />
-        <TeamRow team={game.home_team} score={game.score.home} />
+        {sides ? (
+          <>
+            <TeamRow team={sides.away} score={game.score.away} />
+            <TeamRow team={sides.home} score={game.score.home} />
+          </>
+        ) : (
+          <EventBody game={game} compact />
+        )}
       </div>
 
       {(game.venue.name ?? game.venue.city) && (
@@ -175,19 +195,31 @@ function Skeleton() {
 const MAX_UPCOMING = 12;
 
 function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
+  const sides = sidesOf(game);
+
   return (
     <div className="relative">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} ${separatorFor(game.sport)} ${game.home_team.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`
+            : `${eventLabel(game)}, starts ${formatKickoff(game.start_time, timezone)}, view details`
+        }
         className="panel flex items-center gap-3 p-3 pr-12 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
       >
       <span className="w-12 shrink-0 text-xs font-medium tabular-nums text-violet-300">
         {formatKickoff(game.start_time, timezone)}
       </span>
       <span className="min-w-0 flex-1 truncate text-sm text-white/68">
-        {game.away_team.name} <span className="text-white/28">{separatorFor(game.sport)}</span>{' '}
-        {game.home_team.name}
+        {sides ? (
+          <>
+            {sides.away.name} <span className="text-white/28">{separatorFor(game.sport)}</span>{' '}
+            {sides.home.name}
+          </>
+        ) : (
+          eventLabel(game)
+        )}
       </span>
       <span className="hidden shrink-0 truncate text-[11px] text-white/32 sm:block">
         {game.league ?? sportLabel(game.sport)}

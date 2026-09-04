@@ -6,6 +6,7 @@
  * already in progress) is a correctness question about *when not to send*.
  */
 
+import { fixtureLabel } from '../home/types';
 import type { Game, GameStatus } from '../home/types';
 import type { GameNotification, NotifyEvent, NotifyState } from './types';
 
@@ -75,8 +76,10 @@ export function detectTransitions(
       gameId: game.id,
       league: game.league,
       sport: game.sport,
-      home: game.home_team.name,
-      away: game.away_team.name,
+      // A race has no two sides to name, so both slots carry the event's own
+      // name — which is what the message should say for it anyway.
+      home: game.home_team?.name ?? fixtureLabel(game),
+      away: game.away_team?.name ?? fixtureLabel(game),
       score: event === 'final' ? (game.score ?? null) : null,
     });
   }

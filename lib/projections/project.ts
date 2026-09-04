@@ -55,6 +55,7 @@ import type {
   SettlementRule,
 } from '../markets/types.ts';
 import { fairProbabilityFor } from '../odds/normalise.ts';
+import { sidesOf } from '../home/types.ts';
 import type { Game } from '../home/types';
 
 export interface ProjectOptions {
@@ -232,8 +233,14 @@ export function projectGame(
   const kickoff = game.start_time ? Date.parse(game.start_time) : Number.NaN;
   if (!Number.isFinite(kickoff)) return null;
 
-  const home = set.ratings.get(game.home_team.name);
-  const away = set.ratings.get(game.away_team.name);
+  // This model is built on two sides and a score. A race has a field finishing
+  // in order, which is a different model entirely rather than a special case
+  // of this one.
+  const sides = sidesOf(game);
+  if (!sides) return null;
+
+  const home = set.ratings.get(sides.home.name);
+  const away = set.ratings.get(sides.away.name);
   if (!home || !away) return null;
 
   const extras = {
@@ -244,13 +251,7 @@ export function projectGame(
   const quality = dataQuality(home, away, config, extras);
   if (quality < MIN_DATA_QUALITY) return null;
 
-  const expected = expectedScores(
-    game.home_team.name,
-    game.away_team.name,
-    set,
-    config,
-    kickoff,
-  );
+  const expected = expectedScores(sides.home.name, sides.away.name, set, config, kickoff);
   if (!expected) return null;
 
   const distribution = simulate(expected, config, {
@@ -267,8 +268,8 @@ export function projectGame(
     sport: game.sport,
     league: game.league,
     start_time: game.start_time,
-    home_team: game.home_team.name,
-    away_team: game.away_team.name,
+    home_team: sides.home.name,
+    away_team: sides.away.name,
     outcome: outcomeProbabilities(distribution, config.hasDraw),
     expected_home_score: round(distribution.meanHome, 2),
     expected_away_score: round(distribution.meanAway, 2),
@@ -405,9 +406,11 @@ function marketContextFor(
 ): MarketContext {
   const { game } = context;
   const type = marketTypeOf(rule);
+  // From the projection rather than the fixture: it froze both names, and it
+  // only exists for a fixture that genuinely had two sides.
   const names = {
-    homeTeam: game.home_team.name,
-    awayTeam: game.away_team.name,
+    homeTeam: context.outcome.projection.home_team,
+    awayTeam: context.outcome.projection.away_team,
     sport: game.sport,
   };
 
@@ -465,8 +468,8 @@ function makeSelection(
   const { projection, distribution } = outcome;
 
   const names = {
-    homeTeam: game.home_team.name,
-    awayTeam: game.away_team.name,
+    homeTeam: projection.home_team,
+    awayTeam: projection.away_team,
     sport: game.sport,
   };
 
@@ -489,7 +492,7 @@ function makeSelection(
     sport: game.sport,
     league: game.league,
     start_time: game.start_time,
-    fixture: `${game.away_team.name} v ${game.home_team.name}`,
+    fixture: `${projection.away_team} v ${projection.home_team}`,
 
     type,
     label: market.selection,
@@ -511,7 +514,7 @@ function makeSelection(
     settlement: rule,
     reasoning: orientFactors(
       projection.factors,
-      backingFor(rule, { home: game.home_team.name, away: game.away_team.name }),
+      backingFor(rule, { home: projection.home_team, away: projection.away_team }),
     ),
     projection,
   };

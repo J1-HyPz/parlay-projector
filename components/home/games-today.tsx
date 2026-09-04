@@ -10,6 +10,8 @@
  */
 
 import { SectionHeading, PlaceholderLine } from '@/components/dashboard-ui';
+import { sidesOf } from '@/lib/home/types';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import { WatchButton } from '@/components/watchlist/watch-button';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
@@ -47,11 +49,19 @@ function TeamRow({ name, logo, align }: { name: string; logo: string | null; ali
 }
 
 function GameCard({ game, timezone }: { game: Game; timezone: string }) {
+  // A race has a field rather than two sides, so the middle of the card is
+  // a different thing entirely. The chrome around it is the same.
+  const sides = sidesOf(game);
+
   return (
     <div className="relative min-w-[245px] flex-1">
       <a
         href={`/games/${game.id}`}
-        aria-label={`${game.away_team.name} versus ${game.home_team.name}, view game details`}
+        aria-label={
+          sides
+            ? `${sides.away.name} versus ${sides.home.name}, view game details`
+            : `${eventLabel(game)}, view details`
+        }
         className="panel group block cursor-pointer p-4 transition hover:border-violet-400/35 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
       >
       <div className="flex items-center justify-between gap-2 pr-10 text-[11px]">
@@ -61,15 +71,19 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
         </span>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <TeamRow name={game.home_team.name} logo={game.home_team.logo} align="left" />
+      {sides ? (
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <TeamRow name={sides.home.name} logo={sides.home.logo} align="left" />
+          </div>
+          <span className="shrink-0 text-xs text-white/25">VS</span>
+          <div className="min-w-0 flex-1">
+            <TeamRow name={sides.away.name} logo={sides.away.logo} align="right" />
+          </div>
         </div>
-        <span className="shrink-0 text-xs text-white/25">VS</span>
-        <div className="min-w-0 flex-1">
-          <TeamRow name={game.away_team.name} logo={game.away_team.logo} align="right" />
-        </div>
-      </div>
+      ) : (
+        <EventBody game={game} />
+      )}
 
       <div className="mt-5 flex items-center gap-2 border-t border-white/7 pt-3 text-[11px] text-white/30">
         <span className="size-1.5 shrink-0 rounded-full bg-violet-400/60" />

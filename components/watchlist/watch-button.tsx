@@ -9,7 +9,7 @@
  */
 
 import { Star } from 'lucide-react';
-import { useWatchlist } from './watchlist-context';
+import { useWatchlist, watchableLabel } from './watchlist-context';
 import type { WatchableGame } from './watchlist-context';
 
 export function WatchButton({
@@ -23,7 +23,7 @@ export function WatchButton({
   if (!watchlist) return null;
 
   const watched = watchlist.isWatched(game.id);
-  const fixture = `${game.away_team.name} v ${game.home_team.name}`;
+  const fixture = watchableLabel(game);
 
   return (
     <button

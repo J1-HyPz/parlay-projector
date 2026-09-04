@@ -76,16 +76,33 @@ const FOOTBALL: HubTerminology = {
   transactions: 'Transfers',
 };
 
+/**
+ * Motorsport has its own vocabulary throughout.
+ *
+ * A race weekend is not a fixture, a constructor is not a team, and there are
+ * two championships rather than one table. Transactions are a North American
+ * league concept the provider publishes nothing for here, and the hub reports
+ * that rather than showing a permanently empty section.
+ */
+const MOTORSPORT: HubTerminology = {
+  games: 'Races',
+  teams: 'Drivers',
+  standings: 'Championship',
+  transactions: 'Roster Moves',
+};
+
 const EMOJI: Record<string, string> = {
   'american-football': '\u{1F3C8}',
   basketball: '\u{1F3C0}',
   baseball: '⚾',
   hockey: '\u{1F3D2}',
   football: '⚽',
+  motorsport: '\u{1F3CE}\uFE0F',
   other: '\u{1F3C6}',
 };
 
 function terminologyFor(league: League): HubTerminology {
+  if (league.group === 'motorsport') return MOTORSPORT;
   if (league.group === 'football') return FOOTBALL;
   return league.collegiate ? COLLEGE : AMERICAN;
 }
@@ -308,6 +325,7 @@ export const SIDEBAR_HUBS: readonly SidebarHub[] = [
   { slug: 'nhl', label: 'NHL', emoji: EMOJI.hockey },
   { slug: 'epl', label: 'Premier League', emoji: EMOJI.football },
   { slug: 'ucl', label: 'Champions League', emoji: EMOJI.football },
+  { slug: 'f1', label: 'Formula 1', emoji: EMOJI.motorsport },
 ];
 
 // ---------------------------------------------------------------------------
