@@ -41,6 +41,8 @@ import type { RatingSet } from './features';
 import { candidateSelections, projectGame } from './project';
 import type { ProjectionOutcome } from './project';
 import { marketsForLeagues } from '../odds/service';
+import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
+import { gridFrom, projectRace, raceSelections } from './race-selections';
 import type { GameMarkets } from '../markets/types';
 import type { Game, ConcreteSportId } from '../home/types';
 import type { GameProjection, Selection } from './types';
@@ -313,6 +315,10 @@ async function computeCandidates(
     }
   }
 
+  // Races are a separate model on the same pipeline: same fixtures adapter,
+  // same cache, same Selection shape out the other end.
+  selections.push(...(await raceCandidates(sport, asOf)));
+
   const pricedGames = projections.filter((projection) => quotes.has(projection.game_id)).length;
 
   logger.info('projection_candidates_built', {
@@ -327,6 +333,90 @@ async function computeCandidates(
   });
 
   return { selections, projections, failedLeagues, skipped, pricedGames };
+}
+
+/**
+ * Every race selection across the eligible motorsport competitions.
+ *
+ * Kept apart from the scoring model rather than bolted onto it: a race is
+ * projected as a finishing order and has nothing the other model can use. The
+ * two meet again at `Selection`, which is what lets a race leg travel through
+ * the optimiser, the store and the accuracy figures like any other.
+ */
+async function raceCandidates(
+  sport: ConcreteSportId | 'all',
+  asOf: number,
+): Promise<Selection[]> {
+  const leagues = LEAGUES.filter(
+    (league) => league.format === 'race' && (sport === 'all' || league.sport === sport),
+  );
+  if (leagues.length === 0) return [];
+
+  const today = todayInAppTimezone();
+  const selections: Selection[] = [];
+
+  for (const league of leagues) {
+    try {
+      const sessions = await fixturesForRange(
+        league,
+        addDays(today, -RACE_CONFIG.historyDays),
+        addDays(today, 14),
+        { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
+      );
+
+      const ratings = buildRaceRatings(toRaceResults(sessions, asOf));
+
+      /*
+       * Only the Grand Prix itself is projected. Practice has no result worth
+       * predicting, and qualifying would need a separate pace model rather
+       * than the race model with a different label on it.
+       */
+      const upcoming = sessions.filter(
+        (session) =>
+          session.session === 'Race' &&
+          session.status === 'scheduled' &&
+          session.start_time !== null &&
+          Date.parse(session.start_time) > asOf,
+      );
+
+      for (const race of upcoming) {
+        /*
+         * The grid is only visible once qualifying has genuinely been run and
+         * has already started. Anything else would let a projection see a
+         * session that had not happened when it was made.
+         */
+        const grid = gridFrom(
+          sessions.filter((session) => session.title === race.title),
+          asOf,
+        );
+
+        const outcome = projectRace(race, ratings, {
+          simulations: projectionConfig.simulations,
+          grid,
+          now: new Date(asOf),
+        });
+        if (!outcome) continue;
+
+        selections.push(...raceSelections(race, outcome, ratings));
+      }
+
+      logger.info('race_candidates_built', {
+        league: league.id,
+        rated: ratings.drivers.size,
+        races: ratings.sample,
+        upcoming: upcoming.length,
+        selections: selections.length,
+      });
+    } catch (error) {
+      // A motorsport outage must not take the rest of the card with it.
+      logger.warn('race_candidates_failed', {
+        league: league.id,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+    }
+  }
+
+  return selections;
 }
 
 /**

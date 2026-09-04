@@ -75,6 +75,9 @@ function backedSide(rule: SettlementRule): 'home' | 'away' | null {
     case 'team_total':
       return rule.side;
     case 'total':
+    case 'finish_position':
+    case 'head_to_head':
+      // A race backs a named competitor rather than a side of the fixture.
       return null;
   }
 }
@@ -86,11 +89,34 @@ function backedSide(rule: SettlementRule): 'home' | 'away' | null {
  * "Arsenal Win" in a list. A total has no team, so it is named for what it is.
  */
 function subject(record: PredictionRecordV2): string {
-  const side = backedSide(record.settlement);
+  const rule = record.settlement;
+  // A race names its competitor on the rule itself.
+  if (rule.kind === 'finish_position' || rule.kind === 'head_to_head') return rule.entrant;
+
+  const side = backedSide(rule);
   if (side === 'home' && record.home_team) return record.home_team;
   if (side === 'away' && record.away_team) return record.away_team;
-  if (record.settlement.kind === 'total') return 'the total';
+  if (rule.kind === 'total') return 'the total';
   return record.selection;
+}
+
+/** `second`, `fifth`, `12th` — how a finishing position is said aloud. */
+const PLACE_WORDS = [
+  '',
+  'first',
+  'second',
+  'third',
+  'fourth',
+  'fifth',
+  'sixth',
+  'seventh',
+  'eighth',
+  'ninth',
+  'tenth',
+];
+
+function place(position: number): string {
+  return PLACE_WORDS[position] ?? `P${position}`;
 }
 
 function teamName(record: PredictionRecordV2, side: 'home' | 'away'): string {
@@ -171,6 +197,28 @@ export function missReason(record: PredictionRecordV2): string | null {
       return `${team} scored ${points(scored, record.sport)}, ${
         rule.direction === 'over' ? 'below' : 'above'
       } the ${plain(rule.line)} line.`;
+    }
+
+    case 'finish_position': {
+      const finished = actual.position;
+      if (finished === null || finished === undefined) return null;
+
+      if (rule.within === 1) {
+        return `${rule.entrant} was projected to win and finished ${place(finished)}.`;
+      }
+      const outside = finished - rule.within;
+      const target = rule.within === 3 ? 'the podium' : `the top ${rule.within}`;
+      return `${rule.entrant} finished ${place(finished)}, ${
+        outside === 1 ? 'one position' : `${outside} positions`
+      } outside ${target}.`;
+    }
+
+    case 'head_to_head': {
+      const finished = actual.position;
+      if (finished === null || finished === undefined) {
+        return `${rule.over} was classified ahead of ${rule.entrant}.`;
+      }
+      return `${rule.entrant} finished ${place(finished)}, behind ${rule.over}.`;
     }
   }
 }

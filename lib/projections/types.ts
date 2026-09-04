@@ -134,7 +134,11 @@ export type SelectionType =
   | 'spread'
   | 'total'
   | 'team_total'
-  | 'player_performance';
+  | 'player_performance'
+  /** Motorsport: a competitor classified inside a given position. */
+  | 'finish_position'
+  /** Motorsport: one competitor classified ahead of another. */
+  | 'head_to_head';
 
 export interface Selection {
   id: string;
@@ -208,8 +212,61 @@ export interface Selection {
    */
   reasoning: OrientedFactors;
 
-  /** The projection this came from, for the score shown beside the selection. */
-  projection: GameProjection;
+  /**
+   * The projection this came from.
+   *
+   * Absent for a race, which is projected as a finishing order rather than as
+   * a scoreline — `race` carries that instead. Exactly one of the two is
+   * always present.
+   */
+  projection?: GameProjection;
+  /** The race projection, for a competition contested by a field. */
+  race?: RaceProjection;
+}
+
+/**
+ * The model's view of one race.
+ *
+ * The counterpart to `GameProjection` for an event with a field rather than
+ * two sides. There is no expected score and no margin, because a race has
+ * neither; what it has is an expected order, and that is what this reports.
+ */
+export interface RaceProjection {
+  game_id: string;
+  /** The Grand Prix, e.g. `Italian Grand Prix`. */
+  event: string;
+  /** Which session, e.g. `Race`. */
+  session: string | null;
+  start_time: string | null;
+  field_size: number;
+  /** Per-driver outcome probabilities, strongest first. */
+  entrants: RaceEntrantProjection[];
+  confidence: number;
+  data_quality: DataQuality;
+  quality_reasons: string[];
+  model_version: string;
+  factors: ProjectionFactor[];
+  generated_at: string;
+  /**
+   * Whether qualifying had been run when this was generated.
+   *
+   * Recorded because it changes what the projection could see. A pre-qualifying
+   * projection is never revised with a grid it did not have — see the
+   * look-ahead rules in docs/f1.md.
+   */
+  after_qualifying: boolean;
+}
+
+export interface RaceEntrantProjection {
+  driver: string;
+  win: number;
+  podium: number;
+  top_five: number;
+  points: number;
+  /** Mean finishing position across the simulations. */
+  mean_position: number;
+  /** Grid slot, once qualifying has run. Null before it. */
+  grid: number | null;
 }
 
 /**
@@ -429,6 +486,16 @@ export interface ActualOutcome {
   away_score: number;
   margin: number;
   total: number;
+  /**
+   * Where the backed competitor was classified, for an event contested by a
+   * field.
+   *
+   * A race has no score to record, so this is the equivalent: the position the
+   * result was judged against. Absent for every two-sided fixture.
+   */
+  position?: number | null;
+  /** How many competitors were classified, so a position has a denominator. */
+  field_size?: number | null;
 }
 
 /**

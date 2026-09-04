@@ -71,6 +71,16 @@ export function satisfiedBy(
       const score = rule.side === 'home' ? home : away;
       return rule.direction === 'over' ? score > rule.line : score < rule.line;
     }
+
+    /*
+     * Race markets are not decided by a two-sided scoreline and cannot be
+     * judged here. They are evaluated against simulated finishing orders in
+     * `racing.ts`, and the optimiser takes at most one leg per race so no
+     * combination ever needs both paths at once.
+     */
+    case 'finish_position':
+    case 'head_to_head':
+      return false;
   }
 }
 

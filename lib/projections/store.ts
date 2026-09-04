@@ -193,6 +193,7 @@ export function publishPredictions(
       if (known.has(selection.id)) continue;
 
       const projection = selection.projection;
+      const race = selection.race;
 
       created.push({
         id: selection.id,
@@ -202,12 +203,16 @@ export function publishPredictions(
         selection_type: selection.type,
         selection: selection.label,
         settlement: selection.settlement,
-        home_team: projection.home_team,
-        away_team: projection.away_team,
+        // A race has no two sides. The competitor is named on the settlement
+        // rule, which is what the result is judged against anyway.
+        home_team: projection?.home_team ?? null,
+        away_team: projection?.away_team ?? null,
         model_probability: selection.probability,
         model_confidence: selection.confidence,
         data_quality: selection.data_quality,
-        model_version: MODEL_VERSION,
+        // Race predictions carry their own model version: the two models are
+        // not comparable and must never be averaged together silently.
+        model_version: race ? race.model_version : MODEL_VERSION,
         risk,
         created_at: now,
         game_start: selection.start_time,
@@ -218,12 +223,21 @@ export function publishPredictions(
         // never asserted at publication.
         final_pre_game: false,
         parlay_id: parlayId,
-        projected: {
-          home_score: projection.expected_home_score,
-          away_score: projection.expected_away_score,
-          margin: projection.expected_margin,
-          total: projection.expected_total,
-        },
+        /*
+         * The scoreline the model published, frozen with the prediction.
+         *
+         * Null for a race, which projects a finishing order rather than a
+         * score. Its equivalent — where the driver was actually classified —
+         * is recorded on `actual` at settlement.
+         */
+        projected: projection
+          ? {
+              home_score: projection.expected_home_score,
+              away_score: projection.expected_away_score,
+              margin: projection.expected_margin,
+              total: projection.expected_total,
+            }
+          : null,
         actual: null,
         attempts: 0,
         next_attempt_at: null,

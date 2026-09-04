@@ -17,6 +17,14 @@ export interface FinalScore {
   away: number;
   /** Normalised status of the completed game. */
   status: 'finished' | 'cancelled' | 'postponed';
+  /**
+   * The classified finishing order, for an event contested by a field.
+   *
+   * Present only for motorsport. A retirement still appears here with the
+   * position it was classified in — which is what makes a retired driver lose
+   * a top-ten selection rather than voiding it.
+   */
+  order?: readonly { entrant: string; position: number }[];
 }
 
 /**
@@ -70,9 +78,41 @@ export function settle(rule: SettlementRule, final: FinalScore): PredictionStatu
       return (rule.direction === 'over') === over ? 'won' : 'lost';
     }
 
+    case 'finish_position': {
+      const position = classified(final, rule.entrant);
+      /*
+       * Not classified at all means the driver never took part — a withdrawal
+       * or a non-start. That is untested rather than failed, so it voids.
+       * A retirement is different: it is classified, and it loses.
+       */
+      if (position === null) return 'void';
+      return position <= rule.within ? 'won' : 'lost';
+    }
+
+    case 'head_to_head': {
+      const mine = classified(final, rule.entrant);
+      const theirs = classified(final, rule.over);
+      // Either side absent leaves nothing to compare.
+      if (mine === null || theirs === null) return 'void';
+      if (mine === theirs) return 'push';
+      return mine < theirs ? 'won' : 'lost';
+    }
+
     default:
       return 'void';
   }
+}
+
+/**
+ * Where a competitor was classified, or null if they were not.
+ *
+ * Matched on the name the prediction froze, which is the name the provider
+ * published. Nothing is fuzzy-matched: a near-miss would settle a prediction
+ * against the wrong driver, which is worse than leaving it open.
+ */
+function classified(final: FinalScore, entrant: string): number | null {
+  const row = final.order?.find((entry) => entry.entrant === entrant);
+  return row ? row.position : null;
 }
 
 /** Plain description of what happened, stored alongside the outcome. */

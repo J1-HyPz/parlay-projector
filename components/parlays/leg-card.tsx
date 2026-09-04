@@ -94,14 +94,23 @@ function Outcome({
   return (
     <div className="mt-3 rounded-xl border border-white/8 bg-white/[.02] p-3">
       <dl className="space-y-1.5 text-[11px]">
-        {tracked.actual && (
+        {/* A race is classified in a position; a fixture ends on a score. */}
+        {typeof tracked.actual?.position === 'number' ? (
           <div className="flex justify-between gap-3">
-            <dt className="text-white/28">{settled ? 'Final score' : 'Current score'}</dt>
-            <dd className="tabular-nums text-white/65">
-              {selection.projection.home_team} {tracked.actual.home_score} –{' '}
-              {tracked.actual.away_score} {selection.projection.away_team}
-            </dd>
+            <dt className="text-white/28">Classified</dt>
+            <dd className="tabular-nums text-white/65">P{tracked.actual.position}</dd>
           </div>
+        ) : (
+          tracked.actual &&
+          selection.projection && (
+            <div className="flex justify-between gap-3">
+              <dt className="text-white/28">{settled ? 'Final score' : 'Current score'}</dt>
+              <dd className="tabular-nums text-white/65">
+                {selection.projection.home_team} {tracked.actual.home_score} –{' '}
+                {tracked.actual.away_score} {selection.projection.away_team}
+              </dd>
+            </div>
+          )
         )}
         <div className="flex justify-between gap-3">
           <dt className="shrink-0 text-white/28">Required</dt>
@@ -128,7 +137,7 @@ export function LegCard({
   index: number;
   tracked?: LegTracking;
 }) {
-  const { projection, market, reasoning } = selection;
+  const { projection, race, market, reasoning } = selection;
   const started = tracked !== undefined && tracked.status !== 'pending';
 
   return (
@@ -206,6 +215,36 @@ export function LegCard({
 
       <Expandable label="Analysis">
         <div className="mt-3 space-y-3">
+          {/* A race has no scoreline to project. What it has is an expected
+              finishing order, and that is what the panel shows instead. */}
+          {race ? (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-white/28">
+                Projected finishing order
+              </p>
+              <ol className="mt-1.5 space-y-1">
+                {race.entrants.slice(0, 5).map((entrant, place) => (
+                  <li
+                    key={entrant.driver}
+                    className="flex items-baseline justify-between gap-3 text-[11px]"
+                  >
+                    <span className="min-w-0 truncate text-white/60">
+                      <span className="mr-2 tabular-nums text-white/30">{place + 1}</span>
+                      {entrant.driver}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-white/45">
+                      {Math.round(entrant.podium * 100)}% podium
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-1.5 text-[10px] text-white/28">
+                {race.after_qualifying
+                  ? 'Generated after qualifying, so the starting grid is known and used.'
+                  : 'Generated before qualifying, so the starting grid is not yet known.'}
+              </p>
+            </div>
+          ) : projection ? (
           <ProjectedScore
             homeTeam={projection.home_team}
             awayTeam={projection.away_team}
@@ -215,6 +254,7 @@ export function LegCard({
             homeRange={projection.likely_home_range}
             awayRange={projection.likely_away_range}
           />
+          ) : null}
 
           <div className="border-t border-white/7 pt-3">
             <p className="text-[10px] uppercase tracking-wider text-white/28">
@@ -264,13 +304,13 @@ export function LegCard({
             </span>
             <DataQualityBadge
               label={qualityLabel(selection.data_quality)}
-              reasons={projection.quality_reasons}
+              reasons={(race ?? projection)?.quality_reasons ?? []}
             />
           </div>
 
-          {projection.quality_reasons.length > 0 && (
+          {((race ?? projection)?.quality_reasons.length ?? 0) > 0 && (
             <ul className="space-y-1">
-              {projection.quality_reasons.slice(0, 3).map((reason) => (
+              {((race ?? projection)?.quality_reasons ?? []).slice(0, 3).map((reason) => (
                 <li key={reason} className="text-[10px] leading-5 text-white/28">
                   {reason}
                 </li>

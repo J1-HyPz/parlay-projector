@@ -130,6 +130,17 @@ export function backingFor(rule: SettlementRule, sides: Sides): Backing {
         opponent: nameOf(rule.side === 'home' ? 'away' : 'home', sides),
         lean: rule.direction === 'over' ? 'high' : 'low',
       };
+
+    /*
+     * A race backs a competitor, not a side. There is no opponent for a
+     * finishing market — every other driver is one — so evidence about anybody
+     * else is context rather than an argument either way.
+     */
+    case 'finish_position':
+      return { team: rule.entrant, opponent: null, lean: null };
+
+    case 'head_to_head':
+      return { team: rule.entrant, opponent: rule.over, lean: null };
   }
 }
 

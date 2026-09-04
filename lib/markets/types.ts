@@ -43,7 +43,11 @@ export type MarketType =
   | 'spread'
   | 'total'
   | 'team_total'
-  | 'double_chance';
+  | 'double_chance'
+  /** Motorsport: a competitor finishing inside a given position. */
+  | 'finish_position'
+  /** Motorsport: one competitor classified ahead of another. */
+  | 'head_to_head';
 
 export const MARKET_TYPES: readonly MarketType[] = [
   'moneyline',
@@ -51,6 +55,8 @@ export const MARKET_TYPES: readonly MarketType[] = [
   'total',
   'team_total',
   'double_chance',
+  'finish_position',
+  'head_to_head',
 ];
 
 /**
@@ -88,7 +94,18 @@ export type SettlementRule =
   | { kind: 'double_chance'; sides: Side[] }
   | { kind: 'spread'; side: 'home' | 'away'; line: number }
   | { kind: 'total'; direction: Direction; line: number }
-  | { kind: 'team_total'; side: 'home' | 'away'; direction: Direction; line: number };
+  | { kind: 'team_total'; side: 'home' | 'away'; direction: Direction; line: number }
+  /**
+   * A competitor classified no worse than `within`.
+   *
+   * One rule covers every finishing market a race has: 1 is the win, 3 the
+   * podium, 5 a top five, 10 a points finish. `entrant` is the competitor's
+   * name as the provider published it, frozen with the prediction like every
+   * other settlement input.
+   */
+  | { kind: 'finish_position'; entrant: string; within: number }
+  /** One competitor classified ahead of another in the same session. */
+  | { kind: 'head_to_head'; entrant: string; over: string };
 
 /** The market a settlement rule belongs to. */
 export function marketTypeOf(rule: SettlementRule): MarketType {
@@ -103,7 +120,29 @@ export function marketTypeOf(rule: SettlementRule): MarketType {
       return 'total';
     case 'team_total':
       return 'team_total';
+    case 'finish_position':
+      return 'finish_position';
+    case 'head_to_head':
+      return 'head_to_head';
   }
+}
+
+/**
+ * How many places a finishing market covers, by its familiar name.
+ *
+ * Only these are produced. A "top seven" is arithmetically as easy but nobody
+ * offers one, and generating markets purely to have more of them is the habit
+ * this application avoids.
+ */
+export const FINISH_MARKETS: readonly { within: number; label: string }[] = [
+  { within: 1, label: 'Race Winner' },
+  { within: 3, label: 'Podium Finish' },
+  { within: 5, label: 'Top 5 Finish' },
+  { within: 10, label: 'Points Finish' },
+];
+
+export function finishMarketLabel(within: number): string {
+  return FINISH_MARKETS.find((entry) => entry.within === within)?.label ?? `Top ${within} Finish`;
 }
 
 // ---------------------------------------------------------------------------

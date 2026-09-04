@@ -18,6 +18,7 @@
  * Pure, and directly unit-testable.
  */
 
+import { finishMarketLabel } from './types.ts';
 import type { MarketType, SettlementRule, Side } from './types.ts';
 import type { ConcreteSportId } from '../home/types';
 
@@ -68,6 +69,20 @@ const VOCABULARY: Partial<Record<ConcreteSportId, Vocabulary>> = {
     spread: 'Goal Handicap',
     moneyline: 'Match Result',
     hasDraw: true,
+  },
+  /*
+   * Motorsport shares none of the vocabulary above. It is a race, not a game;
+   * it is finished in a position, not won by a score; and it has no handicap
+   * or moneyline at all. The entries that cannot apply are named for what a
+   * race does have, so a stray call reads sensibly rather than saying "Point
+   * Spread" about a Grand Prix.
+   */
+  f1: {
+    unit: 'place',
+    contest: 'race',
+    spread: 'Finishing Position',
+    moneyline: 'Race Winner',
+    hasDraw: false,
   },
 };
 
@@ -120,7 +135,24 @@ export function marketLabel(type: MarketType, sport: ConcreteSportId): string {
       return `Team Total ${vocabulary.unit === 'point' ? 'Points' : `${capitalise(vocabulary.unit)}s`}`;
     case 'double_chance':
       return 'Double Chance';
+    case 'finish_position':
+      return 'Finishing Position';
+    case 'head_to_head':
+      return 'Head-to-Head';
   }
+}
+
+/**
+ * The specific name of a finishing market.
+ *
+ * `marketLabel` only knows the market type, which cannot distinguish a podium
+ * from a points finish — those differ by how many places they cover, which
+ * lives on the rule.
+ */
+export function raceMarketLabel(rule: SettlementRule): string {
+  if (rule.kind === 'finish_position') return finishMarketLabel(rule.within);
+  if (rule.kind === 'head_to_head') return 'Driver Head-to-Head';
+  return 'Finishing Position';
 }
 
 function capitalise(text: string): string {
@@ -158,6 +190,15 @@ export function selectionLabel(rule: SettlementRule, names: FixtureNames): strin
 
     case 'team_total':
       return `${teamFor(rule.side, names)} ${capitalise(rule.direction)} ${rule.line} ${vocabulary.unit}s`;
+
+    case 'finish_position': {
+      if (rule.within === 1) return `${rule.entrant} to win`;
+      if (rule.within === 3) return `${rule.entrant} podium`;
+      return `${rule.entrant} top ${rule.within}`;
+    }
+
+    case 'head_to_head':
+      return `${rule.entrant} to beat ${rule.over}`;
   }
 }
 
@@ -262,6 +303,25 @@ export function whatNeedsToHappen(rule: SettlementRule, names: FixtureNames): st
         ? `${team} must not score.${push}`
         : `${team} must score ${plural(most, unit)} or fewer.${push}`;
     }
+
+    case 'finish_position': {
+      if (rule.within === 1) {
+        return `${rule.entrant} must win the ${contest}.`;
+      }
+      const ordinal = rule.within === 3 ? 'top three' : `top ${rule.within}`;
+      /*
+       * A retirement is still classified, so it is a losing position rather
+       * than an untested selection. Saying so is the difference between a
+       * reader understanding this market and being surprised by it.
+       */
+      const points = rule.within === 10 ? ' A points finish in a standard race.' : '';
+      return `${rule.entrant} must be classified in the ${ordinal}. Finishing ${
+        rule.within + 1
+      }th or lower, or retiring, loses this selection.${points}`;
+    }
+
+    case 'head_to_head':
+      return `${rule.entrant} must be classified ahead of ${rule.over}. If ${rule.entrant} retires and ${rule.over} does not, this loses.`;
   }
 }
 
@@ -288,6 +348,10 @@ export function probabilityLabel(type: MarketType): string {
     case 'total':
     case 'team_total':
       return 'Over/under probability';
+    case 'finish_position':
+      return 'Finish probability';
+    case 'head_to_head':
+      return 'Head-to-head probability';
   }
 }
 
@@ -306,5 +370,9 @@ export function probabilityMeaning(type: MarketType, sport: ConcreteSportId): st
       return 'How often the combined score falls on this side of the line across the simulations.';
     case 'team_total':
       return "How often this team's own score falls on this side of the line across the simulations.";
+    case 'finish_position':
+      return 'How often this driver is classified inside that position across the simulated races.';
+    case 'head_to_head':
+      return 'How often this driver is classified ahead of the other across the simulated races.';
   }
 }

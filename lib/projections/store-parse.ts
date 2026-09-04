@@ -81,6 +81,22 @@ export function isSettlementRule(value: unknown): value is SettlementRule {
         typeof rule.line === 'number' &&
         Number.isFinite(rule.line)
       );
+    case 'finish_position':
+      return (
+        typeof rule.entrant === 'string' &&
+        rule.entrant.length > 0 &&
+        typeof rule.within === 'number' &&
+        Number.isInteger(rule.within) &&
+        rule.within > 0
+      );
+    case 'head_to_head':
+      return (
+        typeof rule.entrant === 'string' &&
+        rule.entrant.length > 0 &&
+        typeof rule.over === 'string' &&
+        rule.over.length > 0 &&
+        rule.entrant !== rule.over
+      );
     default:
       return false;
   }
