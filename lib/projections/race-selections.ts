@@ -48,6 +48,15 @@ export interface RaceProjectOptions {
   simulations: number;
   /** Grid slots by driver, where qualifying has already been run. */
   grid?: ReadonlyMap<string, number> | null;
+  /**
+   * Who is expected to take part, when the session itself lists nobody.
+   *
+   * The provider publishes an entry list only once a session has run, so every
+   * upcoming race arrives with an empty field. These names come from a session
+   * that genuinely happened rather than from a guess — see `fieldSource`.
+   */
+  field?: readonly string[] | null;
+  fieldSource?: 'weekend' | 'recent';
   now?: Date;
   seed?: number;
 }
@@ -74,7 +83,16 @@ export function projectRace(
   ratings: RaceRatings,
   options: RaceProjectOptions,
 ): RaceOutcome | null {
-  const entrants = (game.entrants ?? []).map((entrant) => entrant.name);
+  /*
+   * The session's own entry list where it has one — which in practice means a
+   * session that has already been run. An upcoming race has none, so the
+   * caller supplies the field from something that has.
+   */
+  const published = (game.entrants ?? []).map((entrant) => entrant.name);
+  const entrants = published.length >= MIN_FIELD ? published : (options.field ?? []);
+  const fieldSource: 'session' | 'weekend' | 'recent' =
+    published.length >= MIN_FIELD ? 'session' : (options.fieldSource ?? 'recent');
+
   if (entrants.length < MIN_FIELD) return null;
 
   const grid = options.grid ?? null;
@@ -122,10 +140,20 @@ export function projectRace(
     session: game.session ?? null,
     start_time: game.start_time,
     field_size: entrants.length,
+    field_source: fieldSource,
     entrants: projected,
     confidence,
     data_quality: round(quality, 3),
-    quality_reasons: raceQualityReasons(entrants, ratings, hasGrid),
+    quality_reasons: [
+      ...raceQualityReasons(entrants, ratings, hasGrid),
+      ...(fieldSource === 'session'
+        ? []
+        : [
+            fieldSource === 'weekend'
+              ? 'No entry list is published for the race itself, so the field is taken from a session already run this weekend.'
+              : 'No entry list is published for this weekend yet, so the field is taken from the most recent completed race.',
+          ]),
+    ],
     model_version: RACE_MODEL_VERSION,
     // Evidence for the field's strongest driver, which is what a fixture-level
     // panel shows. A selection re-derives it for whichever driver it backs.

@@ -379,20 +379,56 @@ async function raceCandidates(
           Date.parse(session.start_time) > asOf,
       );
 
+      /*
+       * The field, from the last race actually run.
+       *
+       * The provider publishes an entry list only once a session has taken
+       * place, so every upcoming race arrives with nobody in it. Taking the
+       * most recent classified field is an assumption — that broadly the same
+       * drivers turn up — but it is an assumption about observed people rather
+       * than an invented list, and the projection records that it made it.
+       */
+      const lastRace = [...sessions]
+        .filter(
+          (session) =>
+            session.session === 'Race' &&
+            session.status === 'finished' &&
+            (session.entrants?.length ?? 0) > 0 &&
+            session.start_time !== null &&
+            Date.parse(session.start_time) < asOf,
+        )
+        .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
+      const recentField = (lastRace?.entrants ?? []).map((entrant) => entrant.name);
+
       for (const race of upcoming) {
+        const weekend = sessions.filter((session) => session.title === race.title);
+
         /*
          * The grid is only visible once qualifying has genuinely been run and
          * has already started. Anything else would let a projection see a
          * session that had not happened when it was made.
          */
-        const grid = gridFrom(
-          sessions.filter((session) => session.title === race.title),
-          asOf,
-        );
+        const grid = gridFrom(weekend, asOf);
+
+        // This weekend's own running is a better field than the last race's:
+        // it is the actual entry list, and it reflects any driver change.
+        const thisWeekend = weekend
+          .filter(
+            (session) =>
+              session.status === 'finished' &&
+              (session.entrants?.length ?? 0) > 0 &&
+              session.start_time !== null &&
+              Date.parse(session.start_time) < asOf,
+          )
+          .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
+
+        const field = (thisWeekend?.entrants ?? []).map((entrant) => entrant.name);
 
         const outcome = projectRace(race, ratings, {
           simulations: projectionConfig.simulations,
           grid,
+          field: field.length > 0 ? field : recentField,
+          fieldSource: field.length > 0 ? 'weekend' : 'recent',
           now: new Date(asOf),
         });
         if (!outcome) continue;

@@ -239,6 +239,16 @@ export interface RaceProjection {
   session: string | null;
   start_time: string | null;
   field_size: number;
+  /**
+   * Where the list of competitors came from.
+   *
+   * A future session publishes no entry list, so the field has to be taken
+   * from somewhere that has actually happened: this weekend's own practice or
+   * qualifying, or failing that the last race that was run. Recorded because
+   * it changes how much the projection is worth — and because a reader is
+   * entitled to know the model is assuming the same drivers turn up.
+   */
+  field_source: 'session' | 'weekend' | 'recent';
   /** Per-driver outcome probabilities, strongest first. */
   entrants: RaceEntrantProjection[];
   confidence: number;
