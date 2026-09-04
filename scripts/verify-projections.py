@@ -421,16 +421,83 @@ def check_formula_one():
     print(f"  formula 1: {len(games)} sessions across {len(sessions)} kinds ({listed})")
 
 
-def check_race_sessions_are_not_projected():
-    """A race must never reach the scoring model.
+def check_race_projections():
+    """Races are projected by the finishing-order model, not the scoring one.
 
-    That model is built on two sides and a score. Asked about a Grand Prix it
-    should produce nothing at all, rather than a number derived from a fixture
-    shape the event does not have.
+    An F1-only line is usually impossible on purpose: the optimiser takes at
+    most one leg per race, so a two-leg line needs two Grand Prix weekends
+    inside the window. What matters is that race selections are generated and
+    well formed, and that no line ever takes two legs from one race.
     """
-    body = get("/api/parlays?sport=f1&risk=medium")
-    assert body.get("parlay") is None, "the two-sided model produced a line for a race"
-    print("  formula 1: correctly absent from the two-sided projection engine")
+    body = get("/api/parlays?sport=f1&risk=medium&markets=any")
+    eligible = body.get("eligible", 0)
+    races = body.get("games_available", 0)
+
+    parlay = body.get("parlay")
+    if parlay:
+        groups = [leg["game_id"] for leg in parlay["legs"]]
+        assert len(set(groups)) == len(groups), "two legs from the same race"
+
+        for leg in parlay["legs"]:
+            # No bookmaker publishes motorsport markets on this feed, so a
+            # verified race market would mean something had been invented.
+            assert leg["market"]["availability"] == "model_only", (
+                f"{leg['id']} claims a bookmaker offers it"
+            )
+            assert leg["market"]["price"] is None, "a race leg carries a price"
+            assert leg.get("race"), "a race leg has no race projection"
+            assert leg.get("projection") is None, "a race leg carries a scoreline projection"
+            assert leg["explanation"], "a race leg explains nothing"
+            assert 0 < leg["probability"] < 1, "a race probability out of range"
+            assert leg["race"]["model_version"].endswith("race"), "wrong model version"
+
+        print(
+            f"  formula 1 projections: {len(parlay['legs'])} legs, "
+            f"{eligible} eligible across {races} races"
+        )
+        return
+
+    print(
+        f"  formula 1 projections: {eligible} eligible selections across {races} races "
+        "(one leg per race, so a line needs two weekends)"
+    )
+
+
+def check_race_market_shape():
+    """Every generated race market must be internally consistent.
+
+    Podium can never be less likely than a win, and points never less likely
+    than a podium — they come off the same simulated orders, so a violation
+    would mean the markets had drifted apart.
+    """
+    body = get("/api/parlays?sport=all&risk=high&legs=6&markets=any")
+    parlay = body.get("parlay")
+    if not parlay:
+        print("  formula 1 markets: no line to inspect")
+        return
+
+    race_legs = [leg for leg in parlay["legs"] if leg["sport"] == "f1"]
+    if not race_legs:
+        print("  formula 1 markets: no race leg in this line")
+        return
+
+    for leg in race_legs:
+        entrants = leg["race"]["entrants"]
+        for entrant in entrants:
+            assert entrant["win"] <= entrant["podium"] + 1e-6, (
+                f"{entrant['driver']}: win exceeds podium"
+            )
+            assert entrant["podium"] <= entrant["top_five"] + 1e-6, (
+                f"{entrant['driver']}: podium exceeds top five"
+            )
+            assert entrant["top_five"] <= entrant["points"] + 1e-6, (
+                f"{entrant['driver']}: top five exceeds points"
+            )
+        # Exactly one driver wins each simulated race.
+        total = sum(entrant["win"] for entrant in entrants)
+        assert 0.9 < total < 1.1, f"win probabilities sum to {total:.3f}"
+
+    print(f"  formula 1 markets: {len(race_legs)} race legs, all internally consistent")
 
 
 def check_formula_one_hub():
@@ -485,7 +552,8 @@ def main():
 
     print("--- formula 1 ---")
     check_formula_one()
-    check_race_sessions_are_not_projected()
+    check_race_projections()
+    check_race_market_shape()
     check_formula_one_hub()
 
     print("projection engine verified against live data")
