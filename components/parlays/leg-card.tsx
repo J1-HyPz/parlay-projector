@@ -40,7 +40,17 @@ import type { LegStatus } from './leg-status';
 export interface LegTracking {
   status: LegStatus;
   result: string | null;
-  actual: { home_score: number; away_score: number } | null;
+  /**
+   * What actually happened.
+   *
+   * A fixture ends on a score; a race ends in a classified position. Both
+   * shapes travel here, and the card shows whichever it was given.
+   */
+  actual: {
+    home_score: number;
+    away_score: number;
+    position?: number | null;
+  } | null;
   final_pre_game: boolean;
 }
 

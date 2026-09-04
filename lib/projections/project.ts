@@ -365,6 +365,17 @@ export function probabilityFor(
 
     case 'team_total':
       return teamTotalProbability(distribution, rule.side, rule.direction, rule.line);
+
+    /*
+     * Race markets are read off simulated finishing orders in
+     * `race-model.ts`, not off a two-sided distribution. Nothing in this file
+     * constructs one, so these are unreachable — but the switch is exhaustive
+     * so that adding a market forces a decision here rather than compiling
+     * quietly.
+     */
+    case 'finish_position':
+    case 'head_to_head':
+      return 0;
   }
 }
 
@@ -381,6 +392,10 @@ function selectionTypeOf(rule: SettlementRule): SelectionType {
       return 'total';
     case 'team_total':
       return 'team_total';
+    case 'finish_position':
+      return 'finish_position';
+    case 'head_to_head':
+      return 'head_to_head';
   }
 }
 
