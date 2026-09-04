@@ -272,3 +272,31 @@ the premium key in `SPORTS_API_KEY` and will determine actual coverage.
 If a competition turns out to have too little history, the projection engine
 already handles it correctly: below the data-quality floor it produces no
 projection at all rather than a weak one.
+
+## Formula 1
+
+Motorsport comes from the same feed as everything else — no separate provider,
+no credentials, no additional environment variables.
+
+**Capabilities:** season calendar, sessions (Practice 1-3, Sprint Shootout,
+Sprint, Qualifying, Race) with their own start times and statuses, classified
+finishing order per session, driver standings and constructor standings.
+
+**Not published:** lap times, gaps, per-race points, retirement or
+disqualification flags, lap counts, live timing, tyre data, pit stops, weather.
+There are also no bookmaker prices for any motorsport market, so every F1
+selection is reported as an unverified model projection.
+
+**One quirk worth knowing:** an *upcoming* session publishes no entry list, so
+the field for a race to come is taken from a session that has actually run —
+this weekend's practice or qualifying where available, otherwise the most
+recent completed race. The projection records which, and says so in its
+data-quality reasons.
+
+Standings arrive on the `v2` path as two children, `Driver Standings` and
+`Constructor Standings`. The drivers' table ranks people rather than clubs, so
+entries carry `athlete` where every other competition carries `team`; the
+shared normaliser reads either.
+
+Rate limits and fallback behaviour are the primary provider's, unchanged. See
+docs/f1.md for the data model, the projection method and the settlement rules.
