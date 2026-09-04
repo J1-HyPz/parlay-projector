@@ -115,7 +115,19 @@ def check_parlays(sport="all"):
             probability = leg["probability"]
             assert 0 < probability < 1, f"{risk}: leg probability {probability}"
             assert leg["label"], f"{risk}: a leg with no label"
-            assert leg["projection"]["expected_home_score"] >= 0
+
+            # A fixture projects a scoreline; a race projects a finishing
+            # order. Exactly one of the two is present, never both.
+            race = leg.get("race")
+            projection = leg.get("projection")
+            assert bool(race) != bool(projection), (
+                f"{risk}: {leg['label']} carries {'both' if race else 'neither'} projection shape"
+            )
+            if race:
+                assert race["field_size"] >= 6, f"{risk}: a race with no field"
+                assert race["entrants"], f"{risk}: a race projection with no drivers"
+            else:
+                assert projection["expected_home_score"] >= 0
             product *= probability
             check_leg_market(leg, f"{risk}: {leg['label']}")
 
