@@ -34,8 +34,14 @@ export function AccuracyPanel() {
   const correctPct =
     accuracy && accuracy.settled > 0 ? (accuracy.correct / accuracy.settled) * 100 : 0;
 
+  /*
+   * The panel sticks on wide screens, and the results section makes it
+   * appreciably taller. Without a ceiling the bottom of it becomes unreachable
+   * on a laptop-height viewport — a sticky element cannot be scrolled past.
+   * The height only engages when the content genuinely does not fit.
+   */
   return (
-    <aside className="panel h-fit p-5 xl:sticky xl:top-24">
+    <aside className="panel h-fit p-5 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Prediction Accuracy</p>
