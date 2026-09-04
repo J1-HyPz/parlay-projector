@@ -433,6 +433,35 @@ def check_race_sessions_are_not_projected():
     print("  formula 1: correctly absent from the two-sided projection engine")
 
 
+def check_formula_one_hub():
+    """Two championships, and a field of drivers, from the live provider.
+
+    Motorsport ranks people in one table and constructors in another. The
+    generic standings machinery walks both; this asserts it actually read the
+    drivers rather than silently dropping every row whose competitor is not a
+    club.
+    """
+    groups = get("/api/leagues/f1/standings").get("groups") or []
+    if not groups:
+        print("  formula 1 hub: no championship published yet")
+        return
+
+    named = [group["name"] for group in groups]
+    rows = sum(len(group["rows"]) for group in groups)
+    assert rows > 0, "the championship tables came back empty"
+
+    for group in groups:
+        for row in group["rows"]:
+            assert row["team_name"], "a championship row with no competitor"
+
+    drivers = get("/api/leagues/f1/teams").get("teams") or []
+    assert drivers, "no drivers were listed"
+    for driver in drivers:
+        assert driver["name"], "a driver with no name"
+
+    print(f"  formula 1 hub: {', '.join(named)} ({rows} rows), {len(drivers)} drivers")
+
+
 def main():
     print("--- projections ---")
     check_projections()
@@ -457,6 +486,7 @@ def main():
     print("--- formula 1 ---")
     check_formula_one()
     check_race_sessions_are_not_projected()
+    check_formula_one_hub()
 
     print("projection engine verified against live data")
 

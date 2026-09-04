@@ -111,6 +111,7 @@ export interface RawStandingsEntry {
   athlete?: {
     id?: unknown;
     displayName?: unknown;
+    abbreviation?: unknown;
     shortName?: unknown;
     flag?: { href?: unknown } | null;
   };
@@ -150,7 +151,10 @@ export function normaliseStandingsEntry(raw: RawStandingsEntry): StandingsRow | 
   return {
     team_id: id,
     team_name: name,
-    abbreviation: str(raw.team?.abbreviation) ?? str(raw.athlete?.shortName),
+    abbreviation:
+      str(raw.team?.abbreviation) ??
+      str(raw.athlete?.abbreviation) ??
+      str(raw.athlete?.shortName),
     // A driver has a national flag where a club has a crest.
     logo: str(logos[0]?.href) ?? str(raw.athlete?.flag?.href),
     rank: statValue(raw.stats, 'playoffSeed') ?? statValue(raw.stats, 'rank'),
