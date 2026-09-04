@@ -17,7 +17,7 @@
  * changes without sliding.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, History } from 'lucide-react';
 
 /** Slow enough to read a three-leg card without hurrying. */
@@ -98,6 +98,7 @@ export function RecentResults() {
    * interval — the carousel never snatches a result away mid-read.
    */
   const [nudge, setNudge] = useState(0);
+  const container = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -126,6 +127,35 @@ export function RecentResults() {
   }, []);
 
   const count = results.length;
+
+  /*
+   * Pause while the reader is on the card.
+   *
+   * Attached natively rather than as JSX props: hovering a panel is an
+   * enhancement, not an interaction the element offers, and marking it up as
+   * one would misrepresent it to assistive technology. `focusin` and `focusout`
+   * also bubble, which `focus` and `blur` do not — so tabbing to the arrows
+   * inside pauses it too.
+   */
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+
+    const hold = () => setPaused(true);
+    const release = () => setPaused(false);
+
+    element.addEventListener('mouseenter', hold);
+    element.addEventListener('mouseleave', release);
+    element.addEventListener('focusin', hold);
+    element.addEventListener('focusout', release);
+
+    return () => {
+      element.removeEventListener('mouseenter', hold);
+      element.removeEventListener('mouseleave', release);
+      element.removeEventListener('focusin', hold);
+      element.removeEventListener('focusout', release);
+    };
+  }, [state]);
 
   useEffect(() => {
     if (paused || count <= 1) return;
@@ -170,12 +200,9 @@ export function RecentResults() {
 
   return (
     <section
+      ref={container}
       className="mt-5 border-t border-white/7 pt-5"
       aria-label="Recent parlay results"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
     >
       <p className="text-[10px] uppercase tracking-wider text-white/28">Recent parlay results</p>
 
