@@ -6,7 +6,16 @@
  */
 
 /** Sport identifiers accepted by the homepage API. */
-export const SPORT_IDS = ['all', 'nfl', 'nba', 'mlb', 'nhl', 'football', 'tennis'] as const;
+export const SPORT_IDS = [
+  'all',
+  'nfl',
+  'nba',
+  'mlb',
+  'nhl',
+  'football',
+  'tennis',
+  'f1',
+] as const;
 export type SportId = (typeof SPORT_IDS)[number];
 
 /** Sport identifiers that map to an actual sport (i.e. everything except `all`). */
@@ -27,6 +36,26 @@ export type GameStatus =
 export interface Team {
   id: string | null;
   name: string;
+  logo: string | null;
+}
+
+/**
+ * One competitor in an event contested by a field rather than by two sides.
+ *
+ * A Grand Prix has twenty-odd drivers finishing in order; there is no home
+ * side, no away side and no score. Rather than nominate two of them and call
+ * the rest something else, such an event carries its whole field.
+ */
+export interface Entrant {
+  id: string | null;
+  name: string;
+  /** Constructor or stable, where the provider names one. */
+  affiliation: string | null;
+  /**
+   * Finishing position once the session is over, grid position before it.
+   * Null when the provider has published neither.
+   */
+  position: number | null;
   logo: string | null;
 }
 
@@ -56,8 +85,35 @@ export interface Game {
   status: GameStatus;
   /** Raw provider status, retained so provider quirks stay debuggable. */
   provider_status: string | null;
-  home_team: Team;
-  away_team: Team;
+  /**
+   * The two sides.
+   *
+   * Absent for an event contested by a field — a Grand Prix has no home team.
+   * Every fixture in a head-to-head sport has both, so a reader of these should
+   * check `entrants` first, or use `sidesOf`, rather than assume.
+   */
+  home_team?: Team;
+  away_team?: Team;
+  /**
+   * The field, for an event that has one instead of two sides.
+   *
+   * Present only for motorsport. Ordered as the provider reports it, which is
+   * finishing order once a session is complete.
+   */
+  entrants?: Entrant[];
+  /**
+   * Which part of a race weekend this is: `Race`, `Qualifying`, `Practice 1`.
+   * Null for anything that is not sessioned.
+   */
+  session?: string | null;
+  /**
+   * The event's own name, e.g. `Italian Grand Prix`.
+   *
+   * A field event is named rather than described by its participants, so this
+   * is what it is called. Absent for a head-to-head fixture, which is named by
+   * its two sides.
+   */
+  title?: string | null;
   venue: Venue;
   /** Null unless the provider supplies broadcast data. */
   broadcast: string | null;
@@ -67,6 +123,36 @@ export interface Game {
    * rather than zero-zero.
    */
   score?: Score;
+}
+
+/**
+ * The two sides, for a fixture that has them.
+ *
+ * The one place the shape is decided. Returns null for a field event, so a
+ * caller that needs two sides is made to say what it does without them rather
+ * than reading `undefined.name` at runtime.
+ */
+export function sidesOf(game: Game): { home: Team; away: Team } | null {
+  if (!game.home_team || !game.away_team) return null;
+  return { home: game.home_team, away: game.away_team };
+}
+
+/** True for an event contested by a field rather than two sides. */
+export function isFieldEvent(game: Game): boolean {
+  return Array.isArray(game.entrants);
+}
+
+/**
+ * A readable name for any fixture.
+ *
+ * `Arsenal v Chelsea` for a head-to-head, the event's own name for a race —
+ * which is what a Grand Prix is actually called, rather than a pairing of two
+ * of its drivers.
+ */
+export function fixtureLabel(game: Game): string {
+  const sides = sidesOf(game);
+  if (sides) return `${sides.away.name} v ${sides.home.name}`;
+  return game.title ?? game.league ?? 'Event';
 }
 
 export interface NewsArticle {

@@ -22,6 +22,8 @@ import { ProviderError } from '../../http';
 import { fetchEspn } from './client';
 import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixture-normalise';
 import type { RawFixtureResponse } from './fixture-normalise';
+import { normaliseRaceFixtures } from './racing';
+import type { RawRaceResponse } from './racing';
 
 export {
   ESPN_ID_PREFIX,
@@ -63,11 +65,19 @@ export async function fixturesForLeague(
     ttlMs,
     async () => {
       try {
-        const payload = await fetchEspn<RawFixtureResponse>(
+        const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse>(
           `${espnPath}/scoreboard`,
           `dates=${range}&limit=200`,
         );
-        return normaliseFixtures(payload, league);
+        /*
+         * A race weekend is a different shape from a fixture: one event
+         * carrying several sessions, each contested by the whole field. It
+         * comes from the same endpoint and the same request, so it is read
+         * here rather than through a second pipeline.
+         */
+        return league.format === 'race'
+          ? normaliseRaceFixtures(payload, league)
+          : normaliseFixtures(payload, league);
       } catch (error) {
         // An out-of-season competition 404s on a date range — NCAA basketball
         // does this all summer. That is "no fixtures", not a provider failure,

@@ -22,7 +22,17 @@ export type LeagueGroup =
   | 'baseball'
   | 'hockey'
   | 'football'
+  | 'motorsport'
   | 'other';
+
+/**
+ * How a competition's events are contested.
+ *
+ * `fixture` is two sides and a score — every team sport here. `race` is a field
+ * finishing in order, which has no home side, no away side and no score, and
+ * so is normalised, displayed and projected differently throughout.
+ */
+export type LeagueFormat = 'fixture' | 'race';
 
 /**
  * Which provider serves a competition.
@@ -48,6 +58,13 @@ export interface League {
   sport: ConcreteSportId;
   /** Which provider serves this competition. */
   provider: LeagueProvider;
+  /**
+   * Whether events are two-sided fixtures or a field finishing in order.
+   *
+   * Absent means `fixture`, which is every team competition — stated only
+   * where it differs, so the catalogue does not repeat itself twenty times.
+   */
+  format?: LeagueFormat;
   /**
    * ESPN path segment, e.g. `basketball/wnba`.
    * Null for competitions ESPN does not carry.
@@ -363,7 +380,34 @@ export const LEAGUES: readonly League[] = [
     hasTransactions: false,
     collegiate: false,
   },
+
+  // Motorsport
+  {
+    id: 'f1',
+    label: 'Formula 1',
+    shortLabel: 'F1',
+    group: 'motorsport',
+    sport: 'f1',
+    provider: 'espn',
+    // Verified live: returns the full season calendar, each Grand Prix
+    // carrying its practice, qualifying and race sessions with the field in
+    // finishing order.
+    espnPath: 'racing/f1',
+    format: 'race',
+    sportsdbLeagueId: null,
+    // Drivers' and Constructors' championships, on the v2 standings path.
+    hasStandings: true,
+    // Transactions are a North American professional-league concept; the
+    // provider publishes none for motorsport.
+    hasTransactions: false,
+    collegiate: false,
+  },
 ] as const;
+
+/** True for a competition contested by a field rather than by two sides. */
+export function isRaceLeague(league: League): boolean {
+  return league.format === 'race';
+}
 
 /** Competitions served by a given provider. */
 export function leaguesByProvider(provider: LeagueProvider): League[] {
