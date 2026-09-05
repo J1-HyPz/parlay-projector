@@ -10,14 +10,22 @@
  */
 
 import { Activity, Sparkles } from 'lucide-react';
+import { percent } from '@/lib/utils';
 import { useHomeData, useSectionFailed } from './home-data';
 import { RecentResults } from './recent-results';
 
 /** Track colour matches the original `.accuracy-ring` definition. */
 const TRACK = 'rgba(255,255,255,.075)';
 
-function ring(percent: number | null): string {
-  const filled = percent === null ? 0 : Math.max(0, Math.min(100, percent));
+/**
+ * The dial, from a fraction.
+ *
+ * Takes 0-1 like every other probability here and converts once, at the point
+ * the CSS needs a percentage. It used to take the value straight through, so a
+ * model at 0.76 drew 0.76% of a circle.
+ */
+function ring(fraction: number | null): string {
+  const filled = fraction === null ? 0 : Math.max(0, Math.min(100, fraction * 100));
   return `conic-gradient(#8b5cf6 0 ${filled}%, ${TRACK} ${filled}% 100%)`;
 }
 
@@ -29,7 +37,7 @@ export function AccuracyPanel() {
   const loading = state === 'loading';
   const value = accuracy?.accuracy ?? null;
 
-  const display = loading || failed || value === null ? '--%' : `${value.toFixed(1)}%`;
+  const display = loading || failed || value === null ? '--%' : percent(value, 1);
 
   const correctPct =
     accuracy && accuracy.settled > 0 ? (accuracy.correct / accuracy.settled) * 100 : 0;

@@ -35,15 +35,11 @@ import { GLOSSARY } from '@/lib/markets/glossary';
 import type { MarketContext } from '@/lib/markets/types';
 import type { CorrelationAssessment, EdgeAssessment, RiskLevel } from '@/lib/projections/types';
 
-export function percent(value: number, places = 0): string {
-  return `${(value * 100).toFixed(places)}%`;
-}
+// Shared with the homepage, which renders the same probabilities. Imported as
+// well as re-exported because this file uses them itself.
+import { percent, signedPercent } from '@/lib/utils';
 
-/** A signed percentage, for figures where the direction is the point. */
-export function signedPercent(value: number, places = 1): string {
-  const formatted = `${(Math.abs(value) * 100).toFixed(places)}%`;
-  return value >= 0 ? `+${formatted}` : `−${formatted}`;
-}
+export { percent, signedPercent };
 
 /**
  * How long ago a price was read.

@@ -154,6 +154,15 @@ and sport and competition filtering for parlays. 660 tests.
 
 ### Fixed
 
+- **The homepage showed the accuracy as `0.8%` when it was `76.5%`.** Every
+  probability in the application is stored as a fraction — `0.7647` — and the
+  accuracy widget printed it with a `%` after it instead of converting. The
+  ring beside it drew a matching sliver, so a model getting three in four right
+  looked like one getting almost nothing right. The figure itself was correct
+  the whole time, and so was the API; only the last step was wrong. The
+  summary card above it had the same fault. Both now use one shared formatter,
+  and the type that said "percentage 0-100" — which is what misled them — now
+  says what it actually holds.
 - **The settlement function had no test coverage at all.** Every rule around it
   was tested; the function those rules run inside — the one that reads the
   file, decides each outcome and writes back — could not be imported by the

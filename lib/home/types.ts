@@ -169,7 +169,17 @@ export interface NewsArticle {
 }
 
 export interface AccuracySummary {
-  /** Percentage 0-100, or null when nothing has settled yet. */
+  /**
+   * Wins over wins plus losses, as a **fraction**: 0.7647, not 76.47.
+   *
+   * The same scale the projection engine and every other probability in the
+   * application use, so nothing has to remember which figures are which.
+   * Format it with `percent()`; this said "0-100" for a while, and both
+   * consumers dutifully printed the fraction with a `%` after it.
+   *
+   * Null until something has settled — never 0, which would read as a model
+   * that is always wrong rather than one that has not been tested yet.
+   */
   accuracy: number | null;
   correct: number;
   incorrect: number;
@@ -182,6 +192,7 @@ export type AccuracyRange = 'all-time' | '30d';
 export interface HomeSummary {
   games_today: number;
   sports_active: number;
+  /** Fraction 0-1, as on `AccuracySummary`. Format with `percent()`. */
   accuracy: number | null;
   predictions_settled: number;
 }

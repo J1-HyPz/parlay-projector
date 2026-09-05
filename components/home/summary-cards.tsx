@@ -8,6 +8,7 @@
 
 import { Activity, CalendarDays, Clock3, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { percent } from '@/lib/utils';
 import { useHomeData } from './home-data';
 
 function StatCard({
@@ -46,8 +47,7 @@ export function SummaryCards() {
 
   const number = (value: number | undefined) => (ready && value !== undefined ? String(value) : '--');
 
-  const accuracy =
-    ready && summary.accuracy !== null ? `${summary.accuracy.toFixed(1)}%` : '--%';
+  const accuracy = ready && summary.accuracy !== null ? percent(summary.accuracy, 1) : '--%';
 
   // Games still to start today, derived from what the API already returned.
   const upcoming =
