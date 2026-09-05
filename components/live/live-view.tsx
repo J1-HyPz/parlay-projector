@@ -3,30 +3,38 @@
 /**
  * Live scoreboard.
  *
- * Preserves the existing page: summary cards, sport chips and a league filter
- * above a list of game cards. Desktop is a wide card, mobile stacks the same
- * information. Cards link to `/games/:id` with the provider event id, so a live
- * game opens the same detail page as Home and Schedule.
+ * Summary cards, then the filters, then the games. Desktop is a wide card,
+ * mobile stacks the same information. Cards link to `/games/:id` with the
+ * provider event id, so a live game opens the same detail page as Home and
+ * Schedule.
+ *
+ * The filters describe the application rather than the minute. Every tracked
+ * sport is always in the row, each carrying how many of its games are live and
+ * how many are still to come; a sport with nothing on says so instead of
+ * disappearing. Before, chips existed only for sports that happened to have a
+ * game in play, so a quiet morning offered a single "All" button and gave no
+ * hint that six other sports were being followed at all.
  */
 
-import { Activity, Radio, RefreshCw, Trophy } from 'lucide-react';
+import { Activity, Radio, RefreshCw, Search, Trophy, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
 import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import type { LiveGame } from '@/lib/live/types';
 import {
-  ALL_LEAGUES,
+  ALL_COMPETITIONS,
   ALL_SPORTS,
-  visibleChips,
-  chipLabel,
-  chipMatches,
-  availableLeagues,
-  formatKickoff,
-  separatorFor,
-  sportLabel,
-} from '@/lib/schedule/filters';
+  TRACKED_COMPETITIONS,
+  competitionTallies,
+  describeFilters,
+  isFiltered,
+  matchesLive,
+  tallySports,
+} from '@/lib/live/filters';
+import type { LiveFilters } from '@/lib/live/filters';
+import { formatKickoff, separatorFor, sportLabel } from '@/lib/schedule/filters';
 import { WatchButton } from '@/components/watchlist/watch-button';
 import { formatUpdatedAt, useLive } from './live-data';
 
@@ -233,51 +241,87 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
 export function LiveView() {
   const { state, data, stale, refresh } = useLive();
   const [sport, setSport] = useState<string>(ALL_SPORTS);
-  const [league, setLeague] = useState<string>(ALL_LEAGUES);
+  const [league, setLeague] = useState<string>(ALL_COMPETITIONS);
+  const [search, setSearch] = useState('');
 
   const games = useMemo(() => data?.games ?? [], [data]);
+  const allUpcoming = useMemo(() => data?.upcoming ?? [], [data]);
   const timezone = data?.timezone ?? 'Europe/London';
 
-  // Only competitions with live games get a chip.
-  const chips = useMemo(() => visibleChips(games), [games]);
+  const filters: LiveFilters = { sport, league, search };
 
-  // A refresh can retire the active chip when its last game ends.
-  const activeChip = chips.some((chip) => chip.id === sport) ? sport : ALL_SPORTS;
-
-  // Same helper Schedule uses, so ordering and behaviour match.
-  const leagues = useMemo(
-    () => availableLeagues(
-        activeChip === ALL_SPORTS ? games : games.filter((g) => chipMatches(g, activeChip)),
-      ),
-    [games, activeChip],
+  /*
+   * Every tracked sport, always, with what each currently holds.
+   *
+   * The counts respect the search box but not the sport already chosen, so
+   * they answer "what would I get if I picked this instead" — counting the
+   * current selection into every other chip would leave the row reading zero
+   * the moment anything was picked.
+   */
+  const sports = useMemo(
+    () => tallySports(games, allUpcoming, search),
+    [games, allUpcoming, search],
   );
 
-  const filtered = useMemo(
-    () =>
-      games.filter((game) => {
-        if (!chipMatches(game, activeChip)) return false;
-        if (league !== ALL_LEAGUES && game.league !== league) return false;
-        return true;
-      }),
-    [games, activeChip, league],
+  const competitions = useMemo(
+    () => competitionTallies(sport, games, search),
+    [sport, games, search],
   );
 
-  const upcoming = useMemo(() => {
-    const all = data?.upcoming ?? [];
-    return all.filter((game) => {
-      if (!chipMatches(game, activeChip)) return false;
-      if (league !== ALL_LEAGUES && game.league !== league) return false;
-      return true;
-    });
-  }, [data, activeChip, league]);
+  // The catalogue's competitions lead; everything else the provider happens to
+  // be carrying follows, so the two are never mistaken for one another.
+  const named = competitions.filter(
+    (entry) => entry.id !== ALL_COMPETITIONS && entry.id !== TRACKED_COMPETITIONS,
+  );
+  const followed = named.filter((entry) => entry.tracked);
+  const others = named.filter((entry) => !entry.tracked);
+
+  /*
+   * What "all sports" would give you.
+   *
+   * The search applies but the sport does not, exactly as on every other chip
+   * — otherwise this one alone would keep reading 22 while the rest of the row
+   * summed to four.
+   */
+  const acrossSports = games.filter((game) =>
+    matchesLive(game, { sport: ALL_SPORTS, league: ALL_COMPETITIONS, search }),
+  ).length;
+
+  /*
+   * Derived during render rather than memoised by hand.
+   *
+   * `filters` is a fresh object each render, so a dependency array would have
+   * to list its three fields and hope nobody adds a fourth. The compiler
+   * memoises this correctly without that trap.
+   */
+  const filtered = games.filter((game) => matchesLive(game, filters));
+  const upcoming = allUpcoming.filter((game) => matchesLive(game, filters));
+
+  /*
+   * Changing sport clears the competition.
+   *
+   * Leaving "Premier League" selected under Basketball would be a filter that
+   * describes nothing and matches nothing.
+   */
+  const chooseSport = useCallback((next: string) => {
+    setSport(next);
+    setLeague(ALL_COMPETITIONS);
+  }, []);
+
+  const clear = useCallback(() => {
+    setSport(ALL_SPORTS);
+    setLeague(ALL_COMPETITIONS);
+    setSearch('');
+  }, []);
 
   const summary = useMemo(
     () => ({
       live: games.length,
       sports: new Set(games.map((game) => game.sport)).size,
+      tracked: sports.filter((entry) => entry.tracked > 0).length,
       leagues: new Set(games.map((game) => game.league).filter(Boolean)).size,
     }),
-    [games],
+    [games, sports],
   );
 
   const updatedAt = formatUpdatedAt(data?.updated_at, timezone);
@@ -295,8 +339,10 @@ export function LiveView() {
         <StatCard
           label="Sports Active"
           icon={Trophy}
-          value={ready ? String(summary.sports) : '--'}
-          note="Currently represented"
+          // Out of the sports actually tracked, so "1" reads as one of seven
+          // rather than as the whole picture.
+          value={ready ? `${summary.sports}/${summary.tracked}` : '--'}
+          note="Of the sports tracked"
         />
         <StatCard
           label="Leagues Active"
@@ -312,49 +358,173 @@ export function LiveView() {
         />
       </section>
 
-      <section
-        className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        aria-label="Live filters"
-      >
+      <section className="mt-5 space-y-3" aria-label="Live filters">
+        {/*
+          Every tracked sport, always.
+
+          A sport with nothing live keeps its place with a zero rather than
+          vanishing, so the row is a stable thing a reader can learn and the
+          page says what it follows even when nothing is on.
+        */}
         <div className="horizontal-cards" aria-label="Sport filters">
-          {chips.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              aria-pressed={activeChip === tab.id}
-              aria-label={chipLabel(tab.id)}
-              onClick={() => {
-                setSport(tab.id);
-                setLeague(ALL_LEAGUES);
-              }}
-              className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-                activeChip === tab.id
-                  ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
-                  : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+          <button
+            type="button"
+            aria-pressed={sport === ALL_SPORTS}
+            onClick={() => chooseSport(ALL_SPORTS)}
+            className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+              sport === ALL_SPORTS
+                ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
+                : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+            }`}
+          >
+            All sports
+            <span
+              className={`ml-1.5 tabular-nums ${
+                sport === ALL_SPORTS ? 'text-white/70' : 'text-white/30'
               }`}
             >
-              {tab.emoji && (
-                <span aria-hidden="true" className="mr-1.5">
-                  {tab.emoji}
+              {ready ? acrossSports : '--'}
+            </span>
+          </button>
+
+          {sports.map((entry) => {
+            const active = sport === entry.id;
+            // A sport the application does not track yet can never produce a
+            // game, so it is offered as information rather than as a choice.
+            const selectable = entry.tracked > 0;
+
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                aria-pressed={active}
+                disabled={!selectable}
+                title={
+                  entry.unavailable ??
+                  (entry.live === 0 && entry.upcoming > 0
+                    ? `${entry.upcoming} still to start today`
+                    : undefined)
+                }
+                onClick={() => chooseSport(entry.id)}
+                className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                  active
+                    ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
+                    : !selectable
+                      ? 'cursor-not-allowed border-white/6 bg-white/[.01] text-white/18'
+                      : entry.live > 0
+                        ? 'border-white/9 bg-white/[.02] text-white/60 hover:bg-white/[.05] hover:text-white'
+                        : // Nothing live: still selectable, because it may have
+                          // games later today, but it should not compete for
+                          // attention with a sport that is actually on.
+                          'border-white/7 bg-white/[.01] text-white/28 hover:bg-white/[.04] hover:text-white/60'
+                }`}
+              >
+                {entry.label}
+                <span
+                  className={`ml-1.5 tabular-nums ${
+                    active
+                      ? 'text-white/70'
+                      : entry.live > 0
+                        ? 'text-violet-300/80'
+                        : 'text-white/20'
+                  }`}
+                >
+                  {ready ? entry.live : '--'}
                 </span>
-              )}
-              {tab.label}
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
 
-        <select
-          aria-label="League"
-          value={league}
-          onChange={(event) => setLeague(event.target.value)}
-          className="h-10 min-w-28 max-w-[220px] rounded-xl border border-white/9 bg-[#0f0d17] px-3 text-xs text-white/55 outline-none focus:border-violet-400/40"
-        >
-          {leagues.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/*
+            Search.
+
+            The same match the Schedule uses, so a term that finds a fixture
+            there finds it here: team names, a race and its drivers, the
+            competition, and the venue.
+          */}
+          <div className="relative flex-1">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/28"
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search team, competition, driver or venue"
+              aria-label="Search live games"
+              className="h-10 w-full rounded-xl border border-white/9 bg-white/[.02] pl-9 pr-9 text-xs text-white/70 outline-none placeholder:text-white/25 focus:border-violet-400/40"
+            />
+            {search !== '' && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/*
+            Competitions actually on the board.
+
+            Split into the ones this application follows and the ones it does
+            not, because the scoreboard's provider answers with every live game
+            in a sport worldwide while the rest of the application is about a
+            catalogue of twenty-one. Both are worth seeing; conflating them is
+            what made the old filter useless.
+          */}
+          {competitions.length > 0 && (
+            <select
+              aria-label="Competition"
+              value={league}
+              onChange={(event) => setLeague(event.target.value)}
+              className="h-10 min-w-44 rounded-xl border border-white/9 bg-[#0f0d17] px-3 text-xs text-white/60 outline-none focus:border-violet-400/40 sm:max-w-[280px]"
+            >
+              {competitions
+                .filter((entry) => entry.id === ALL_COMPETITIONS || entry.id === TRACKED_COMPETITIONS)
+                .map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label} ({entry.live})
+                  </option>
+                ))}
+
+              {followed.length > 0 && (
+                <optgroup label="Followed here">
+                  {followed.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.label} ({entry.live})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {others.length > 0 && (
+                <optgroup label="Also live elsewhere">
+                  {others.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.label} ({entry.live})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          )}
+
+          {isFiltered(filters) && (
+            <button
+              type="button"
+              onClick={clear}
+              className="h-10 shrink-0 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/50 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </section>
 
       {stale && updatedAt && (
@@ -369,7 +539,11 @@ export function LiveView() {
         signal that something changed.
       */}
       <p className="sr-only" aria-live="polite">
-        {ready ? `${filtered.length} games live` : ''}
+        {ready
+          ? `${filtered.length} ${filtered.length === 1 ? 'game' : 'games'} live${
+              isFiltered(filters) ? ` ${describeFilters(filters)}` : ''
+            }`
+          : ''}
       </p>
 
       <section className="mt-4" aria-labelledby="live-list-heading">
@@ -392,14 +566,41 @@ export function LiveView() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="panel flex min-h-[160px] flex-col items-center justify-center gap-2 p-6 text-center">
+            {/*
+              What "nothing" actually means here.
+
+              Three different situations used to share one sentence. Nothing on
+              anywhere, nothing on in the chosen sport, and a search that found
+              nothing are different facts, and only the last is something the
+              reader can act on.
+            */}
             <p className="text-xs text-white/45">
               {games.length === 0
-                ? 'No games are live right now.'
-                : `No live ${activeChip === ALL_SPORTS ? '' : `${chipLabel(activeChip)} `}games match this filter.`}
+                ? 'No games are live right now, in any tracked sport.'
+                : `Nothing live ${describeFilters(filters)}.`}
             </p>
-            <a href="/schedule" className="text-xs text-violet-300 hover:text-violet-200">
-              Check the Schedule for upcoming games
-            </a>
+
+            {upcoming.length > 0 ? (
+              <p className="text-[11px] text-white/32">
+                {upcoming.length} {upcoming.length === 1 ? 'game is' : 'games are'} still to start
+                today.
+              </p>
+            ) : null}
+
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+              {isFiltered(filters) && games.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="text-xs text-violet-300 transition hover:text-violet-200"
+                >
+                  Show all {games.length} live {games.length === 1 ? 'game' : 'games'}
+                </button>
+              )}
+              <a href="/schedule" className="py-1 text-xs text-violet-300 hover:text-violet-200">
+                Check the Schedule
+              </a>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -422,7 +623,7 @@ export function LiveView() {
                 {upcoming.length} {upcoming.length === 1 ? 'game' : 'games'} still to start today
               </p>
             </div>
-            <a href="/schedule" className="shrink-0 text-xs text-violet-300 hover:text-violet-200">
+            <a href="/schedule" className="shrink-0 py-1 text-xs text-violet-300 hover:text-violet-200">
               Full schedule
             </a>
           </div>

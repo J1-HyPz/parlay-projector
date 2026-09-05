@@ -87,6 +87,29 @@ and sport and competition filtering for parlays. 660 tests.
   retirement loses rather than voids.
 - Documented in [docs/f1.md](docs/f1.md).
 
+**Finding a game on the Live scoreboard**
+
+- **The sport row is now the sports the application tracks**, always all of
+  them, each showing how many of its games are live. It used to be built from
+  whatever happened to be in play, so a quiet morning offered a single "All"
+  button and gave no hint that six other sports were followed at all.
+- **A search box**, matching the same fields the Schedule searches: team names,
+  a race and its drivers, the competition and the venue.
+- **A competition filter built from what is actually on**, split into the
+  competitions this application follows and the ones it does not. The
+  scoreboard's provider answers with every live game in a sport worldwide — on
+  a normal afternoon that is Chilean, Salvadoran and Venezuelan football — so a
+  **Tracked competitions** option gets you from the firehose to the
+  twenty-one competitions the rest of the application is about.
+- Counts answer "what would I get if I picked this instead": they follow the
+  search box but not the sport already chosen, so the row does not collapse to
+  zeroes the moment anything is selected.
+- **Sports Active** now reads `2/6` rather than `2` — two of the six sports
+  actually tracked, rather than a number with nothing to measure it against.
+- An empty board says which of three things happened: nothing on anywhere,
+  nothing on in the chosen sport, or a search that found nothing. Only the last
+  is something a reader can act on, and it now offers a way back.
+
 **Choosing what a parlay is built from**
 
 - A **competition selector** on the Parlays page, alongside the sport. Pick
@@ -195,6 +218,7 @@ and sport and competition filtering for parlays. 660 tests.
   history to say" cannot be read as the same claim.
 - Sport headings in the accuracy breakdowns read `FOOTBALL`; they now use the
   same names as the rest of the application.
+- Two links on the Live page were below the minimum tap target size on a phone.
 - **Selections at lines nobody offers.** The model would recommend a handicap
   such as "+3.5" when the only line available was 1.5 — a sound probability
   attached to a bet that did not exist. Where prices are published the model

@@ -102,16 +102,23 @@ function toOption(league: League): CompetitionOption {
 }
 
 /**
- * Every sport the application recognises, with the competitions the engine can
- * build from.
+ * Every sport the application recognises, with the competitions that qualify.
+ *
+ * `include` decides what qualifies, and the two callers want different things.
+ * Parlays want competitions the engine can *project*, because offering one it
+ * cannot model would be offering a dead end. The Live scoreboard wants every
+ * competition *tracked*, because a scoreboard shows what is happening whether
+ * or not there is a model behind it.
  *
  * In `SPORT_IDS` order, which is the order the rest of the application uses,
- * so the selector reads the same as the schedule filters.
+ * so every selector reads the same way.
  */
-export function sportOptions(): SportOption[] {
+export function sportOptions(
+  include: (league: League) => boolean = isProjectable,
+): SportOption[] {
   return SPORT_IDS.filter((id): id is ConcreteSportId => id !== 'all').map((id) => {
     const tracked = LEAGUES.filter((league) => league.sport === id);
-    const competitions = tracked.filter(isProjectable);
+    const competitions = tracked.filter(include);
     const label = sportLabel(id);
 
     return {
