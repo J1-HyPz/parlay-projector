@@ -20,7 +20,7 @@ import {
   toRaceResults,
 } from '../lib/projections/race-model.ts';
 import { gridFrom, projectRace, raceSelections } from '../lib/projections/race-selections.ts';
-import { settle } from '../lib/projections/settlement.ts';
+import { evidenceFor, outcomeOf, settle } from '../lib/projections/settlement.ts';
 import { whatNeedsToHappen, selectionLabel } from '../lib/markets/explain.ts';
 import { isSettlementRule } from '../lib/projections/store-parse.ts';
 import { sidesOf } from '../lib/home/types.ts';
@@ -541,6 +541,89 @@ describe('race settlement', () => {
   it('voids rather than guessing when no order was published', () => {
     const noOrder = { home: 0, away: 0, status: 'finished' as const };
     assert.equal(settle({ kind: 'finish_position', entrant: 'Alpha', within: 3 }, noOrder), 'void');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reading a finished race
+// ---------------------------------------------------------------------------
+
+describe('the evidence a race prediction needs', () => {
+  const order = FIELD.map((entrant, index) => ({ entrant, position: index + 1 }));
+  const rule = { kind: 'finish_position', entrant: 'Alpha', within: 3 } as const;
+
+  it('reads the finishing order, not a scoreline', () => {
+    /*
+     * A race publishes no score, so the tracker records nulls for both sides.
+     * The correction path used to require two numbers here and so skipped
+     * every race — a stewards' penalty applied after the flag never reached
+     * the prediction it changed.
+     */
+    const evidence = evidenceFor(rule, {
+      status: 'finished',
+      home: null,
+      away: null,
+      order,
+    });
+
+    assert.ok(evidence, 'a race with an order has everything it needs');
+    assert.deepEqual(evidence.order, order);
+    assert.equal(settle(rule, evidence), 'won');
+  });
+
+  it('never settles a race against a scoreline that arrived without an order', () => {
+    // The dangerous case: a score present, the order missing. Judging it would
+    // find no competitor at all and void a correctly settled prediction.
+    assert.equal(
+      evidenceFor(rule, { status: 'finished', home: 2, away: 1 }),
+      null,
+      'no order means no evidence, not an empty field',
+    );
+  });
+
+  it('gives nothing for a race still running', () => {
+    assert.equal(evidenceFor(rule, { status: 'live', home: null, away: null, order }), null);
+    assert.equal(
+      evidenceFor(rule, { status: 'cancelled', home: null, away: null, order }),
+      null,
+    );
+  });
+
+  it('still reads a scoreline for a fixture', () => {
+    const winner = { kind: 'winner', side: 'home' } as const;
+    const evidence = evidenceFor(winner, { status: 'finished', home: 2, away: 1 });
+    assert.ok(evidence);
+    assert.equal(settle(winner, evidence), 'won');
+    assert.equal(evidenceFor(winner, { status: 'finished', home: null, away: 1 }), null);
+  });
+});
+
+describe('describing what happened in a race', () => {
+  const order = FIELD.map((entrant, index) => ({ entrant, position: index + 1 }));
+  const evidence = { home: 0, away: 0, status: 'finished' as const, order };
+
+  it('records the classified position and the field size', () => {
+    const outcome = outcomeOf({ kind: 'finish_position', entrant: 'Charlie', within: 3 }, evidence);
+    assert.equal(outcome.text, `Classified P3 of ${order.length}`);
+    assert.equal(outcome.actual.position, 3);
+    assert.equal(outcome.actual.field_size, order.length);
+  });
+
+  it('says so when a competitor never took part', () => {
+    const outcome = outcomeOf({ kind: 'finish_position', entrant: 'Absent', within: 3 }, evidence);
+    assert.equal(outcome.text, 'Did not take part');
+    assert.equal(outcome.actual.position, null);
+  });
+
+  it('describes a fixture as a scoreline', () => {
+    const outcome = outcomeOf(
+      { kind: 'winner', side: 'home' },
+      { home: 3, away: 1, status: 'finished' },
+    );
+    assert.equal(outcome.text, '3-1');
+    assert.equal(outcome.actual.home_score, 3);
+    assert.equal(outcome.actual.margin, 2);
+    assert.equal(outcome.actual.total, 4);
   });
 });
 

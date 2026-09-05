@@ -34,6 +34,7 @@ import {
   multiclassBrier,
   riskOrdering,
   scoreAccuracy,
+  scoreAccuracyBySport,
   trend,
 } from '../lib/projections/metrics.ts';
 import { parseParlays } from '../lib/projections/parlay-parse.ts';
@@ -371,6 +372,27 @@ describe('grouped accuracy', () => {
     const check = riskOrdering(groupBy([record({ risk: 'low', status: 'won' })], (r) => r.risk));
     assert.equal(check.message, null, 'silence beats a claim from three predictions');
   });
+
+  it('separates a passing check from one it could not run', () => {
+    // These are different claims, and a reader must not take the second for
+    // the first: "ordered" alone reads as a pass either way.
+    const thin = riskOrdering(groupBy([record({ risk: 'low', status: 'won' })], (r) => r.risk));
+    assert.equal(thin.checked, false);
+    assert.equal(thin.ordered, true, 'unknown must not read as a failure downstream');
+
+    const full = riskOrdering(
+      groupBy(
+        [
+          ...Array.from({ length: 20 }, () => record({ risk: 'low', status: 'won' })),
+          ...Array.from({ length: 20 }, () => record({ risk: 'medium', status: 'won' })),
+          ...Array.from({ length: 20 }, () => record({ risk: 'high', status: 'lost' })),
+        ],
+        (r) => r.risk,
+      ),
+    );
+    assert.equal(full.checked, true);
+    assert.equal(full.ordered, true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -488,6 +510,53 @@ describe('score accuracy', () => {
     assert.equal(accuracy.home_mae, null);
     assert.equal(accuracy.margin_mae, null);
     assert.equal(accuracy.total_mae, null);
+  });
+
+  it('splits by sport, because a run is not a point', () => {
+    /*
+     * The aggregate averages baseball runs with American football points and
+     * lands on a figure in no unit at all. Split, each number is in the units
+     * of the sport that produced it and can actually be read.
+     */
+    const records = [
+      record({
+        sport: 'mlb',
+        status: 'won',
+        projected: { home_score: 4, away_score: 3, margin: 1, total: 7 },
+        actual: actualOutcome(5, 3),
+      }),
+      record({
+        sport: 'nfl',
+        status: 'won',
+        projected: { home_score: 27, away_score: 24, margin: 3, total: 51 },
+        actual: actualOutcome(17, 24),
+      }),
+    ];
+
+    const blended = scoreAccuracy(records);
+    assert.equal(blended.home_mae, 5.5, 'one run out and ten points out, averaged');
+
+    const split = scoreAccuracyBySport(records);
+    assert.deepEqual(
+      split.map((group) => [group.key, group.home_mae, group.sample]),
+      [
+        ['mlb', 1, 1],
+        ['nfl', 10, 1],
+      ],
+    );
+  });
+
+  it('omits a sport with nothing to measure rather than showing it empty', () => {
+    const split = scoreAccuracyBySport([
+      record({ sport: 'nhl', status: 'pending' }),
+      record({
+        sport: 'mlb',
+        status: 'won',
+        projected: { home_score: 4, away_score: 3, margin: 1, total: 7 },
+        actual: actualOutcome(4, 3),
+      }),
+    ]);
+    assert.deepEqual(split.map((group) => group.key), ['mlb']);
   });
 });
 

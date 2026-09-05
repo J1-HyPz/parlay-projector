@@ -146,8 +146,10 @@ a widening backoff:
 
 ### Corrections
 
-Providers do revise final scores. Inside the window, a changed score can revise
-a settled result. When it does, an audit entry records it:
+Providers do revise final scores, and stewards apply penalties after the flag.
+Inside the window, a changed result can revise a settled prediction — a
+scoreline for a fixture, the classified finishing order for a race. When it
+does, an audit entry records it:
 
 ```json
 { "previous_result": "won", "new_result": "lost",
@@ -157,6 +159,12 @@ a settled result. When it does, an audit entry records it:
 
 The original probability is untouched. Only the outcome moves, and only with a
 record of why.
+
+A correction needs the same evidence the first settlement did, decided by one
+function (`evidenceFor`) for both. Where that evidence has not arrived, the
+record is left exactly as it is — re-judging a race against a result that has
+not been published would find no competitor at all and void a prediction that
+had settled correctly.
 
 ### Idempotency
 
@@ -183,14 +191,33 @@ posts a fine percentage while being badly calibrated. So it never travels alone.
 | **Brier score** | Whether its probabilities are any good. Lower is better; 0.25 is what always saying 50% earns |
 | **Log loss** | Same, but punishing confident mistakes far harder |
 | **Calibration** | Of the predictions rated 70–79%, did ~75% come in? |
-| **Score / margin / total MAE** | How close the projected scorelines were, in the sport's own units |
+| **Score / margin / total MAE** | How close the projected scorelines were, in the sport's own units — read `score_by_sport`, not the blended total |
 
 Broken down by **sport, market, risk level, model version, confidence band and
 data-quality band**, plus a four-week trend.
 
-Multi-outcome markets use a **multiclass Brier score** — a football result is
-home / draw / away, and squeezing that into a binary score misreports what the
-model claimed.
+### One figure that has to be read per sport
+
+Score error is a mean absolute error, so it carries the unit of whatever went
+into it. Averaged across sports it carries none: blending baseball runs with
+American football points produced a headline `home_mae` of 6.2, which is not
+6.2 of anything. `score_by_sport` splits it, and that is the figure to read.
+The aggregate `score` block is kept as a coverage count.
+
+### Risk validation, and not being able to run it
+
+`risk_ordering` reports `checked` alongside `ordered`. They are different
+claims: "checked, and the ordering holds" and "not enough settled history to
+check" would otherwise both read as a pass. `ordered` stays `true` when the
+check could not run, so nothing downstream treats an unknown as a failure, but
+`checked: false` says plainly that nothing was verified.
+
+Every stored prediction is scored with the **binary** Brier score, and that is
+the right rule for what is actually stored: a record holds one probability for
+one selection, and the outcome of "Arsenal to win" is yes or no. A multiclass
+score would need the full home/draw/away distribution frozen with the
+prediction, which is not recorded. `multiclassBrier` exists in `metrics.ts`,
+tested and ready, for if it ever is.
 
 ### Risk validation
 

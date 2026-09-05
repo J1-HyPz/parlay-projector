@@ -13,8 +13,27 @@ export const PARLAYS_FILENAME = 'parlays-v1.json';
 /** Far above any plausible household history. */
 export const MAX_PARLAYS = 5_000;
 
-const STATUSES: readonly ParlayStatus[] = ['pending', 'live', 'won', 'lost', 'void'];
-const RISKS: readonly RiskLevel[] = ['low', 'medium', 'high'];
+/*
+ * Keyed by the union so the compiler enforces completeness.
+ *
+ * `readonly ParlayStatus[]` would accept a list missing a member — a subset of
+ * a union is still assignable to it — and a status left out here silently
+ * discards every record carrying it. That exact omission cost the prediction
+ * store every Formula 1 record; the same shape of guard is used in both files
+ * now.
+ */
+const STATUS_SET: Record<ParlayStatus, true> = {
+  pending: true,
+  live: true,
+  won: true,
+  lost: true,
+  void: true,
+};
+
+const RISK_SET: Record<RiskLevel, true> = { low: true, medium: true, high: true };
+
+const STATUSES: readonly string[] = Object.keys(STATUS_SET);
+const RISKS: readonly string[] = Object.keys(RISK_SET);
 
 function isProbability(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -27,14 +46,14 @@ export function isParlayRecord(value: unknown): value is ParlayRecord {
   return (
     typeof record.id === 'string' &&
     record.id.length > 0 &&
-    (RISKS as readonly string[]).includes(record.risk as string) &&
+    RISKS.includes(record.risk as string) &&
     Array.isArray(record.leg_ids) &&
     record.leg_ids.length > 0 &&
     record.leg_ids.every((id) => typeof id === 'string') &&
     isProbability(record.combined_probability) &&
     typeof record.model_version === 'string' &&
     typeof record.created_at === 'string' &&
-    (STATUSES as readonly string[]).includes(record.status as string)
+    STATUSES.includes(record.status as string)
   );
 }
 

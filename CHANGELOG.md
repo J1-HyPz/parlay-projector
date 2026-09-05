@@ -154,6 +154,32 @@ and sport and competition filtering for parlays. 660 tests.
 
 ### Fixed
 
+- **Formula 1 predictions were never tracked, and were being deleted.** The
+  prediction store kept a hand-written list of the selection types it would
+  accept, and it was never updated when motorsport was added. Every F1
+  prediction was written to disk and then silently discarded the next time the
+  file was read — never settled, never counted, and erased from the file
+  outright the next time anything else settled. Nothing errored, which is why
+  it went unnoticed. The list is now derived from the type itself, so a new
+  market cannot be forgotten: leaving one out fails the build.
+- **A race result could never be corrected.** Stewards apply penalties after
+  the flag, and the correction path only understood scorelines — so a revised
+  finishing order never reached the prediction it changed. It now reads a
+  finishing order exactly as the first settlement does. The same fix closes a
+  worse latent case: had a provider ever reported a score alongside a race,
+  every settled race prediction would have been re-judged against an empty
+  field and voided.
+- **Accuracy breakdowns had no name for the motorsport markets**, so a settled
+  F1 prediction would have appeared under a raw key.
+- **Score error was averaged across sports**, blending baseball runs with
+  American football points into a figure in no unit at all. Split per sport,
+  where the number means something. The blended figure remains as a coverage
+  count.
+- **`risk_ordering` reported a pass when it had not checked anything.** It now
+  reports `checked` separately, so "the ordering holds" and "not enough settled
+  history to say" cannot be read as the same claim.
+- Sport headings in the accuracy breakdowns read `FOOTBALL`; they now use the
+  same names as the rest of the application.
 - **Selections at lines nobody offers.** The model would recommend a handicap
   such as "+3.5" when the only line available was 1.5 — a sound probability
   attached to a bet that did not exist. Where prices are published the model

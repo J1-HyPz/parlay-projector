@@ -280,8 +280,14 @@ export interface ScoreAccuracy {
 /**
  * How close the projected scorelines were.
  *
- * Mean absolute error, which is in the sport's own units — 3.8 points, 0.6
- * goals — and so is directly interpretable, unlike a squared measure.
+ * Mean absolute error, which is in the units of whatever went into it, and so
+ * is directly interpretable — unlike a squared measure.
+ *
+ * **Only interpretable over one sport.** Across several it averages NFL points
+ * with baseball runs and football goals, and the result is in no unit at all: a
+ * combined figure of 10.9 was three sports being averaged, not any sport being
+ * predicted badly by 10.9. Use `scoreAccuracyBySport` for a figure that means
+ * something; the aggregate is kept only as a coverage count.
  *
  * Deliberately computed only over fixtures that have both halves. A missing
  * actual score contributes nothing rather than a zero, which would flatter the
@@ -316,6 +322,38 @@ export function scoreAccuracy(records: readonly PredictionRecordV2[]): ScoreAccu
     total_mae: mean((e) => e.total),
     strength: sampleStrength(errors.length),
   };
+}
+
+export interface GroupedScoreAccuracy extends ScoreAccuracy {
+  key: string;
+  label: string;
+}
+
+/**
+ * Score error per sport, which is the only level it can be read at.
+ *
+ * A goal is not a point is not a run. Splitting first is what makes "the model
+ * is out by 0.6 goals" a sentence someone can act on, where the blended figure
+ * above is not a sentence at all.
+ */
+export function scoreAccuracyBySport(
+  records: readonly PredictionRecordV2[],
+  label: (sport: string) => string = (sport) => sport,
+): GroupedScoreAccuracy[] {
+  const groups = new Map<string, PredictionRecordV2[]>();
+
+  for (const record of records) {
+    // Only records that can contribute an error at all, so a sport does not
+    // appear with a sample of zero.
+    if (scoreError(record) === null) continue;
+    const list = groups.get(record.sport);
+    if (list) list.push(record);
+    else groups.set(record.sport, [record]);
+  }
+
+  return [...groups.entries()]
+    .map(([sport, list]) => ({ key: sport, label: label(sport), ...scoreAccuracy(list) }))
+    .sort((a, b) => b.sample - a.sample);
 }
 
 // ---------------------------------------------------------------------------
@@ -378,8 +416,22 @@ export function trend(
 // ---------------------------------------------------------------------------
 
 export interface RiskCheck {
+  /**
+   * Whether the ordering holds.
+   *
+   * Only meaningful when `checked` is true. It stays true when the check could
+   * not run so that nothing downstream reads an unknown as a failure.
+   */
   ordered: boolean;
-  /** Null while any level lacks a reportable sample. */
+  /**
+   * Whether there was enough settled history to run the check at all.
+   *
+   * Reported separately because "checked, and fine" and "not enough data to
+   * say" are different claims, and this file should not let the second be read
+   * as the first.
+   */
+  checked: boolean;
+  /** Null when the check passed, or could not be run. */
   message: string | null;
 }
 
@@ -398,7 +450,7 @@ export function riskOrdering(groups: readonly GroupedAccuracy[]): RiskCheck {
   const high = rate('high');
 
   if (low === null || medium === null || high === null) {
-    return { ordered: true, message: null };
+    return { ordered: true, checked: false, message: null };
   }
 
   const problems: string[] = [];
@@ -407,6 +459,7 @@ export function riskOrdering(groups: readonly GroupedAccuracy[]): RiskCheck {
 
   return {
     ordered: problems.length === 0,
+    checked: true,
     message: problems.length > 0 ? problems.join('; ') : null,
   };
 }

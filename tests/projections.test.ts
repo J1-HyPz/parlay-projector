@@ -898,6 +898,40 @@ describe('the prediction store', () => {
     assert.deepEqual(parsePredictions('nonsense'), []);
   });
 
+  it('keeps a motorsport prediction rather than discarding it on read', () => {
+    /*
+     * The regression that mattered most.
+     *
+     * The accepted selection types were a hand-kept list that went stale when
+     * motorsport was added, so every F1 record was written to disk and then
+     * dropped by the very next read: never tracked, never settled, and erased
+     * from the file the next time anything else settled. The list is now keyed
+     * by the union, so a new type cannot be forgotten — but the behaviour is
+     * worth asserting from the outside too.
+     */
+    const finish = record({
+      id: 'f1-finish',
+      sport: 'f1',
+      selection_type: 'finish_position',
+      settlement: { kind: 'finish_position', entrant: 'Max Verstappen', within: 10 },
+    });
+    const h2h = record({
+      id: 'f1-h2h',
+      sport: 'f1',
+      selection_type: 'head_to_head',
+      settlement: { kind: 'head_to_head', entrant: 'Lando Norris', over: 'Charles Leclerc' },
+    });
+
+    assert.deepEqual(
+      parsePredictions([finish, h2h]).map((entry) => entry.id),
+      ['f1-finish', 'f1-h2h'],
+    );
+  });
+
+  it('still rejects a selection type that is not a selection type', () => {
+    assert.deepEqual(parsePredictions([record({ selection_type: 'vibes' as never })]), []);
+  });
+
   it('only settles predictions whose game has started', () => {
     const now = Date.parse('2026-09-10T12:00:00.000Z');
     const pending = awaitingSettlement(

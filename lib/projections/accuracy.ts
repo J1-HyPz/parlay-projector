@@ -19,22 +19,26 @@ import {
   groupBy,
   riskOrdering,
   scoreAccuracy,
+  scoreAccuracyBySport,
   trend,
 } from './metrics';
 import type {
   AccuracyBlock,
   CalibrationBand,
   GroupedAccuracy,
+  GroupedScoreAccuracy,
   RiskCheck,
   ScoreAccuracy,
   TrendPoint,
 } from './metrics';
+import { sportLabel } from '../schedule/filters';
+import type { SportId } from '../home/types';
 import { markFinalPreGame, sampleStrength } from './tracking';
 import type { SampleStrength } from './tracking';
 import { readParlays, readPredictions } from './store';
 import { recentResults } from './results';
 import type { ParlayResult } from './results';
-import type { ParlayRecord, PredictionRecordV2 } from './types';
+import type { ParlayRecord, PredictionRecordV2, SelectionType } from './types';
 
 export type AccuracyWindow = 'today' | '7d' | '30d' | 'all-time';
 
@@ -178,7 +182,15 @@ export interface AccuracyReport {
   by_confidence: GroupedAccuracy[];
   by_data_quality: GroupedAccuracy[];
   calibration: CalibrationBand[];
+  /**
+   * Score error across every sport at once.
+   *
+   * A coverage count rather than a quantity: it averages points with runs and
+   * goals, so the figure is in no unit. `score_by_sport` is the one to read.
+   */
   score: ScoreAccuracy;
+  /** Score error per sport, where the numbers carry a unit and mean something. */
+  score_by_sport: GroupedScoreAccuracy[];
   trend: TrendPoint[];
   parlays: ParlaySuccess[];
   /** Flags a risk system that is not behaving as advertised. */
@@ -191,14 +203,41 @@ export interface AccuracyReport {
   updated_at: string;
 }
 
-const MARKET_LABELS: Record<string, string> = {
+/*
+ * Keyed by the union, so a new market cannot be added without a label.
+ *
+ * This was `Record<string, string>` with a `?? key` fallback, and the two
+ * motorsport markets were missing — every F1 prediction would have been grouped
+ * under its raw key. The fallback stays for a label read from an older stored
+ * record, but a market the application knows about must be named here.
+ */
+const MARKET_LABELS: Record<SelectionType, string> = {
   winner: 'Winner',
   double_chance: 'Double chance',
   spread: 'Spread',
   total: 'Total',
   team_total: 'Team total',
   player_performance: 'Player performance',
+  // Motorsport. Absent until now, so every F1 prediction would have been
+  // grouped under the raw key the moment one settled.
+  finish_position: 'Finishing position',
+  head_to_head: 'Head to head',
 };
+
+/** Label for a market, falling back to the raw key for an unknown one. */
+function marketName(key: string): string {
+  return MARKET_LABELS[key as SelectionType] ?? key;
+}
+
+/**
+ * Display name for a sport, shared with the rest of the application.
+ *
+ * These read as headings in the breakdowns, and `key.toUpperCase()` produced
+ * "FOOTBALL" beside "MLB" — one an initialism, the other just shouting.
+ */
+function sportName(key: string): string {
+  return sportLabel(key as SportId);
+}
 
 const RISK_LABELS: Record<string, string> = {
   low: 'Low risk',
@@ -248,18 +287,18 @@ function build(
     window,
     overall: accuracyOf(headline),
     all_predictions: accuracyOf(scoped),
-    by_sport: groupBy(headline, (record) => record.sport, (key) => key.toUpperCase()),
+    by_sport: groupBy(headline, (record) => record.sport, sportName),
     by_market: groupBy(
       headline,
       (record) => record.selection_type,
-      (key) => MARKET_LABELS[key] ?? key,
+      marketName,
     ),
     by_sport_market: groupBy(
       headline,
       (record) => `${record.sport}:${record.selection_type}`,
       (key) => {
         const [sport, market] = key.split(':');
-        return `${sport.toUpperCase()} ${(MARKET_LABELS[market] ?? market).toLowerCase()}`;
+        return `${sportName(sport)} ${marketName(market).toLowerCase()}`;
       },
     ),
     by_risk: byRisk,
@@ -268,6 +307,7 @@ function build(
     by_data_quality: byDataQuality(headline),
     calibration: calibrationTable(headline),
     score: scoreAccuracy(headline),
+    score_by_sport: scoreAccuracyBySport(headline, sportName),
     trend: trend(headline, now),
     parlays: parlaySuccess(scopedParlays),
     risk_ordering: riskOrdering(byRisk),

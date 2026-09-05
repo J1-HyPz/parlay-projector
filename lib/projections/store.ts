@@ -25,10 +25,8 @@ import { DATA_DIR } from '../config';
 import { logger } from '../logger';
 import { PREDICTIONS_FILENAME, awaitingSettlement, parsePredictions } from './store-parse';
 import { parseParlays, PARLAYS_FILENAME } from './parlay-parse';
-import { describeResult, settle } from './settlement';
-import type { FinalScore } from './settlement';
+import { describeResult, evidenceFor, isRaceRule, outcomeOf, settle } from './settlement';
 import {
-  actualOutcome,
   applyParlayStatus,
   isAbandoned,
   isTerminal,
@@ -378,14 +376,15 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
 
       // --- already settled: only a provider correction may touch it ---------
       if (isTerminal(record.status)) {
-        if (!state || state.status !== 'finished') return record;
-        if (typeof state.home !== 'number' || typeof state.away !== 'number') return record;
+        if (!state) return record;
 
-        const revised = settle(record.settlement, {
-          home: state.home,
-          away: state.away,
-          status: 'finished',
-        });
+        const evidence = evidenceFor(record.settlement, state);
+        // No usable evidence is not a correction. Leaving the record alone is
+        // the only safe answer: re-settling against a result that has not
+        // arrived would overwrite a sound outcome with a void.
+        if (!evidence) return record;
+
+        const revised = settle(record.settlement, evidence);
         if (revised === record.status) return record;
 
         summary.corrected += 1;
@@ -395,17 +394,21 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
           to: revised,
         });
 
+        const outcome = outcomeOf(record.settlement, evidence);
+
         return {
           ...record,
           status: revised,
-          result: describeResult({ home: state.home, away: state.away, status: 'finished' }),
-          actual: actualOutcome(state.home, state.away),
+          result: outcome.text,
+          actual: outcome.actual,
           audit: [
             ...record.audit,
             {
               previous_result: record.status,
               new_result: revised,
-              reason: 'provider corrected the final score',
+              reason: isRaceRule(record.settlement)
+                ? 'provider corrected the finishing order'
+                : 'provider corrected the final score',
               changed_at: timestamp,
             },
           ],
@@ -453,13 +456,10 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
        * abandonment rule and the audit trail all behave identically — only the
        * thing being compared differs.
        */
-      const racing =
-        record.settlement.kind === 'finish_position' ||
-        record.settlement.kind === 'head_to_head';
-      const order = state.order ?? null;
+      const evidence = evidenceFor(record.settlement, state);
 
       // --- finished, but the result has not arrived -------------------------
-      if (racing ? !order || order.length === 0 : typeof state.home !== 'number' || typeof state.away !== 'number') {
+      if (!evidence) {
         if (isAbandoned(record, now)) {
           summary.abandoned += 1;
           return {
@@ -481,43 +481,8 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
       }
 
       // --- finished with a result -------------------------------------------
-      const final: FinalScore = racing
-        ? { home: 0, away: 0, status: 'finished', order: order ?? [] }
-        : { home: state.home ?? 0, away: state.away ?? 0, status: 'finished' };
-      const outcome = settle(record.settlement, final);
-
-      /*
-       * What actually happened, in the shape the prediction can be read
-       * against later: a scoreline for a fixture, a classified position for a
-       * race.
-       */
-      const classified = racing
-        ? (order ?? []).find(
-            (entry) =>
-              entry.entrant ===
-              (record.settlement.kind === 'finish_position' ||
-              record.settlement.kind === 'head_to_head'
-                ? record.settlement.entrant
-                : ''),
-          ) ?? null
-        : null;
-
-      const actual = racing
-        ? {
-            home_score: 0,
-            away_score: 0,
-            margin: 0,
-            total: 0,
-            position: classified?.position ?? null,
-            field_size: (order ?? []).length,
-          }
-        : actualOutcome(state.home ?? 0, state.away ?? 0);
-
-      const resultText = racing
-        ? classified
-          ? `Classified P${classified.position} of ${(order ?? []).length}`
-          : 'Did not take part'
-        : describeResult(final);
+      const outcome = settle(record.settlement, evidence);
+      const described = outcomeOf(record.settlement, evidence);
 
       summary.settled += 1;
       logger.info('prediction_settled', {
@@ -531,8 +496,8 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
       return {
         ...record,
         status: outcome,
-        result: resultText,
-        actual,
+        result: described.text,
+        actual: described.actual,
         settled_at: timestamp,
         next_attempt_at: null,
       };

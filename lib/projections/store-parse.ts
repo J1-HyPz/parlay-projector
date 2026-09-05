@@ -20,24 +20,43 @@ export const PREDICTIONS_FILENAME = 'predictions-v2.json';
 /** A season of published predictions across every league sits far below this. */
 export const MAX_RECORDS = 20_000;
 
-const STATUSES: readonly PredictionStatus[] = [
-  'pending',
-  'live',
-  'won',
-  'lost',
-  'push',
-  'void',
-  'unsettled',
-];
+/*
+ * The accepted values, written so the compiler enforces completeness.
+ *
+ * These were plain arrays typed `readonly SelectionType[]`, which does not
+ * catch a missing member — a subset of a union is still assignable to it. So
+ * when motorsport added `finish_position` and `head_to_head`, this list was not
+ * updated and nothing complained. Every Formula 1 prediction was written to
+ * disk and then silently discarded on the next read: never tracked, never
+ * settled, and erased from the file the next time anything else settled.
+ *
+ * A `Record` keyed by the union cannot miss a member. Adding one to
+ * `SelectionType` is now a compile error until it is accounted for here, which
+ * is the only way this stays correct without someone remembering.
+ */
+const SELECTION_TYPE_SET: Record<SelectionType, true> = {
+  winner: true,
+  double_chance: true,
+  spread: true,
+  total: true,
+  team_total: true,
+  player_performance: true,
+  finish_position: true,
+  head_to_head: true,
+};
 
-const SELECTION_TYPES: readonly SelectionType[] = [
-  'winner',
-  'double_chance',
-  'spread',
-  'total',
-  'team_total',
-  'player_performance',
-];
+const STATUS_SET: Record<PredictionStatus, true> = {
+  pending: true,
+  live: true,
+  won: true,
+  lost: true,
+  push: true,
+  void: true,
+  unsettled: true,
+};
+
+const STATUSES: readonly string[] = Object.keys(STATUS_SET);
+const SELECTION_TYPES: readonly string[] = Object.keys(SELECTION_TYPE_SET);
 
 function isProbability(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -111,14 +130,14 @@ export function isPredictionRecordV2(value: unknown): value is PredictionRecordV
     record.id.length > 0 &&
     typeof record.game_id === 'string' &&
     typeof record.sport === 'string' &&
-    (SELECTION_TYPES as readonly string[]).includes(record.selection_type as string) &&
+    SELECTION_TYPES.includes(record.selection_type as string) &&
     typeof record.selection === 'string' &&
     isSettlementRule(record.settlement) &&
     isProbability(record.model_probability) &&
     isProbability(record.model_confidence) &&
     isProbability(record.data_quality) &&
     typeof record.model_version === 'string' &&
-    (STATUSES as readonly string[]).includes(record.status as string) &&
+    STATUSES.includes(record.status as string) &&
     typeof record.created_at === 'string'
   );
 }
@@ -145,8 +164,8 @@ function auditTrail(value: unknown): SettlementAudit[] {
     if (!item || typeof item !== 'object') continue;
     const entry = item as Record<string, unknown>;
     if (
-      (STATUSES as readonly string[]).includes(entry.previous_result as string) &&
-      (STATUSES as readonly string[]).includes(entry.new_result as string) &&
+      STATUSES.includes(entry.previous_result as string) &&
+      STATUSES.includes(entry.new_result as string) &&
       typeof entry.changed_at === 'string'
     ) {
       entries.push({

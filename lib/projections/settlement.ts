@@ -10,7 +10,7 @@
  * what happened to one prediction.
  */
 
-import type { PredictionStatus, SettlementRule } from './types.ts';
+import type { ActualOutcome, PredictionStatus, SettlementRule } from './types.ts';
 
 export interface FinalScore {
   home: number;
@@ -119,4 +119,96 @@ function classified(final: FinalScore, entrant: string): number | null {
 export function describeResult(final: FinalScore): string {
   if (final.status !== 'finished') return final.status === 'cancelled' ? 'Cancelled' : 'Postponed';
   return `${final.home}-${final.away}`;
+}
+
+// ---------------------------------------------------------------------------
+// Reading a game's state
+// ---------------------------------------------------------------------------
+
+/**
+ * A game as the tracker observed it.
+ *
+ * Structurally what the store's `GameState` is; declared here so the rules
+ * below stay in the pure module and can be tested without a filesystem.
+ */
+export interface GameObservation {
+  status: 'scheduled' | 'live' | 'finished' | 'cancelled' | 'postponed';
+  home: number | null;
+  away: number | null;
+  order?: readonly { entrant: string; position: number }[];
+}
+
+/** True for a rule judged on a finishing order rather than a scoreline. */
+export function isRaceRule(rule: SettlementRule): boolean {
+  return rule.kind === 'finish_position' || rule.kind === 'head_to_head';
+}
+
+/**
+ * The evidence a rule needs, or null when it has not arrived.
+ *
+ * One definition, used by the first settlement and by a later correction
+ * alike. They were separate, and the correction path understood only
+ * scorelines — so a race could be settled but never corrected, and a stewards'
+ * penalty applied after the flag never reached the prediction it changed.
+ * Worse, had a provider ever reported a score alongside a race, the correction
+ * would have re-settled every race prediction against an empty finishing order
+ * and voided the lot.
+ *
+ * Null is "not yet", never "no". A caller that cannot get evidence must leave
+ * the record alone rather than settle it as unproven.
+ */
+export function evidenceFor(rule: SettlementRule, state: GameObservation): FinalScore | null {
+  if (state.status !== 'finished') return null;
+
+  if (isRaceRule(rule)) {
+    // A race has no score. The classified order is the entire result.
+    if (!state.order || state.order.length === 0) return null;
+    return { home: 0, away: 0, status: 'finished', order: state.order };
+  }
+
+  if (typeof state.home !== 'number' || typeof state.away !== 'number') return null;
+  return { home: state.home, away: state.away, status: 'finished' };
+}
+
+/**
+ * What actually happened, in the shape a prediction can be read against later.
+ *
+ * A fixture ends on a scoreline; a race ends in a classified position out of a
+ * field. Shared by the first settlement and by a correction, so the two can
+ * never disagree about how the same result is described.
+ */
+export function outcomeOf(
+  rule: SettlementRule,
+  evidence: FinalScore,
+): { text: string; actual: ActualOutcome } {
+  if (!isRaceRule(rule)) {
+    return {
+      text: describeResult(evidence),
+      actual: {
+        home_score: evidence.home,
+        away_score: evidence.away,
+        margin: evidence.home - evidence.away,
+        total: evidence.home + evidence.away,
+      },
+    };
+  }
+
+  const order = evidence.order ?? [];
+  const entrant =
+    rule.kind === 'finish_position' || rule.kind === 'head_to_head' ? rule.entrant : '';
+  const classified = order.find((entry) => entry.entrant === entrant) ?? null;
+
+  return {
+    text: classified
+      ? `Classified P${classified.position} of ${order.length}`
+      : 'Did not take part',
+    actual: {
+      home_score: 0,
+      away_score: 0,
+      margin: 0,
+      total: 0,
+      position: classified?.position ?? null,
+      field_size: order.length,
+    },
+  };
 }
