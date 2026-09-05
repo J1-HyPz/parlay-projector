@@ -154,6 +154,12 @@ and sport and competition filtering for parlays. 660 tests.
 
 ### Fixed
 
+- **The settlement function had no test coverage at all.** Every rule around it
+  was tested; the function those rules run inside — the one that reads the
+  file, decides each outcome and writes back — could not be imported by the
+  test runner. That seam is exactly where the Formula 1 defect lived, and no
+  pure-rule test could have caught it. It now has eleven tests covering a
+  race and a fixture through the real store, including the correction path.
 - **Formula 1 predictions were never tracked, and were being deleted.** The
   prediction store kept a hand-written list of the selection types it would
   accept, and it was never updated when motorsport was added. Every F1

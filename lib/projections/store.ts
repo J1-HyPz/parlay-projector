@@ -21,11 +21,11 @@
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { DATA_DIR } from '../config';
-import { logger } from '../logger';
-import { PREDICTIONS_FILENAME, awaitingSettlement, parsePredictions } from './store-parse';
-import { parseParlays, PARLAYS_FILENAME } from './parlay-parse';
-import { describeResult, evidenceFor, isRaceRule, outcomeOf, settle } from './settlement';
+import { DATA_DIR } from '../config.ts';
+import { logger } from '../logger.ts';
+import { PREDICTIONS_FILENAME, awaitingSettlement, parsePredictions } from './store-parse.ts';
+import { parseParlays, PARLAYS_FILENAME } from './parlay-parse.ts';
+import { describeResult, evidenceFor, isRaceRule, outcomeOf, settle } from './settlement.ts';
 import {
   applyParlayStatus,
   isAbandoned,
@@ -34,8 +34,8 @@ import {
   nextAttemptAt,
   settlementQueue,
   queuedGameIds,
-} from './tracking';
-import { MODEL_VERSION } from './types';
+} from './tracking.ts';
+import { MODEL_VERSION } from './types.ts';
 import type {
   ParlayKind,
   ParlayRecord,
@@ -44,7 +44,7 @@ import type {
   PredictionStatus,
   RiskLevel,
   Selection,
-} from './types';
+} from './types.ts';
 
 export { PREDICTIONS_FILENAME, parsePredictions, awaitingSettlement };
 

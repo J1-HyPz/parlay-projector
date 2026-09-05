@@ -17,7 +17,7 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-import { PUBLIC_TEST_KEY, resolveTuning } from './tuning';
+import { PUBLIC_TEST_KEY, resolveTuning } from './tuning.ts';
 
 /**
  * Timezone used to decide which calendar day "today" is.
