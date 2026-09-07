@@ -22,10 +22,43 @@ Categories, used consistently:
 
 ## Unreleased
 
-The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
-and sport and competition filtering for parlays. 660 tests.
+The manual Builder, the Parlays redesign, a results scroller on Home, Formula 1
+as a full sport, and sport and competition filtering for parlays. 750 tests.
 
 ### Added
+
+**A manual Builder for complete betting lines**
+
+- `/builder` brings together a searchable match and market browser, a desktop
+  line panel and an expandable mobile panel. Home, Schedule, Live and Game Detail
+  provide an **Add to Builder** action; adding a match opens markets and only
+  choosing a specific bookmaker outcome creates a leg. Parlays remains available.
+- Pre-match match-winner, handicap and total markets come from The Odds API.
+  Configure the server-only `BUILDER_ODDS_API_KEY` to enable them. Missing
+  configuration, unmatched events and unsupported markets are explicitly
+  unavailable; model-generated selections and reference prices are not substituted.
+- Duplicate and contradictory selections are checked before adding or replacing
+  a leg. Each leg retains its bookmaker, threshold, event and market identities,
+  quote timestamp and settlement details. Changed prices need explicit acceptance;
+  stale, expired and missing prices block calculations.
+- Distinct-match legs at one bookmaker show indicative combined decimal odds,
+  total return including stake and net profit. Same-game combinations require an
+  actual provider combination quote, which the current adapter does not supply.
+  No executable accumulator or wager placement is offered.
+- **Analyse line** explains available team context, missing lineups and injury
+  data, concentration risks and payout contributions. Shorter-line and singles
+  comparisons show the effect at the same total stake; removals and replacements
+  take effect only after acceptance. Bookmaker-implied probability stays separate
+  from model confidence, which is unavailable for these exact selections.
+- Named drafts use the existing persistent server data volume. A versioned
+  working copy survives refresh on this device, and reopened drafts revalidate
+  prices. Copy and text export include selections, bookmaker, timestamps, stake
+  and estimated return.
+- In-play, player props, extra football markets, tennis tournament markets and
+  motorsport markets remain unsupported by this adapter. Regulation/overtime
+  settlement rules are explicitly unknown where the provider does not supply them.
+- Setup, API contracts, persistence and limitations are documented in
+  [docs/builder.md](docs/builder.md).
 
 **Bookmaker prices, and the distinction they make possible**
 
@@ -198,6 +231,13 @@ and sport and competition filtering for parlays. 660 tests.
   it yet — rather than being absent from a page it belongs on.
 
 ### Fixed
+
+- Game-detail enrichment now uses the actual fallback provider and preserves
+  source attribution. Neutral-site home/away reversals no longer attach an
+  opponent's record to a team, and ESPN's inner cache no longer holds upcoming
+  or live match details for six hours.
+- The missing-race-order lifecycle test now fixes its clock, so it consistently
+  tests retrying an unsettled race instead of drifting into the 24-hour expiry path.
 
 - **The homepage showed the accuracy as `0.8%` when it was `76.5%`.** Every
   probability in the application is stored as a fraction — `0.7647` — and the

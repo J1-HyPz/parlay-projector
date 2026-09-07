@@ -94,6 +94,9 @@ home/away orientation and kickoff within five minutes agree. Normalization remov
 case, accents and punctuation; it does not fuzzy-match abbreviations or swap sides.
 Ambiguous events and unmatched names stay unavailable. Same-day doubleheaders are
 not joined using date alone.
+AFLE and EFA have no odds mapping. Separate preseason and tournament-specific
+provider keys are not mapped; those events remain unavailable even where the
+regular-season competition is supported.
 
 Stable selection identities include provider event, bookmaker key, market key,
 threshold, outcome and settlement identity. Changing a price preserves selection
@@ -163,3 +166,44 @@ descriptor and retains source provenance; reversed neutral-site provider sides a
 oriented before team enrichment; ESPN's inner summary cache no longer holds
 upcoming/live state for six hours. The missing-race-order lifecycle test uses a
 fixed clock so it cannot accidentally enter the 24-hour abandonment path.
+
+## Continuing this work
+
+Start with `lib/builder/types.ts` for the separate odds, selection and combination
+contracts, then `lib/builder/line.ts` for conflict detection, revalidation and
+pricing. `lib/builder/service.ts` owns provider dispatch, configuration and team
+evidence; `lib/builder/odds-normalise.ts` owns event matching and market identity.
+These boundaries keep existing sports and projection API contracts unchanged.
+
+`components/builder/builder-view.tsx` coordinates the browser, line, refresh and
+analysis flows. `line-panel.tsx` and `analysis-panel.tsx` render the calculations
+and comparisons. `builder-context.tsx` restores the device working copy, while
+`lib/builder/drafts.ts` validates restored data and `lib/builder/store.ts` persists
+named server drafts. Read `tests/builder.test.ts` and `tests/builder-store.test.ts`
+before extending these behaviors; their fixtures are synthetic test data only.
+
+The subsequently added Suggest mode lives in `components/builder/suggest-panel.tsx`.
+Read it with `app/api/parlays/games/route.ts`, `lib/projections/optimiser.ts` and
+`tests/parlay-scope.test.ts`. Its model suggestions remain separate from actual
+Builder legs: finding a suggested market opens Browse, where a provider outcome
+must still be selected.
+
+Named saves are append-only: saving the same name creates another draft. There is
+no draft update/delete interface yet. At the 50-draft limit, an administrator must
+back up and clean up the stored file before more drafts can be saved; the working
+copy remains available on the device. Draft lifecycle controls are a useful next
+extension.
+
+The implementation assumes the existing single-container, shared household server
+and its mounted `DATA_DIR`. It deliberately does not add wager placement, a user
+account system, a calibrated model for provider selections, or undocumented
+combination quotes. Supporting another odds provider means adding an adapter and
+explicit registry dispatch, preserving its identifiers and settlement rules.
+
+Local validation covers unit/storage tests, type checking, lint, the production
+build, route rendering, invalid API input and missing-provider configuration.
+This handoff has not exercised the paid feed with a real key or run interactive
+browser tests. Verify the configured feed, event matching and real
+bookmaker coverage on a development instance before relying on its estimates.
+GitHub's `main` workflow builds and publishes the GHCR image; TrueNAS deployment
+remains a separate operation unless repository auto-deployment is enabled.
