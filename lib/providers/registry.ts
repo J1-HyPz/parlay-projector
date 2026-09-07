@@ -49,7 +49,6 @@ const PRIORITY: Record<Capability, readonly string[]> = {
   player_leaders: ['espn'],
   broadcasts: ['espn'],
   news: ['rss'],
-  betting_markets: ['the-odds-api'],
 };
 
 export function registerProvider(descriptor: ProviderDescriptor): void {

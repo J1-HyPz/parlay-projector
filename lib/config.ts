@@ -103,18 +103,6 @@ export const oddsConfig = {
   cacheTtlMs: envInt('ODDS_CACHE_TTL_SECONDS', 600) * 1000,
 };
 
-/** Builder odds credentials remain server-side on the existing TrueNAS runtime. */
-export const builderOddsConfig = {
-  apiKey: env('BUILDER_ODDS_API_KEY'),
-  region: ['uk', 'us', 'eu', 'au'].includes(env('BUILDER_ODDS_REGION', 'uk'))
-    ? env('BUILDER_ODDS_REGION', 'uk')
-    : 'uk',
-  cacheTtlMs: Math.max(60, envInt('BUILDER_ODDS_CACHE_SECONDS', 120)) * 1000,
-  maxAgeMs:
-    Math.min(900, Math.max(60, envInt('BUILDER_ODDS_MAX_AGE_SECONDS', 300))) *
-    1000,
-};
-
 export const liveConfig = {
   /**
    * Server-side cache for the live scoreboard.

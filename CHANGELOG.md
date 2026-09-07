@@ -22,43 +22,10 @@ Categories, used consistently:
 
 ## Unreleased
 
-The manual Builder, the Parlays redesign, a results scroller on Home, Formula 1
-as a full sport, and sport and competition filtering for parlays. 750 tests.
+The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
+and sport and competition filtering for parlays. 712 tests.
 
 ### Added
-
-**A manual Builder for complete betting lines**
-
-- `/builder` brings together a searchable match and market browser, a desktop
-  line panel and an expandable mobile panel. Home, Schedule, Live and Game Detail
-  provide an **Add to Builder** action; adding a match opens markets and only
-  choosing a specific bookmaker outcome creates a leg. Parlays remains available.
-- Pre-match match-winner, handicap and total markets come from The Odds API.
-  Configure the server-only `BUILDER_ODDS_API_KEY` to enable them. Missing
-  configuration, unmatched events and unsupported markets are explicitly
-  unavailable; model-generated selections and reference prices are not substituted.
-- Duplicate and contradictory selections are checked before adding or replacing
-  a leg. Each leg retains its bookmaker, threshold, event and market identities,
-  quote timestamp and settlement details. Changed prices need explicit acceptance;
-  stale, expired and missing prices block calculations.
-- Distinct-match legs at one bookmaker show indicative combined decimal odds,
-  total return including stake and net profit. Same-game combinations require an
-  actual provider combination quote, which the current adapter does not supply.
-  No executable accumulator or wager placement is offered.
-- **Analyse line** explains available team context, missing lineups and injury
-  data, concentration risks and payout contributions. Shorter-line and singles
-  comparisons show the effect at the same total stake; removals and replacements
-  take effect only after acceptance. Bookmaker-implied probability stays separate
-  from model confidence, which is unavailable for these exact selections.
-- Named drafts use the existing persistent server data volume. A versioned
-  working copy survives refresh on this device, and reopened drafts revalidate
-  prices. Copy and text export include selections, bookmaker, timestamps, stake
-  and estimated return.
-- In-play, player props, extra football markets, tennis tournament markets and
-  motorsport markets remain unsupported by this adapter. Regulation/overtime
-  settlement rules are explicitly unknown where the provider does not supply them.
-- Setup, API contracts, persistence and limitations are documented in
-  [docs/builder.md](docs/builder.md).
 
 **Bookmaker prices, and the distinction they make possible**
 
@@ -119,28 +86,6 @@ as a full sport, and sport and competition filtering for parlays. 750 tests.
 - Settlement against the classified finishing order, including the rule that a
   retirement loses rather than voids.
 - Documented in [docs/f1.md](docs/f1.md).
-
-**Model suggestions in Builder**
-
-- **Suggest**, a second mode on Builder's match list. Tick the matches you care
-  about, pick a risk level, and the projection engine builds the strongest line
-  it can from exactly those — you choose the matches, the model chooses what to
-  back on each, and the risk level decides what qualifies at all.
-- **Risk levels work within your picks.** The same matches gave two legs at
-  67.2% on Low and two legs at 41.3% on Medium, on entirely different markets —
-  not the same line relabelled.
-- **A suggestion is not a leg.** Nothing in the panel is a bookmaker quote and
-  nothing enters your line from it. Each suggestion offers *Find this market*,
-  which opens that match's real markets where the outcome can be added properly
-  if a book is actually offering it.
-- Suggestions need no odds credential — they come from the projection engine,
-  so the panel works whether or not the Builder odds key is configured.
-- Nothing is padded and nothing is substituted. A match that offers nothing at
-  your risk level is left out **and says so**, along with the fact that a lower
-  level would include it. A match already under way is reported as not
-  projectable rather than silently dropped.
-- Published lines record how many matches were hand-picked, so a curated line
-  can later be measured apart from one the optimiser assembled.
 
 **Finding a game on the Live scoreboard**
 
@@ -281,8 +226,6 @@ as a full sport, and sport and competition filtering for parlays. 750 tests.
 - Sport headings in the accuracy breakdowns read `FOOTBALL`; they now use the
   same names as the rest of the application.
 - Two links on the Live page were below the minimum tap target size on a phone.
-- A settlement test used fixed dates and started failing once the calendar
-  passed them; it now works relative to the present, as it should have.
 - **Selections at lines nobody offers.** The model would recommend a handicap
   such as "+3.5" when the only line available was 1.5 — a sound probability
   attached to a bet that did not exist. Where prices are published the model
@@ -315,6 +258,21 @@ as a full sport, and sport and competition filtering for parlays. 750 tests.
   how large that day's payload was.
 
 ### Removed
+
+- **The Builder workspace, and the model suggestions added to it.** Both were
+  built against a misunderstanding of what was wanted, so they are gone rather
+  than left to be worked around: `/builder`, its API routes, its odds-provider
+  integration and configuration, the Add-to-Builder buttons across Home,
+  Schedule, Live and Game Detail, and the fixture-picking endpoint that fed the
+  suggestion panel. Nothing depends on them and the surrounding pages are back
+  to how they were.
+
+  Kept from the same work, because they were real fixes that had nothing to do
+  with Builder: upcoming and live game details are no longer cached for six
+  hours as though settled, game enrichment records the provider it actually
+  used, and a neutral-site fixture whose feed reverses home and away is now
+  enriched by team rather than by slot.
+
 
 - Nothing has been taken away.
 

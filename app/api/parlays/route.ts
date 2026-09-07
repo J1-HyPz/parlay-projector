@@ -24,13 +24,6 @@
  * a bookmaker was confirmed to be offering, `main` keeps the headline markets.
  * `type` chooses between one leg per fixture and several from a single one.
  *
- * `games` hands the fixture choice to the reader. Given a list of ids, the
- * candidate pool is cut to those fixtures before anything is ranked, and the
- * optimiser picks the strongest market on each — so the reader decides *which
- * matches*, the model decides *what to back on them*, and the risk profile
- * still decides what is allowed at all. A fixture that offers nothing at the
- * chosen risk contributes no leg rather than a weak one.
- *
  * Where a bookmaker's prices are available they are carried through, alongside
  * the implied probability and the gap between it and the model's. That gap is
  * reported as disagreement, never as an assurance of value. Where no price is
@@ -44,12 +37,7 @@ import { invalidateAccuracy } from '@/lib/projections/accuracy';
 import { APP_TIMEZONE } from '@/lib/config';
 import { scheduleRange } from '@/lib/schedule/range';
 import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
-import {
-  availableDays,
-  optimise,
-  selectionsForGames,
-  selectionsOnDate,
-} from '@/lib/projections/optimiser';
+import { availableDays, optimise, selectionsOnDate } from '@/lib/projections/optimiser';
 import type { MarketFilter } from '@/lib/projections/optimiser';
 import { buildSameGame } from '@/lib/projections/same-game';
 import { buildCandidates, gameCandidates } from '@/lib/projections/service';
@@ -82,15 +70,6 @@ const MARKET_FILTERS: readonly MarketFilter[] = ['any', 'available', 'main'];
  * two hundred of those.
  */
 const SAME_GAME_ATTEMPTS = 6;
-
-/**
- * How many fixtures a reader may hand-pick.
- *
- * Well above the longest line the optimiser will build, so choosing a spread
- * to pick from is possible, and bounded so a crafted query string cannot turn
- * one request into an unbounded scan.
- */
-const MAX_CHOSEN_GAMES = 40;
 
 async function bestSameGame(
   selections: readonly Selection[],
@@ -167,7 +146,6 @@ export async function GET(request: Request): Promise<Response> {
     ? Math.min(Math.max(rawLegs, MIN_LEGS), MAX_LEGS)
     : undefined;
 
-
   const rawVariant = Number.parseInt(params.get('variant') ?? '', 10);
   const variant = Number.isFinite(rawVariant) ? Math.abs(rawVariant) : 0;
 
@@ -181,23 +159,6 @@ export async function GET(request: Request): Promise<Response> {
   const markets = requestedMarkets as MarketFilter;
 
   const sameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
-
-  /*
-   * Fixtures the reader picked, if any.
-   *
-   * Capped, de-duplicated and shape-checked here rather than trusted: these
-   * arrive in a query string. An id that matches nothing simply contributes
-   * nothing — it is reported back so the interface can say a fixture has gone,
-   * which happens when a game kicks off while the page is open.
-   */
-  const chosenGames = [
-    ...new Set(
-      (params.get('games') ?? '')
-        .split(',')
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0 && id.length <= 64),
-    ),
-  ].slice(0, MAX_CHOSEN_GAMES);
 
   const { selections, failedLeagues, pricedGames } = await buildCandidates({
     sport,
@@ -216,46 +177,16 @@ export async function GET(request: Request): Promise<Response> {
   const date =
     requestedDate && window.dates.includes(requestedDate) ? requestedDate : null;
 
-  const onDay = date ? selectionsOnDate(selections, date, APP_TIMEZONE) : selections;
-
-  /*
-   * The reader's fixture choice, applied before anything is ranked.
-   *
-   * Binding in the same way the sport and competition filters are: there is no
-   * later stage that could reach past it for a stronger leg elsewhere. Pick
-   * three fixtures and the line has at most three legs, from those three.
-   */
-  const pool = chosenGames.length > 0 ? selectionsForGames(onDay, chosenGames) : onDay;
-
-  /*
-   * Which of the chosen fixtures actually survived.
-   *
-   * A fixture can drop out between the picker and the request — it kicked off,
-   * or its last qualifying market moved. Saying which is better than quietly
-   * returning a shorter line than was asked for.
-   */
-  const usableGames = new Set(pool.map((selection) => selection.game_id));
-  const missingGames = chosenGames.filter((id) => !usableGames.has(id));
+  const pool = date ? selectionsOnDate(selections, date, APP_TIMEZONE) : selections;
 
   /*
    * A same-game line needs the fixture's simulations, which the bulk candidate
    * build does not keep — so it re-projects a handful of fixtures rather than
    * holding ten thousand simulated games each for every fixture on the card.
    */
-  /*
-   * How long the line should be.
-   *
-   * Choosing fixtures is itself a statement about length: someone who picked
-   * four matches wants a four-leg line, not the risk profile's default of
-   * three with one of their picks quietly left out. An explicit `legs` still
-   * wins, so asking for the best three of five remains possible.
-   */
-  const requestedLegs =
-    legs ?? (chosenGames.length > 0 ? Math.min(usableGames.size, MAX_LEGS) : undefined);
-
   const result = sameGame
-    ? await bestSameGame(pool, { risk, legs: requestedLegs, markets, variant })
-    : optimise(pool, { risk, legs: requestedLegs, markets, variant });
+    ? await bestSameGame(pool, { risk, legs, markets, variant })
+    : optimise(pool, { risk, legs, markets, variant });
 
   /*
    * How many legs this filter can actually support.
@@ -276,28 +207,11 @@ export async function GET(request: Request): Promise<Response> {
     league_label: described.competition,
   };
 
-  /*
-   * The reader's fixture choice, echoed back.
-   *
-   * Absent when they made none, so a caller can tell "built from the whole
-   * card" from "built from three fixtures I named", which are different
-   * claims about the same-looking line.
-   */
-  const chosenBlock =
-    chosenGames.length > 0
-      ? {
-          requested: chosenGames.length,
-          used: usableGames.size,
-          ...(missingGames.length > 0 ? { unavailable: missingGames } : {}),
-        }
-      : null;
-
   if (!result.parlay) {
     return json({
       model_version: MODEL_VERSION,
       risk,
       scope: scopeBlock,
-      chosen: chosenBlock,
       max_legs: maxLegs,
       date,
       dates: window.dates,
@@ -325,12 +239,7 @@ export async function GET(request: Request): Promise<Response> {
     const published = await publishPredictions(result.parlay.legs, risk, {
       // Frozen with the line, so a success rate can later be read per
       // competition rather than only across everything at once.
-      scope: {
-        sport,
-        league: scope.league,
-        legs: result.parlay.legs.length,
-        ...(chosenGames.length > 0 ? { games: usableGames.size } : {}),
-      },
+      scope: { sport, league: scope.league, legs: result.parlay.legs.length },
       // The claimed figure, not a recomputation. A same-game line's estimate
       // is a measured joint probability; multiplying its legs would store a
       // number the model never gave and then hold it to that.
@@ -377,7 +286,6 @@ export async function GET(request: Request): Promise<Response> {
     model_version: MODEL_VERSION,
     risk,
     scope: scopeBlock,
-    chosen: chosenBlock,
     max_legs: maxLegs,
     date,
     dates: window.dates,

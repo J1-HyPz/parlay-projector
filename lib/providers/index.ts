@@ -6,7 +6,7 @@
  * import from here rather than reaching for adapters directly.
  */
 
-import { builderOddsConfig, newsConfig, oddsConfig, sportsConfig } from '../config';
+import { newsConfig, sportsConfig } from '../config';
 import { espnDescriptor } from './espn/adapter';
 import { registerProvider } from './registry';
 
@@ -42,19 +42,6 @@ export function bootstrapProviders(): void {
 
   // Enrichment: records, form, head-to-head, broadcast, venue.
   registerProvider(espnDescriptor());
-
-  registerProvider({
-    id: 'the-odds-api',
-    label: 'The Odds API',
-    enabled: oddsConfig.enabled && !!builderOddsConfig.apiKey,
-    disabledReason:
-      'Builder odds disabled or BUILDER_ODDS_API_KEY not configured',
-    requiresCredentials: true,
-    credentialEnvVar: 'BUILDER_ODDS_API_KEY',
-    capabilities: ['betting_markets'],
-    notes:
-      'Core bookmaker markets. No bookmaker combination quotes or settlement-rule verification.',
-  });
 
   // News.
   registerProvider({

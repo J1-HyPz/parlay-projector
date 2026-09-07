@@ -36,7 +36,6 @@ import {
 import type { LiveFilters } from '@/lib/live/filters';
 import { formatKickoff, separatorFor, sportLabel } from '@/lib/schedule/filters';
 import { WatchButton } from '@/components/watchlist/watch-button';
-import { AddToBuilder } from '@/components/builder/add-to-builder';
 import { formatUpdatedAt, useLive } from './live-data';
 
 function StatCard({
@@ -168,7 +167,6 @@ function GameCard({ game }: { game: LiveGame }) {
       )}
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
-      <AddToBuilder game={game} className="mt-1 w-full border border-violet-400/10 bg-violet-500/[.04]" />
     </div>
   );
 }
@@ -235,8 +233,7 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
         {game.league ?? sportLabel(game.sport)}
       </span>
       </a>
-      <WatchButton game={game} className="absolute right-2 top-1" />
-      <AddToBuilder game={game} className="mt-1" />
+      <WatchButton game={game} className="absolute right-2 top-1/2 -translate-y-1/2" />
     </div>
   );
 }

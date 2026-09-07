@@ -14,7 +14,6 @@ import { sidesOf } from '@/lib/home/types';
 import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import { WatchButton } from '@/components/watchlist/watch-button';
-import { AddToBuilder } from '@/components/builder/add-to-builder';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
 
 const STATUS_LABEL: Record<Game['status'], string> = {
@@ -93,7 +92,6 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
       </div>
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
-      <AddToBuilder game={game} className="mt-1 w-full border border-violet-400/10 bg-violet-500/[.04]" />
     </div>
   );
 }
