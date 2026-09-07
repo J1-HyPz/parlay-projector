@@ -23,7 +23,7 @@ import { gameDate } from '../schedule/range';
 import type { GameDetail, TeamStanding } from '../games/types';
 import { headToHeadFor, scoreboardFor } from './espn/adapter';
 import type { EspnGame, EspnTeamSide } from './espn/normalise';
-import { findMatchingGame } from './matching';
+import { findMatchingGame, sameTeam } from './matching';
 import { meetingsToRecentGames, recordToStanding, standingFromForm } from './merge';
 import { withFallback } from './registry';
 
@@ -59,14 +59,14 @@ export interface EnrichmentResult {
  * simply leaves that part of the page as it was.
  */
 export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResult> {
-  const sources: Provenance = { game: 'thesportsdb' };
+  const sources: Provenance = { game: game.id.startsWith('espn-') ? 'espn' : 'thesportsdb' };
   const date = gameDate(game.start_time, APP_TIMEZONE);
   if (!date) return { game, sources };
 
   // One scoreboard request covers records, form, venue and broadcast, and is
   // cached per competition-day so sibling fixtures reuse it.
-  const scoreboard = await withFallback('team_records', async () =>
-    scoreboardFor(game.sport, game.league, date, APP_TIMEZONE),
+  const scoreboard = await withFallback('team_records', async (descriptor) =>
+    descriptor.id === 'espn' ? scoreboardFor(game.sport, game.league, date, APP_TIMEZONE) : null,
   );
 
   if (!scoreboard) return { game, sources };
@@ -91,7 +91,10 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
     return { game, sources };
   }
 
-  const event = match.event;
+  const matchedEvent = match.event;
+  // Neutral-site feeds can reverse home/away. Enrich by team, not by feed slot.
+  const reversed = !sameTeam(matchedEvent.home?.name, game.home_team.name);
+  const event = reversed ? { ...matchedEvent, home: matchedEvent.away, away: matchedEvent.home } : matchedEvent;
   const enriched: GameDetail = { ...game };
 
   // Records and form: the priority table says ESPN owns these.
@@ -132,8 +135,8 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
   // Head to head is a second request, so only attempt it when the primary
   // provider supplied none — which, on the configured tier, is always.
   if (enriched.head_to_head.length === 0) {
-    const meetings = await withFallback('head_to_head', async () =>
-      headToHeadFor(game.sport, game.league, event.id),
+    const meetings = await withFallback('head_to_head', async (descriptor) =>
+      descriptor.id === 'espn' ? headToHeadFor(game.sport, game.league, event.id) : null,
     );
 
     if (meetings) {

@@ -170,7 +170,8 @@ describe('settling a race through the store', () => {
     assert.equal(after.result, 'Did not take part');
   });
 
-  it('holds a race open when the order has not been published', async () => {
+  it('holds a race open when the order has not been published', async (t) => {
+    t.mock.method(Date, 'now', () => Date.parse('2026-09-06T16:00:00Z'));
     await seed([f1()]);
     const summary = await settlePredictions(
       new Map([['espn-f1-race', { status: 'finished', home: null, away: null } as GameState]]),

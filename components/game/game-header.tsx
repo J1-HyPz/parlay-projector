@@ -11,6 +11,7 @@ import { CalendarDays, Clock3, MapPin } from 'lucide-react';
 import type { GameDetail, TeamDetail } from '@/lib/games/types';
 import { STATUS_LABEL, formatDate, formatTime, hasScore } from './game-data';
 import { WatchButton } from '@/components/watchlist/watch-button';
+import { AddToBuilder } from '@/components/builder/add-to-builder';
 
 export function GameStatusBadge({ game }: { game: GameDetail }) {
   const live = game.status === 'live';
@@ -105,7 +106,8 @@ export function GameHeader({ game }: { game: GameDetail }) {
         )}
 
         {/* Not nested in a link here, so it needs no wrapper of its own. */}
-        <WatchButton game={game} className="ml-auto" />
+        <AddToBuilder game={game} className="ml-auto" />
+        <WatchButton game={game} />
       </div>
 
       {/* Matchup */}

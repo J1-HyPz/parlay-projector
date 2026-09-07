@@ -5,9 +5,9 @@ parlay projection web application.
 
 ## Overview
 
-**Current status: frontend UI prototype.** No real sports data, predictions,
-betting calculations, authentication, or backend functionality are implemented.
-Every figure on screen is a placeholder.
+The application includes provider-backed schedules and game details, projections,
+notifications, and a manual [Builder workspace](docs/builder.md). Builder odds
+require a separate server-side provider key and are unavailable until configured.
 
 | | |
 |---|---|
@@ -27,6 +27,7 @@ Every figure on screen is a placeholder.
 | `/schedule` | Eight-day fixture schedule ([docs](#schedule-api)) |
 | `/live` | Live scoreboard ([docs](#live-api)) |
 | `/parlays` | Projection workspace |
+| `/builder` | Manual betting line workspace, analysis and saved drafts ([configuration](docs/builder.md)) |
 | `/profile` | Profile placeholder |
 | `/games/:gameId` | Individual game detail ([docs](#game-detail-api)) |
 | `/health` | Liveness endpoint for the container health check |

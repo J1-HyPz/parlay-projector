@@ -97,8 +97,11 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
 
   const { value } = await cached(
     `espn:detail:${league.id}:${parsed.eventId}`,
-    // Matches the finished-game TTL used elsewhere; a settled result is stable.
-    6 * 60 * 60_000,
+    // Do not pin upcoming/live state for six hours inside the outer status cache.
+    (summary: RawSummary | null) => {
+      const state = statusFromEspn(summary?.header?.competitions?.[0]?.status?.type);
+      return state === 'finished' ? 6 * 60 * 60_000 : 60_000;
+    },
     async () => {
       const summary = await fetchEspn<RawSummary>(
         `${espnPath}/summary`,

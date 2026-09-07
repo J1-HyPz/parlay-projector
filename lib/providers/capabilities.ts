@@ -17,6 +17,7 @@ export const CAPABILITIES = [
   'player_leaders',
   'broadcasts',
   'news',
+  'betting_markets',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];

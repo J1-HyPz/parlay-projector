@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star, Trophy } from 'lucide-react';
+import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star, Trophy, ListPlus } from 'lucide-react';
+import { BuilderProvider, BuilderCount } from '@/components/builder/builder-context';
 import { SIDEBAR_HUBS } from '@/lib/sports/hubs';
 import { WatchlistProvider } from '@/components/watchlist/watchlist-context';
 
-export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications' | 'sports';
+export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'builder' | 'notifications' | 'sports';
 
 /**
  * Which competition hub is open, if any.
@@ -25,6 +26,7 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'schedule', label: 'Schedule', href: '/schedule', icon: CalendarDays },
   { key: 'live', label: 'Live', href: '/live', icon: Radio },
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
+  { key: 'builder', label: 'Builder', href: '/builder', icon: ListPlus },
 ];
 
 /**
@@ -41,7 +43,7 @@ const mobileNavigation: typeof primaryNavigation = [
 
 export function AppShell({ active, activeHub, children }: AppShellProps) {
   return (
-    <WatchlistProvider>
+    <BuilderProvider><WatchlistProvider>
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 flex h-16 items-center border-b border-white/8 bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
         <a href="/" className="flex min-w-0 items-center gap-3" aria-label="Parlay Projector home">
@@ -62,6 +64,7 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
               }`}
             >
               {item.label}
+              {item.key === 'builder' && <BuilderCount />}
               {active === item.key && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-violet-500" />}
             </a>
           ))}
@@ -118,7 +121,7 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-5 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-6 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
         {mobileNavigation.map(({ key, label, href, icon: Icon }) => (
           <a
             key={key}
@@ -127,11 +130,11 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
             className={`flex min-w-0 flex-col items-center justify-center gap-1 text-[10px] transition ${active === key ? 'text-violet-300' : 'text-white/38'}`}
           >
             <Icon className="size-[19px]" />
-            <span>{label}</span>
+            <span>{label}{key === 'builder' && <BuilderCount />}</span>
           </a>
         ))}
       </nav>
     </div>
-    </WatchlistProvider>
+    </WatchlistProvider></BuilderProvider>
   );
 }

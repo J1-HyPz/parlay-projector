@@ -47,6 +47,13 @@ services:
       # mount below, or history is lost on every redeploy.
       DATA_DIR: "/data"
 
+      # Builder odds: supply BUILDER_ODDS_API_KEY through TrueNAS environment
+      # settings. Never commit a real key. Named drafts share the /data volume.
+      # BUILDER_ODDS_API_KEY: ""
+      BUILDER_ODDS_REGION: 'uk'
+      BUILDER_ODDS_CACHE_SECONDS: '120'
+      BUILDER_ODDS_MAX_AGE_SECONDS: '300'
+
       # -------------------------------------------------------------------
       # Discord notifications
       # -------------------------------------------------------------------

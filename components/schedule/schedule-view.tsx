@@ -37,6 +37,7 @@ import {
   summarise,
 } from '@/lib/schedule/filters';
 import { WatchButton } from '@/components/watchlist/watch-button';
+import { AddToBuilder } from '@/components/builder/add-to-builder';
 import { STATUS_LABEL, statusTone } from '@/lib/schedule/status';
 import { useSchedule } from './schedule-data';
 
@@ -87,13 +88,13 @@ function TeamLine({ team }: { team: NonNullable<Game['home_team']> }) {
 }
 
 const ROW_GRID =
-  'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px_44px]';
+  'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px_180px]';
 
 function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
   const sides = sidesOf(game);
 
   return (
-    <div className="relative border-b border-white/[.065] last:border-b-0">
+    <div className="relative min-w-[1140px] border-b border-white/[.065] last:border-b-0">
       <a
         href={eventHref(game)}
         aria-label={
@@ -142,6 +143,7 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
             the navigation. */}
         <span aria-hidden="true" />
       </a>
+      <AddToBuilder game={game} className="absolute right-14 top-1/2 -translate-y-1/2" />
       <WatchButton game={game} className="absolute right-3 top-1/2 -translate-y-1/2" />
     </div>
   );
@@ -198,6 +200,7 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
       </div>
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
+      <AddToBuilder game={game} className="mt-1 w-full border border-violet-400/10 bg-violet-500/[.04]" />
     </div>
   );
 }
@@ -205,7 +208,7 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
 function Skeleton() {
   return (
     <div className="animate-pulse" aria-busy="true" aria-label="Loading schedule">
-      <div className="hidden overflow-hidden rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
         {[0, 1, 2, 3].map((row) => (
           <div
             key={row}
@@ -465,9 +468,9 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
           <Notice>{emptyMessage}</Notice>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
+            <div className="hidden overflow-x-auto rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
               <div
-                className={`grid ${ROW_GRID} gap-4 border-b border-white/8 px-4 py-3 text-[10px] font-medium uppercase tracking-wider text-white/28`}
+                className={`grid min-w-[1140px] ${ROW_GRID} gap-4 border-b border-white/8 px-4 py-3 text-[10px] font-medium uppercase tracking-wider text-white/28`}
               >
                 <span>Sport / League</span>
                 <span>Time</span>
@@ -475,7 +478,7 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
                 <span>Venue</span>
                 <span>Broadcast</span>
                 <span>Status</span>
-                <span className="sr-only">Watch</span>
+                <span className="sr-only">Builder and watchlist actions</span>
               </div>
               {filtered.map((game) => (
                 <DesktopRow key={game.id} game={game} timezone={timezone} />
