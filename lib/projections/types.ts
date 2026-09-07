@@ -423,6 +423,15 @@ export interface ParlayScopeRecord {
   league: string | null;
   /** Legs requested. The line may hold fewer — nothing is ever padded. */
   legs: number;
+  /**
+   * How many fixtures the reader chose by hand, when they chose any.
+   *
+   * Absent for a line the optimiser assembled from the whole card. Recorded
+   * because the two are different claims: a curated line measures the model's
+   * markets against fixtures a person picked, an automatic one measures the
+   * optimiser's fixture choice as well. Averaging them would answer neither.
+   */
+  games?: number;
 }
 
 export interface ParlayRecord {

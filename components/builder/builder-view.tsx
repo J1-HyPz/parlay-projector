@@ -4,6 +4,7 @@ import { RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useBuilder } from './builder-context';
 import { LinePanel } from './line-panel';
 import { AnalysisPanel } from './analysis-panel';
+import { SuggestPanel } from './suggest-panel';
 import { fixtureLabel } from '@/lib/home/types';
 import type { Game } from '@/lib/home/types';
 import type {
@@ -19,6 +20,7 @@ import {
 } from '@/lib/builder/line';
 import { restoreLine } from '@/lib/builder/drafts';
 import type { SavedDraft } from '@/lib/builder/drafts';
+import type { RiskLevel } from '@/lib/projections/types';
 
 import { action, control, displayTime } from './ui';
 async function getMarkets(
@@ -59,6 +61,16 @@ export function BuilderView({ initialGame }: { initialGame: string }) {
   const [evidence, setEvidence] = useState<LegEvidence[]>([]);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  /*
+   * Two ways to use the same match list.
+   *
+   * `browse` opens one match's real markets, which is how a leg is made.
+   * `suggest` ticks several and asks the projection engine what it would back
+   * across them. One list, because a second copy of it would drift.
+   */
+  const [mode, setMode] = useState<'browse' | 'suggest'>('browse');
+  const [picked, setPicked] = useState<string[]>([]);
+  const [risk, setRisk] = useState<RiskLevel>('medium');
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(timer);
@@ -296,15 +308,42 @@ export function BuilderView({ initialGame }: { initialGame: string }) {
         >
           <div className="panel p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Browse matches</h2>
-              <button
-                className={action}
-                onClick={() => void loadGames()}
-                disabled={gamesLoading}
-                aria-label="Refresh match list"
-              >
-                <RefreshCw className="size-4" />
-              </button>
+              <h2 className="font-semibold">
+                {mode === 'browse' ? 'Browse matches' : 'Choose matches'}
+              </h2>
+              <div className="flex items-center gap-2">
+                {/*
+                  One list, two questions. Browsing opens a match's real
+                  markets; choosing asks the model what it would back across
+                  several.
+                */}
+                <fieldset className="flex rounded-lg border border-white/15 p-0.5">
+                  <legend className="sr-only">Match list mode</legend>
+                  {(['browse', 'suggest'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={mode === option}
+                      onClick={() => setMode(option)}
+                      className={`min-h-9 rounded-md px-2.5 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-violet-400 ${
+                        mode === option
+                          ? 'bg-violet-500/25 text-white'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      {option === 'browse' ? 'Browse' : 'Suggest'}
+                    </button>
+                  ))}
+                </fieldset>
+                <button
+                  className={action}
+                  onClick={() => void loadGames()}
+                  disabled={gamesLoading}
+                  aria-label="Refresh match list"
+                >
+                  <RefreshCw className="size-4" />
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className="relative min-w-0 flex-1">
@@ -337,8 +376,9 @@ export function BuilderView({ initialGame }: { initialGame: string }) {
               </label>
             </div>
             <p className="mt-2 text-xs text-white/50">
-              Next eight days · Choose a match to view markets. A match alone
-              does not add a leg.
+              {mode === 'browse'
+                ? 'Next eight days · Choose a match to view markets. A match alone does not add a leg.'
+                : `Next eight days · Tick the matches to build from. ${picked.length} chosen.`}
             </p>
             {gamesLoading ? (
               <output className="py-8 text-sm text-white/60">
@@ -355,32 +395,78 @@ export function BuilderView({ initialGame }: { initialGame: string }) {
                     No matching scheduled or live events.
                   </p>
                 )}
-                {filteredGames.map((game) => (
-                  <button
-                    key={game.id}
-                    type="button"
-                    aria-pressed={selectedGame === game.id}
-                    onClick={() => {
-                      setSelectedGame(game.id);
-                      setReplaceId(undefined);
-                    }}
-                    className={`w-full rounded-xl border p-3 text-left focus-visible:outline-2 focus-visible:outline-violet-400 ${selectedGame === game.id ? 'border-violet-400/50 bg-violet-500/15' : 'border-white/10 hover:bg-white/5'}`}
-                  >
-                    <span className="block text-sm font-medium">
-                      {fixtureLabel(game)}
-                    </span>
-                    <span className="mt-1 block text-xs text-white/55">
-                      {game.league} · {displayTime(game.start_time)} ·{' '}
-                      {game.status === 'live' ? 'In-play' : 'Pre-match'}
-                    </span>
-                  </button>
-                ))}
+                {filteredGames.map((game) => {
+                  const chosen = picked.includes(game.id);
+                  const active = mode === 'suggest' ? chosen : selectedGame === game.id;
+
+                  return (
+                    <button
+                      key={game.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        if (mode === 'suggest') {
+                          setPicked((current) =>
+                            current.includes(game.id)
+                              ? current.filter((id) => id !== game.id)
+                              : [...current, game.id],
+                          );
+                          return;
+                        }
+                        setSelectedGame(game.id);
+                        setReplaceId(undefined);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left focus-visible:outline-2 focus-visible:outline-violet-400 ${active ? 'border-violet-400/50 bg-violet-500/15' : 'border-white/10 hover:bg-white/5'}`}
+                    >
+                      {mode === 'suggest' && (
+                        <span
+                          aria-hidden="true"
+                          className={`grid size-5 shrink-0 place-items-center rounded-md border text-[11px] ${
+                            chosen
+                              ? 'border-violet-400 bg-violet-500 text-white'
+                              : 'border-white/20 text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">
+                          {fixtureLabel(game)}
+                        </span>
+                        <span className="mt-1 block text-xs text-white/55">
+                          {game.league} · {displayTime(game.start_time)} ·{' '}
+                          {game.status === 'live' ? 'In-play' : 'Pre-match'}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
+          {mode === 'suggest' && (
+            <SuggestPanel
+              picked={picked}
+              risk={risk}
+              onRisk={setRisk}
+              onClear={() => setPicked([])}
+              onOpenMatch={(gameId) => {
+                // Straight to the real markets for that match, which is the
+                // only place a leg can actually be made.
+                setMode('browse');
+                setSelectedGame(gameId);
+                setReplaceId(undefined);
+                document
+                  .getElementById('market-browser')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          )}
+
           <section
             id="market-browser"
-            className="panel scroll-mt-24 p-4"
+            className={`panel scroll-mt-24 p-4 ${mode === 'suggest' ? 'hidden' : ''}`}
             aria-busy={marketLoading}
           >
             <h2 className="font-semibold">

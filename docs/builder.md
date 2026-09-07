@@ -4,6 +4,50 @@
 to a match's markets there. Parlays remains the existing projection workspace.
 A match is not a leg: the user must select a bookmaker outcome and threshold.
 
+## Model suggestions
+
+Builder answers "what is this book offering". The **Suggest** mode on the match
+list answers the other half — "what does the model think is worth backing" —
+using the same projection engine, thresholds and risk profiles as Parlays.
+
+Tick several matches, choose a risk level, and the engine builds the strongest
+line it can from exactly those. Three roles stay separate:
+
+| Decision | Whose |
+| --- | --- |
+| Which matches | Yours |
+| Which market on each | The model's |
+| Whether it qualifies at all | The risk profile's |
+
+So the same three matches give genuinely different lines at different risk
+levels rather than the same line relabelled. Verified live: Low returned two
+legs at 67.2%, Medium two legs at 41.3% with different markets on the same
+fixtures.
+
+**A suggestion is not a leg.** Nothing in this panel is a bookmaker quote and
+nothing enters the line from it. Each suggestion offers *Find this market*,
+which opens that match's real markets where the corresponding outcome can be
+added as a proper leg — if a book is genuinely offering it. That is still the
+only way a leg is ever created, and the rule that Builder never substitutes
+model-generated bets for provider quotes is unchanged.
+
+Suggestions need no odds credential: they come from the projection engine and
+the sports-information APIs, so the panel works whether or not
+`BUILDER_ODDS_API_KEY` is set. What it cannot do without one is turn a
+suggestion into a leg, because there are no quotes to add.
+
+Two reasons a ticked match can contribute nothing, reported separately because
+they call for different responses:
+
+- **Nothing clears the risk level.** The line is shorter, says which, and says
+  a lower risk level would include it. Never padded with a weaker market.
+- **Not available to project** — almost always already under way. Builder lists
+  in-play matches; a projection is only ever made before kick-off.
+
+Requests: `GET /api/parlays/games` for the matches on offer at a risk level,
+`GET /api/parlays?games=id1,id2` for the line. Both are documented in
+[docs/parlay-filters.md](parlay-filters.md).
+
 ## Provider configuration on TrueNAS
 
 Set these server environment variables on the existing application container:

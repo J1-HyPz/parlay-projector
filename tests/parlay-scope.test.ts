@@ -28,7 +28,13 @@ import {
 } from '../lib/leagues/catalogue.ts';
 import { LEAGUES, findLeague } from '../lib/leagues/registry.ts';
 import { SPORT_IDS } from '../lib/home/types.ts';
-import { bestPerGame, eligible, optimise } from '../lib/projections/optimiser.ts';
+import {
+  bestPerGame,
+  eligible,
+  fixtureOptions,
+  optimise,
+  selectionsForGames,
+} from '../lib/projections/optimiser.ts';
 import { RISK_PROFILES } from '../lib/projections/config.ts';
 import { selectionScore } from '../lib/projections/project.ts';
 import { priceFromDecimal } from '../lib/markets/price.ts';
@@ -299,5 +305,155 @@ describe('a filter is never overruled', () => {
     const { parlay } = optimise(premierLeague, { risk: 'medium', legs: 3 });
     assert.ok(parlay);
     assert.equal(new Set(parlay.legs.map((leg) => leg.sport)).size, 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Building from fixtures the reader chose
+// ---------------------------------------------------------------------------
+
+describe('building from chosen fixtures', () => {
+  /*
+   * The reader picks the matches; the model picks what to back on them; the
+   * risk profile still decides what is allowed at all. Each of those three is
+   * tested here, because the value of the feature is that they stay separate.
+   */
+  const card = [
+    selection('a1', 'g1', { probability: 0.8 }),
+    selection('a2', 'g1', { probability: 0.74, type: 'total' }),
+    selection('b1', 'g2', { probability: 0.77 }),
+    selection('c1', 'g3', { probability: 0.75 }),
+    selection('d1', 'g4', { probability: 0.9 }),
+  ];
+
+  it('narrows to the fixtures named and nothing else', () => {
+    const pool = selectionsForGames(card, ['g1', 'g3']);
+    assert.deepEqual(
+      pool.map((entry) => entry.id).sort(),
+      ['a1', 'a2', 'c1'],
+      'every market on a chosen fixture stays; nothing from an unchosen one does',
+    );
+  });
+
+  it('returns nothing when nothing was chosen', () => {
+    // An empty choice is not "everything" — a caller that means everything
+    // simply does not narrow.
+    assert.deepEqual(selectionsForGames(card, []), []);
+  });
+
+  it('ignores a fixture id that matches nothing', () => {
+    const pool = selectionsForGames(card, ['g2', 'not-a-fixture']);
+    assert.deepEqual(
+      pool.map((entry) => entry.id),
+      ['b1'],
+    );
+  });
+
+  it('builds a line only from the fixtures chosen, however strong the rest', () => {
+    /*
+     * `d1` is the best selection on the card by some way. It must not appear,
+     * because the reader did not pick its fixture — the same guarantee the
+     * sport and competition filters give.
+     */
+    const pool = selectionsForGames(card, ['g1', 'g2', 'g3']);
+    const { parlay } = optimise(pool, { risk: 'low', legs: 4 });
+
+    assert.ok(parlay);
+    assert.equal(parlay.legs.length, 3, 'three fixtures make at most three legs');
+    assert.deepEqual(
+      [...new Set(parlay.legs.map((leg) => leg.game_id))].sort(),
+      ['g1', 'g2', 'g3'],
+    );
+    assert.ok(
+      !parlay.legs.some((leg) => leg.id === 'd1'),
+      'an unchosen fixture must be unreachable',
+    );
+  });
+
+  it('takes the best market on each chosen fixture, one per fixture', () => {
+    const pool = selectionsForGames(card, ['g1', 'g2']);
+    const { parlay } = optimise(pool, { risk: 'low', legs: 2 });
+
+    assert.ok(parlay);
+    assert.equal(parlay.legs.length, 2);
+    // g1 offers two markets; the stronger is taken and the other left.
+    assert.equal(parlay.legs.filter((leg) => leg.game_id === 'g1').length, 1);
+    assert.equal(parlay.legs.find((leg) => leg.game_id === 'g1')?.id, 'a1');
+  });
+
+  it('builds the best subset when fewer legs are asked for than fixtures chosen', () => {
+    const pool = selectionsForGames(card, ['g1', 'g2', 'g3']);
+    const { parlay } = optimise(pool, { risk: 'low', legs: 2 });
+
+    assert.ok(parlay);
+    assert.equal(parlay.legs.length, 2, 'the reader may ask for the best two of three');
+  });
+
+  it('drops a chosen fixture that clears no threshold rather than weakening the line', () => {
+    /*
+     * The behaviour a reader most needs explained: three fixtures picked, two
+     * legs returned. The third is left out because the risk profile refused
+     * its markets, not because the fixture vanished.
+     */
+    const withWeak = [
+      selection('s1', 'g1', { probability: 0.82 }),
+      selection('s2', 'g2', { probability: 0.79 }),
+      selection('weak', 'g3', { probability: 0.30 }),
+    ];
+
+    const pool = selectionsForGames(withWeak, ['g1', 'g2', 'g3']);
+    const result = optimise(pool, { risk: 'low', legs: 3 });
+
+    assert.ok(result.parlay);
+    assert.equal(result.parlay.legs.length, 2);
+    assert.equal(result.gamesAvailable, 2, 'the count the interface explains the gap with');
+    assert.ok(!result.parlay.legs.some((leg) => leg.game_id === 'g3'));
+  });
+});
+
+describe('offering fixtures to choose from', () => {
+  const card = [
+    selection('a1', 'g1', { probability: 0.8 }),
+    selection('a2', 'g1', { probability: 0.74, type: 'total' }),
+    selection('b1', 'g2', { probability: 0.77 }),
+    selection('weak', 'g3', { probability: 0.3 }),
+  ];
+
+  it('offers one row per fixture, not one per market', () => {
+    const options = fixtureOptions(card, RISK_PROFILES.low);
+    assert.deepEqual(
+      options.map((option) => option.game_id),
+      ['g1', 'g2'],
+      'picking a fixture is picking a leg, so a fixture appears once',
+    );
+  });
+
+  it('shows the market the optimiser would actually take', () => {
+    const options = fixtureOptions(card, RISK_PROFILES.low);
+    const first = options.find((option) => option.game_id === 'g1');
+    assert.equal(first?.best.id, 'a1', 'the strongest, by the score the optimiser ranks on');
+    assert.equal(first?.candidates, 2, 'and how many others on the fixture qualify');
+  });
+
+  it('omits a fixture with nothing that clears the risk profile', () => {
+    const options = fixtureOptions(card, RISK_PROFILES.low);
+    assert.ok(
+      !options.some((option) => option.game_id === 'g3'),
+      'offering a fixture that can never contribute would waste a choice',
+    );
+  });
+
+  it('is a property of the risk level, not of the day', () => {
+    // The same card offers different fixtures at different risk levels, which
+    // is why the list is rebuilt when the profile changes.
+    const low = fixtureOptions(card, RISK_PROFILES.low).length;
+    const high = fixtureOptions(card, RISK_PROFILES.high).length;
+    assert.notEqual(low, high);
+  });
+
+  it('ranks by the optimiser score rather than by raw probability', () => {
+    const options = fixtureOptions(card, RISK_PROFILES.low);
+    const scores = options.map((option) => option.best.score);
+    assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
   });
 });
