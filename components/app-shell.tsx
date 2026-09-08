@@ -64,8 +64,18 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
     <SlipProvider>
     <WatchlistProvider>
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex h-16 items-center border-b border-white/8 bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
-        <a href="/" className="flex min-w-0 items-center gap-3" aria-label="Parlay Projector home">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-violet-600 focus:px-4 focus:py-2 focus:text-xs focus:font-medium focus:text-white"
+      >
+        Skip to content
+      </a>
+      <header className="sticky top-0 z-40 flex h-16 items-center border-b border-line bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
+        <a
+          href="/"
+          className="focus-ring flex min-w-0 items-center gap-3 rounded-xl py-1 pr-2"
+          aria-label="Parlay Projector home"
+        >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-violet-400/25 bg-violet-500/12 text-violet-300 shadow-[0_0_30px_rgba(124,58,237,.16)]">
             <Orbit className="size-5" aria-hidden="true" />
           </span>
@@ -78,8 +88,8 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
               key={item.key}
               href={item.href}
               aria-current={active === item.key ? 'page' : undefined}
-              className={`relative flex h-full items-center text-sm transition-colors ${
-                active === item.key ? 'text-white' : 'text-white/48 hover:text-white'
+              className={`focus-ring relative flex h-full items-center rounded-lg px-1 text-sm transition-colors ${
+                active === item.key ? 'text-ink-strong' : 'text-ink-muted hover:text-ink-strong'
               }`}
             >
               {item.label}
@@ -101,7 +111,7 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
       </header>
 
       <div className="mx-auto flex w-full max-w-[1600px]">
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col border-r border-white/8 px-4 py-6 lg:flex">
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col border-r border-line px-4 py-6 lg:flex">
           <p className="section-label">Sports</p>
           {/*
             These navigate to a competition hub; the Schedule and Live chips
@@ -113,7 +123,12 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
           */}
           <nav className="mt-3 space-y-1" aria-label="Sports">
             <a href="/schedule" className="sidebar-item">
-              <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[9px] font-semibold">●</span>
+              <span
+                aria-hidden="true"
+                className="grid size-6 shrink-0 place-items-center rounded-lg border border-line bg-surface-1 text-2xs font-semibold"
+              >
+                ●
+              </span>
               All Sports
             </a>
             {SIDEBAR_HUBS.map(({ slug, label, emoji }) => (
@@ -123,32 +138,34 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
                 aria-current={activeHub === slug ? 'page' : undefined}
                 className={`sidebar-item ${activeHub === slug ? 'border border-violet-400/15 bg-violet-500/[.11] text-violet-200' : ''}`}
               >
-                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/8 bg-white/[.03] text-[11px]">{emoji}</span>
+                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-lg border border-line bg-surface-1 text-2xs">{emoji}</span>
                 <span className="truncate">{label}</span>
               </a>
             ))}
           </nav>
 
           <div className="mt-auto rounded-2xl border border-violet-400/15 bg-violet-500/[.055] p-4">
-            <div className="flex items-center gap-2 text-violet-300/70"><Star className="size-3" /><span className="text-[10px] uppercase tracking-[.17em]">Creator mark</span></div>
-            <p className="mt-2 text-sm font-medium text-white/65">by HyPz</p>
+            <div className="flex items-center gap-2 text-violet-300/70"><Star className="size-3" /><span className="text-2xs uppercase tracking-[.17em]">Creator mark</span></div>
+            <p className="mt-2 text-sm font-medium text-ink">by HyPz</p>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 px-4 pb-28 pt-7 md:px-7 md:pb-10 xl:px-9">
+        <main id="main" className="min-w-0 flex-1 px-4 pb-28 pt-6 sm:pt-7 md:px-7 lg:pb-12 xl:px-9">
           <div className="mx-auto max-w-[1320px]">{children}</div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-6 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-6 border-t border-line bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
         {mobileNavigation.map(({ key, label, href, icon: Icon }) => (
           <a
             key={key}
             href={href}
             aria-current={active === key ? 'page' : undefined}
-            className={`flex min-w-0 flex-col items-center justify-center gap-1 text-[10px] transition ${active === key ? 'text-violet-300' : 'text-white/38'}`}
+            className={`focus-ring-inset flex min-w-0 flex-col items-center justify-center gap-1 text-2xs transition active:bg-surface-2 ${
+              active === key ? 'text-violet-300' : 'text-ink-subtle'
+            }`}
           >
-            <Icon className="size-[19px]" />
+            <Icon aria-hidden="true" className="size-[19px]" />
             <span className="flex items-center">
               {label}
               {key === 'slips' && <SlipCount />}

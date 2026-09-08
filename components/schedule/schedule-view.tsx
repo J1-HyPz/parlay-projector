@@ -3,17 +3,30 @@
 /**
  * Schedule page content.
  *
- * Preserves the existing layout exactly: summary cards, an eight-day selector,
- * sport chips, search and league filters, then a desktop table and a stacked
- * mobile card list. Only the data behind them is real now.
+ * Summary cards, an eight-day selector, sport chips, search and league
+ * filters, then the fixtures themselves in one of three layouts.
  *
- * Every row links to `/games/:id` with the provider event id, so schedule games
- * open the same detail page as Home. Plain anchors are used deliberately — see
- * components/home/games-today.tsx.
+ * ## Three layouts, not two
+ *
+ * There used to be two: a seven-column table from `md` up, and a stacked card
+ * list below it. The table's columns come to roughly 910px of fixed and
+ * minimum widths, but `md` is 768px -- so between 768px and about 1000px the
+ * table was rendered into a container too narrow to hold it, and because the
+ * document suppresses horizontal scrolling it was *clipped* rather than
+ * scrolled. Measured on an 805px viewport: the row needed 906px in a 747px
+ * box, which put Broadcast half off-screen and Status and the watch control
+ * entirely past the edge. Every tablet lost the status of every fixture.
+ *
+ * So the table now waits for `xl`, where it genuinely fits alongside the
+ * sidebar, and the band it used to occupy gets a two-column card grid --
+ * which suits that width better than a table ever did.
+ *
+ * Every row links to `/games/:id` with the provider event id, so schedule
+ * games open the same detail page as Home. Plain anchors are used deliberately
+ * -- see components/home/games-today.tsx.
  */
 
-import { CalendarDays, Clock3, Search, Trophy } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CalendarDays, CalendarX2, Clock3, Search, Trophy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
 import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
@@ -36,215 +49,191 @@ import {
   sportLabel,
   summarise,
 } from '@/lib/schedule/filters';
+import { Chip, ChipRow } from '@/components/ui/chip';
+import { Crest } from '@/components/ui/crest';
+import { StatCard, StatGrid } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { EmptyState, ErrorState } from '@/components/ui/states';
 import { WatchButton } from '@/components/watchlist/watch-button';
 import { SlipButton } from '@/components/slip/slip-button';
-import { STATUS_LABEL, statusTone } from '@/lib/schedule/status';
 import { useSchedule } from './schedule-data';
-
-function StatCard({
-  label,
-  icon: Icon,
-  value,
-  note,
-}: {
-  label: string;
-  icon: LucideIcon;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article className="panel flex min-h-28 items-center justify-between p-4">
-      <div>
-        <p className="text-xs text-white/42">{label}</p>
-        <p className="mt-2 text-2xl font-semibold text-white/75">{value}</p>
-        <p className="mt-1 text-[10px] text-white/27">{note}</p>
-      </div>
-      <span className="grid size-10 place-items-center rounded-xl border border-violet-400/15 bg-violet-500/[.08] text-violet-300">
-        <Icon className="size-[18px]" />
-      </span>
-    </article>
-  );
-}
 
 function TeamLine({ team }: { team: NonNullable<Game['home_team']> }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      {team.logo ? (
-        // oxlint-disable-next-line nextjs/no-img-element -- remote team badge from the sports provider CDN; see components/home/games-today.tsx
-        <img
-          src={team.logo}
-          alt=""
-          loading="lazy"
-          className="size-8 shrink-0 rounded-full border border-white/9 bg-white/[.04] object-contain"
-        />
-      ) : (
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/9 bg-white/[.04] text-[9px] text-white/40">
-          {team.name.slice(0, 2).toUpperCase()}
-        </span>
-      )}
-      <span className="truncate text-sm text-white/68">{team.name}</span>
+      <Crest name={team.name} logo={team.logo} size="md" />
+      <span className="truncate text-sm text-ink">{team.name}</span>
     </div>
   );
 }
 
+/**
+ * Trimmed from the original by about 40px so it clears the sidebar at exactly
+ * 1280px, which is the width this layout now starts at. The two flexible
+ * columns absorb everything above that.
+ */
 const ROW_GRID =
-  'grid-cols-[110px_130px_minmax(210px,1.3fr)_minmax(150px,1fr)_120px_90px_44px]';
+  'grid-cols-[104px_112px_minmax(210px,1.3fr)_minmax(140px,1fr)_108px_96px_44px]';
+
+/** The accessible name for a fixture link, shared by every layout. */
+function linkLabel(game: Game): string {
+  const sides = sidesOf(game);
+  return sides
+    ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
+    : `${eventLabel(game)}, view details`;
+}
 
 function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
   const sides = sidesOf(game);
 
   return (
-    <div className="relative border-b border-white/[.065] last:border-b-0">
+    <div className="relative border-b border-line last:border-b-0">
       <a
         href={eventHref(game)}
-        aria-label={
-          sides
-            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
-            : `${eventLabel(game)}, view details`
-        }
-        className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 px-4 py-3 transition hover:bg-violet-500/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400/50`}
+        aria-label={linkLabel(game)}
+        className={`focus-ring-inset grid min-h-[78px] ${ROW_GRID} items-center gap-4 px-4 py-3 transition hover:bg-violet-500/[.06]`}
       >
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.04] text-[9px] text-violet-300">
-          {badgeLabel(game.league, game.sport)}
-        </span>
-        <span className="truncate text-xs text-white/52">{game.league ?? sportLabel(game.sport)}</span>
-      </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-2xs text-violet-300"
+          >
+            {badgeLabel(game.league, game.sport)}
+          </span>
+          <span className="truncate text-xs text-ink-subtle">
+            {game.league ?? sportLabel(game.sport)}
+          </span>
+        </div>
 
-      <div className="text-xs leading-5 text-white/45">
-        <span className="block">{formatKickoff(game.start_time, timezone)}</span>
-        {game.round && <span className="text-white/28">Round {game.round}</span>}
-      </div>
+        <div className="text-xs leading-5 text-ink-subtle">
+          <span className="block tabular-nums">{formatKickoff(game.start_time, timezone)}</span>
+          {game.round && <span className="text-ink-faint">Round {game.round}</span>}
+        </div>
 
-      <div className="min-w-0 space-y-2">
-        {sides ? (
-          <>
-            <TeamLine team={sides.away} />
-            <TeamLine team={sides.home} />
-          </>
-        ) : (
-          <EventBody game={game} compact />
-        )}
-      </div>
+        <div className="min-w-0 space-y-2">
+          {sides ? (
+            <>
+              <TeamLine team={sides.away} />
+              <TeamLine team={sides.home} />
+            </>
+          ) : (
+            <EventBody game={game} compact />
+          )}
+        </div>
 
-      <div className="min-w-0 text-xs leading-5 text-white/38">
-        <span className="block truncate">{game.venue.name ?? 'Venue TBC'}</span>
-        {game.venue.city && <span className="truncate text-white/25">{game.venue.city}</span>}
-      </div>
+        <div className="min-w-0 text-xs leading-5 text-ink-faint">
+          <span className="block truncate">{game.venue.name ?? 'Venue TBC'}</span>
+          {game.venue.city && <span className="block truncate">{game.venue.city}</span>}
+        </div>
 
-      <span className="truncate text-xs text-white/32">{game.broadcast ?? '--'}</span>
+        <span className="truncate text-xs text-ink-faint">{game.broadcast ?? '--'}</span>
 
-      <span className={`w-fit rounded-full border px-2 py-1 text-[10px] ${statusTone(game.status)}`}>
-        {STATUS_LABEL[game.status]}
-      </span>
+        <StatusBadge status={game.status} />
 
-        {/* Reserves the trailing column; the button is a sibling of the link,
+        {/* Reserves the trailing column; the buttons are siblings of the link,
             because a button nested inside an anchor is invalid and would fight
             the navigation. */}
         <span aria-hidden="true" />
       </a>
       <WatchButton game={game} className="absolute right-3 top-1/2 -translate-y-1/2" />
-      <SlipButton game={game} className="absolute right-[52px] top-1/2 -translate-y-1/2" />
+      <SlipButton game={game} className="absolute right-[56px] top-1/2 -translate-y-1/2" />
     </div>
   );
 }
 
-function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
+/**
+ * The card, used on phones and through the whole tablet band.
+ *
+ * Same information as a table row, ordered by what a reader looks for first:
+ * who is playing, then when, then where.
+ */
+function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   const sides = sidesOf(game);
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <a
         href={eventHref(game)}
-        aria-label={
-          sides
-            ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`
-            : `${eventLabel(game)}, view details`
-        }
-        className="panel block p-4 transition hover:border-violet-400/35 active:bg-white/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        aria-label={linkLabel(game)}
+        className="panel-interactive focus-ring block h-full min-w-0 p-4"
       >
-      <div className="flex items-center justify-between gap-3 border-b border-white/7 pb-3 pr-10">
-        <span className="truncate text-xs font-medium text-violet-300">
-          {game.league ?? sportLabel(game.sport)}
-          {game.round ? ` • Round ${game.round}` : ''}
-        </span>
-        <span className="shrink-0 text-[11px] text-white/32">
-          {formatKickoff(game.start_time, timezone)}
-        </span>
-      </div>
+        <div className="flex items-center justify-between gap-2 border-b border-line pb-3 pr-[92px]">
+          <span className="min-w-0 truncate text-2xs font-medium text-violet-300">
+            {game.league ?? sportLabel(game.sport)}
+            {game.round ? ` • Round ${game.round}` : ''}
+          </span>
+          <span className="shrink-0 text-2xs tabular-nums text-ink-subtle">
+            {formatKickoff(game.start_time, timezone)}
+          </span>
+        </div>
 
-      <div className="my-4 space-y-3">
-        {sides ? (
-          <>
-            <TeamLine team={sides.away} />
-            <div className="pl-[42px] text-[10px] uppercase tracking-wider text-white/25">
-              {separatorFor(game.sport)}
-            </div>
-            <TeamLine team={sides.home} />
-          </>
-        ) : (
-          <EventBody game={game} />
-        )}
-      </div>
+        <div className="my-4 space-y-3">
+          {sides ? (
+            <>
+              <TeamLine team={sides.away} />
+              <div
+                aria-hidden="true"
+                className="pl-[42px] text-2xs uppercase tracking-wider text-ink-faint"
+              >
+                {separatorFor(game.sport)}
+              </div>
+              <TeamLine team={sides.home} />
+            </>
+          ) : (
+            <EventBody game={game} />
+          )}
+        </div>
 
-      <div className="flex items-end justify-between gap-3 text-[11px]">
-        <span className="min-w-0 leading-5 text-white/31">
-          <span className="block truncate">{game.venue.name ?? 'Venue TBC'}</span>
-          {game.venue.city && <span className="block truncate">{game.venue.city}</span>}
-        </span>
-        <span
-          className={`shrink-0 rounded-full border px-2 py-1 ${statusTone(game.status)}`}
-        >
-          {STATUS_LABEL[game.status]}
-        </span>
-      </div>
+        <div className="flex items-end justify-between gap-3 text-2xs">
+          <span className="min-w-0 leading-5 text-ink-faint">
+            <span className="block truncate">{game.venue.name ?? 'Venue TBC'}</span>
+            {game.venue.city && <span className="block truncate">{game.venue.city}</span>}
+          </span>
+          <StatusBadge status={game.status} />
+        </div>
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
-      <SlipButton game={game} className="absolute right-[52px] top-3" />
+      <SlipButton game={game} className="absolute right-[56px] top-3" />
     </div>
   );
 }
 
+/**
+ * The skeleton matches the layout that will replace it at every width, so the
+ * page does not rearrange itself the moment data lands.
+ */
 function Skeleton() {
   return (
-    <div className="animate-pulse" aria-busy="true" aria-label="Loading schedule">
-      <div className="hidden overflow-hidden rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
+    <div className="motion-safe:animate-pulse" aria-busy="true" aria-label="Loading schedule">
+      <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface-1 xl:block">
         {[0, 1, 2, 3].map((row) => (
           <div
             key={row}
-            className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 border-b border-white/[.065] px-4 py-3 last:border-b-0`}
+            className={`grid min-h-[78px] ${ROW_GRID} items-center gap-4 border-b border-line px-4 py-3 last:border-b-0`}
           >
-            <div className="h-3 w-16 rounded-full bg-white/[.06]" />
-            <div className="h-3 w-14 rounded-full bg-white/[.05]" />
+            <div className="h-3 w-16 rounded-full bg-surface-3" />
+            <div className="h-3 w-14 rounded-full bg-surface-2" />
             <div className="space-y-2">
-              <div className="h-3 w-40 rounded-full bg-white/[.06]" />
-              <div className="h-3 w-32 rounded-full bg-white/[.045]" />
+              <div className="h-3 w-40 rounded-full bg-surface-3" />
+              <div className="h-3 w-32 rounded-full bg-surface-2" />
             </div>
-            <div className="h-3 w-28 rounded-full bg-white/[.045]" />
-            <div className="h-3 w-16 rounded-full bg-white/[.04]" />
-            <div className="h-5 w-20 rounded-full bg-white/[.05]" />
+            <div className="h-3 w-28 rounded-full bg-surface-2" />
+            <div className="h-3 w-16 rounded-full bg-surface-2" />
+            <div className="h-5 w-20 rounded-full bg-surface-2" />
           </div>
         ))}
       </div>
 
-      <div className="grid gap-3 md:hidden">
-        {[0, 1, 2].map((card) => (
+      <div className="grid gap-3 sm:grid-cols-2 xl:hidden">
+        {[0, 1, 2, 4].map((card) => (
           <div key={card} className="panel space-y-4 p-4">
-            <div className="h-3 w-24 rounded-full bg-white/[.06]" />
-            <div className="h-3 w-40 rounded-full bg-white/[.05]" />
-            <div className="h-3 w-36 rounded-full bg-white/[.05]" />
-            <div className="h-3 w-28 rounded-full bg-white/[.04]" />
+            <div className="h-3 w-24 rounded-full bg-surface-3" />
+            <div className="h-3 w-40 rounded-full bg-surface-2" />
+            <div className="h-3 w-36 rounded-full bg-surface-2" />
+            <div className="h-3 w-28 rounded-full bg-surface-2" />
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function Notice({ children }: { children: string }) {
-  return (
-    <div className="panel flex min-h-[140px] items-center justify-center p-6 text-center text-xs text-white/38">
-      {children}
     </div>
   );
 }
@@ -289,7 +278,8 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
   // League options follow the sport chip: picking Basketball should not still
   // offer the Premier League.
   const leagues = useMemo(
-    () => availableLeagues(
+    () =>
+      availableLeagues(
         activeChip === ALL_SPORTS ? games : games.filter((g) => chipMatches(g, activeChip)),
       ),
     [games, activeChip],
@@ -311,9 +301,11 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
     return 'No games scheduled for this day.';
   })();
 
+  const narrowed = activeChip !== ALL_SPORTS || league !== ALL_LEAGUES || search.trim() !== '';
+
   return (
     <>
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Schedule overview">
+      <StatGrid label="Schedule overview">
         <StatCard
           label="Games This Week"
           icon={CalendarDays}
@@ -338,12 +330,12 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
           value={state === 'loaded' ? String(summary.tomorrow) : '--'}
           note="Scheduled games"
         />
-      </section>
+      </StatGrid>
 
       {/* Eight-day selector: today through today + 7 */}
       <section className="mt-6">
         <h2 className="sr-only">Date range</h2>
-        <div className="horizontal-cards rounded-2xl border border-white/[.085] bg-white/[.02] p-1.5">
+        <div className="horizontal-cards rounded-2xl border border-line bg-surface-1 p-1.5">
           {(dates.length > 0 ? dates : Array.from({ length: 8 }, (_, i) => `placeholder-${i}`)).map(
             (date, index) => {
               const real = dates.length > 0;
@@ -360,17 +352,19 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
                   disabled={!real}
                   onClick={() => setSelectedDate(date)}
                   aria-pressed={isActive}
-                  className={`min-h-[54px] min-w-[92px] flex-1 rounded-xl px-4 text-center transition ${
+                  className={`focus-ring min-h-[54px] min-w-fit flex-1 rounded-xl px-3 text-center transition sm:px-4 ${
                     isActive
-                      ? 'border border-violet-400/35 bg-violet-500/15 text-white'
-                      : 'text-white/42 hover:bg-white/[.035] hover:text-white'
+                      ? 'border border-violet-400/35 bg-violet-500/15 text-ink-strong'
+                      : 'text-ink-subtle hover:bg-surface-2 hover:text-ink-strong'
                   }`}
                 >
-                  <span className="block text-xs font-semibold uppercase tracking-wide">
+                  <span className="block whitespace-nowrap text-xs font-semibold uppercase tracking-wide">
                     {index === 0 && real ? 'TODAY' : weekday}
                   </span>
                   <span
-                    className={`mt-1 block text-[10px] ${isActive ? 'text-violet-300' : 'text-white/28'}`}
+                    className={`mt-1 block whitespace-nowrap text-2xs tabular-nums ${
+                      isActive ? 'text-violet-300' : 'text-ink-faint'
+                    }`}
                   >
                     {label}
                     {real && count > 0 ? ` · ${count}` : ''}
@@ -385,48 +379,43 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
       {/* Filters */}
       <section className="mt-4 space-y-3" aria-label="Schedule filters">
         {unavailable && (
-          <output className="block text-xs text-white/45">
+          <output className="block text-xs text-ink-subtle">
             No {chipLabel(unavailable)} games this week &mdash; showing all sports.
           </output>
         )}
-        <div className="horizontal-cards" aria-label="Sport filters">
+
+        <ChipRow label="Sport filters">
           {chips.map((tab) => (
-            <button
+            <Chip
               key={tab.id}
-              type="button"
-              aria-pressed={activeChip === tab.id}
-              aria-label={chipLabel(tab.id)}
+              active={activeChip === tab.id}
+              ariaLabel={chipLabel(tab.id)}
+              emoji={tab.emoji ?? undefined}
               onClick={() => {
                 setSport(tab.id);
                 // The chosen league may not exist in the new sport.
                 setLeague(ALL_LEAGUES);
               }}
-              className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-                activeChip === tab.id
-                  ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
-                  : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
-              }`}
             >
-              {tab.emoji && (
-                <span aria-hidden="true" className="mr-1.5">
-                  {tab.emoji}
-                </span>
-              )}
               {tab.label}
-            </button>
+            </Chip>
           ))}
-        </div>
+        </ChipRow>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="schedule-search" className="relative min-w-[220px] flex-1">
+          <label htmlFor="schedule-search" className="relative min-w-[200px] flex-1">
             <span className="sr-only">Search games, teams, or venues</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/28" />
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
+            />
             <input
               id="schedule-search"
+              type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search games, teams, venues..."
-              className="h-10 w-full rounded-xl border border-white/9 bg-white/[.025] pl-9 pr-3 text-xs text-white/60 outline-none placeholder:text-white/25 focus:border-violet-400/40"
+              className="field w-full pl-9 pr-3"
             />
           </label>
 
@@ -434,7 +423,7 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
             aria-label="League"
             value={league}
             onChange={(event) => setLeague(event.target.value)}
-            className="h-10 min-w-28 max-w-[220px] rounded-xl border border-white/9 bg-[#0f0d17] px-3 text-xs text-white/55 outline-none focus:border-violet-400/40"
+            className="field-select min-w-28 max-w-[220px] flex-1 sm:flex-none"
           >
             {leagues.map((name) => (
               <option key={name} value={name}>
@@ -446,31 +435,46 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
       </section>
 
       {/* Games */}
-      <section className="mt-4" aria-labelledby="schedule-list-heading">
-        <h2 id="schedule-list-heading" className="mb-3 text-sm font-semibold text-white/70">
+      <section className="mt-5" aria-labelledby="schedule-list-heading">
+        <h2 id="schedule-list-heading" className="mb-3 text-sm font-semibold text-ink">
           {activeDate ? formatDateHeading(activeDate) : 'Schedule'}
         </h2>
 
         {state === 'loading' ? (
           <Skeleton />
         ) : state === 'error' ? (
-          <div className="panel flex min-h-[140px] flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-xs text-white/38">Schedule information is temporarily unavailable.</p>
-            <button
-              type="button"
-              onClick={retry}
-              className="min-h-9 rounded-xl border border-white/9 bg-white/[.025] px-3 text-xs text-white/55 transition hover:border-violet-400/30 hover:text-white"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState title="Schedule information is temporarily unavailable." onRetry={retry} />
         ) : filtered.length === 0 ? (
-          <Notice>{emptyMessage}</Notice>
+          <EmptyState
+            icon={CalendarX2}
+            title={emptyMessage}
+            hint={
+              narrowed && games.length > 0
+                ? 'Another day, or a wider filter, may have more.'
+                : undefined
+            }
+            action={
+              narrowed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSport(ALL_SPORTS);
+                    setLeague(ALL_LEAGUES);
+                    setSearch('');
+                  }}
+                  className="focus-ring rounded-lg px-1 py-1 text-xs text-violet-300 transition hover:text-violet-200"
+                >
+                  Clear filters
+                </button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-2xl border border-white/[.085] bg-white/[.018] md:block">
+            {/* The table, only where its columns fit. */}
+            <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface-1 xl:block">
               <div
-                className={`grid ${ROW_GRID} gap-4 border-b border-white/8 px-4 py-3 text-[10px] font-medium uppercase tracking-wider text-white/28`}
+                className={`grid ${ROW_GRID} gap-4 border-b border-line px-4 py-3 text-2xs font-medium uppercase tracking-wider text-ink-faint`}
               >
                 <span>Sport / League</span>
                 <span>Time</span>
@@ -485,9 +489,10 @@ export function ScheduleView({ initialSport }: { initialSport?: string }) {
               ))}
             </div>
 
-            <div className="grid gap-3 md:hidden">
+            {/* One column on a phone, two through the tablet band. */}
+            <div className="grid gap-3 sm:grid-cols-2 xl:hidden">
               {filtered.map((game) => (
-                <MobileCard key={game.id} game={game} timezone={timezone} />
+                <GameCard key={game.id} game={game} timezone={timezone} />
               ))}
             </div>
           </>

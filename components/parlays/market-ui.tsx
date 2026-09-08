@@ -120,7 +120,7 @@ export function GlossaryTerm({
          * back out of the layout. A bare 17px-tall control is below the 24px
          * minimum and genuinely hard to hit on a phone.
          */
-        className="inline-flex items-center gap-1 border-b border-dotted border-white/30 py-1 -my-1 text-left transition hover:border-violet-300/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        className="inline-flex items-center gap-1 border-b border-dotted border-line-strong py-1 -my-1 text-left transition hover:border-violet-300/70 hover:text-ink-strong focus-ring"
       >
         {children}
         <CircleHelp className="size-3 shrink-0 opacity-50" aria-hidden="true" />
@@ -130,14 +130,14 @@ export function GlossaryTerm({
         <span
           id={id}
           role="tooltip"
-          className="absolute left-0 top-full z-30 mt-1.5 block w-64 rounded-xl border border-white/12 bg-[#14111d] p-3 text-left shadow-[0_20px_60px_rgba(0,0,0,.5)]"
+          className="absolute left-0 top-full z-30 mt-1.5 block w-64 rounded-xl border border-line-strong bg-[#14111d] p-3 text-left shadow-[0_20px_60px_rgba(0,0,0,.5)]"
         >
-          <span className="block text-[11px] font-semibold text-white/85">{entry.term}</span>
-          <span className="mt-1 block text-[11px] leading-5 font-normal text-white/55">
+          <span className="block text-2xs font-semibold text-ink-strong">{entry.term}</span>
+          <span className="mt-1 block text-2xs leading-5 font-normal text-ink-muted">
             {entry.definition}
           </span>
           {entry.example && (
-            <span className="mt-1.5 block text-[11px] leading-5 font-normal text-violet-300/70">
+            <span className="mt-1.5 block text-2xs leading-5 font-normal text-violet-300/70">
               {entry.example}
             </span>
           )}
@@ -163,16 +163,16 @@ export function MarketBadge({ market }: { market: MarketContext }) {
   if (market.availability === 'verified') {
     const when = ago(market.fetchedAt);
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-2xs font-medium text-status-good">
         <BadgeCheck className="size-3 shrink-0" aria-hidden="true" />
         Available at {market.source}
-        {when && <span className="font-normal text-emerald-300/60">· {when}</span>}
+        {when && <span className="font-normal text-status-good">· {when}</span>}
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-500/[.08] px-2 py-0.5 text-[10px] font-medium text-amber-200">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-500/[.08] px-2 py-0.5 text-2xs font-medium text-status-warn">
       <CircleAlert className="size-3 shrink-0" aria-hidden="true" />
       Model projection — availability not verified
     </span>
@@ -204,13 +204,13 @@ export function OddsDisplay({
   return (
     <span className="block text-right">
       <span
-        className={`block font-semibold tabular-nums text-white/85 ${
+        className={`block font-semibold tabular-nums text-ink-strong ${
           size === 'large' ? 'text-2xl' : 'text-base'
         }`}
       >
         {decimal.toFixed(2)}
       </span>
-      <span className="mt-0.5 block text-[10px] tabular-nums text-white/32">
+      <span className="mt-0.5 block text-2xs tabular-nums text-ink-faint">
         {fractional} · {american > 0 ? `+${american}` : american}
       </span>
     </span>
@@ -221,8 +221,8 @@ export function OddsDisplay({
 export function NoPrice({ note }: { note?: string }) {
   return (
     <span className="block text-right">
-      <span className="block text-base font-semibold text-white/25">—</span>
-      <span className="mt-0.5 block text-[10px] text-white/28">{note ?? 'No price'}</span>
+      <span className="block text-base font-semibold text-ink-faint">—</span>
+      <span className="mt-0.5 block text-2xs text-ink-faint">{note ?? 'No price'}</span>
     </span>
   );
 }
@@ -247,24 +247,24 @@ export function ModelEdge({ edge, model }: { edge: EdgeAssessment; model: number
   const value = edge.fair_edge ?? edge.edge;
   const Icon = value > 0.02 ? TrendingUp : value < -0.02 ? TrendingDown : Minus;
   const tone =
-    value > 0.02 ? 'text-emerald-300' : value < -0.02 ? 'text-rose-300/80' : 'text-white/45';
+    value > 0.02 ? 'text-status-good' : value < -0.02 ? 'text-status-bad' : 'text-ink-subtle';
 
   return (
-    <div className="grid grid-cols-3 gap-2 text-[11px]">
+    <div className="grid grid-cols-3 gap-2 text-2xs">
       <div>
-        <dt className="text-white/28">Model</dt>
-        <dd className="mt-0.5 tabular-nums text-white/70">{percent(model)}</dd>
+        <dt className="text-ink-faint">Model</dt>
+        <dd className="mt-0.5 tabular-nums text-ink">{percent(model)}</dd>
       </div>
       <div>
-        <dt className="text-white/28">
+        <dt className="text-ink-faint">
           <GlossaryTerm termKey={edge.fair === null ? 'implied_probability' : 'fair_probability'}>
             {edge.fair === null ? 'Implied' : 'Market'}
           </GlossaryTerm>
         </dt>
-        <dd className="mt-0.5 tabular-nums text-white/70">{percent(comparison)}</dd>
+        <dd className="mt-0.5 tabular-nums text-ink">{percent(comparison)}</dd>
       </div>
       <div>
-        <dt className="text-white/28">
+        <dt className="text-ink-faint">
           <GlossaryTerm termKey="model_edge">Edge</GlossaryTerm>
         </dt>
         <dd className={`mt-0.5 flex items-center gap-1 tabular-nums ${tone}`}>
@@ -281,10 +281,10 @@ export function ModelEdge({ edge, model }: { edge: EdgeAssessment; model: number
 // ---------------------------------------------------------------------------
 
 const QUALITY_TONE: Record<string, string> = {
-  High: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300',
-  Medium: 'border-amber-400/25 bg-amber-500/[.08] text-amber-200',
-  Low: 'border-rose-400/25 bg-rose-500/10 text-rose-300',
-  Insufficient: 'border-white/10 bg-white/[.03] text-white/40',
+  High: 'tone-good',
+  Medium: 'tone-warn',
+  Low: 'tone-bad',
+  Insufficient: 'border-line bg-surface-1 text-ink-subtle',
 };
 
 /**
@@ -303,7 +303,7 @@ export function DataQualityBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-2xs font-medium ${
         QUALITY_TONE[label] ?? QUALITY_TONE.Insufficient
       }`}
       title={reasons.length > 0 ? reasons.join(' ') : undefined}
@@ -314,15 +314,15 @@ export function DataQualityBadge({
 }
 
 const RISK_TONE: Record<RiskLevel, string> = {
-  low: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300',
-  medium: 'border-amber-400/25 bg-amber-500/[.08] text-amber-200',
-  high: 'border-rose-400/25 bg-rose-500/10 text-rose-300',
+  low: 'tone-good',
+  medium: 'tone-warn',
+  high: 'tone-bad',
 };
 
 export function RiskBadge({ risk }: { risk: RiskLevel }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${RISK_TONE[risk]}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-wider ${RISK_TONE[risk]}`}
     >
       {risk} risk
     </span>
@@ -330,15 +330,15 @@ export function RiskBadge({ risk }: { risk: RiskLevel }) {
 }
 
 const CORRELATION_TONE: Record<string, string> = {
-  low: 'border-white/10 bg-white/[.03] text-white/45',
-  moderate: 'border-amber-400/25 bg-amber-500/[.08] text-amber-200',
-  high: 'border-rose-400/25 bg-rose-500/10 text-rose-300',
+  low: 'tone-neutral',
+  moderate: 'tone-warn',
+  high: 'tone-bad',
 };
 
 export function CorrelationBadge({ correlation }: { correlation: CorrelationAssessment }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-2xs font-medium capitalize ${
         CORRELATION_TONE[correlation.level] ?? CORRELATION_TONE.low
       }`}
     >
@@ -384,17 +384,17 @@ export function ProjectedScore({
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider text-white/28">Model score</p>
+      <p className="text-2xs uppercase tracking-wider text-ink-faint">Model score</p>
       <dl className="mt-1.5 space-y-1">
         {rows.map((row) => (
           <div key={row.team} className="flex items-baseline justify-between gap-3">
-            <dt className="min-w-0 truncate text-[12px] text-white/60">{row.team}</dt>
+            <dt className="min-w-0 truncate text-xs text-ink-muted">{row.team}</dt>
             <dd className="shrink-0 text-right">
-              <span className="text-sm font-semibold tabular-nums text-white/85">
+              <span className="text-sm font-semibold tabular-nums text-ink-strong">
                 {row.score.toFixed(1)}
               </span>
               {row.range && (
-                <span className="ml-2 text-[10px] tabular-nums text-white/30">
+                <span className="ml-2 text-2xs tabular-nums text-ink-faint">
                   usually {row.range[0]}–{row.range[1]}
                 </span>
               )}
@@ -403,7 +403,7 @@ export function ProjectedScore({
         ))}
       </dl>
       {typical && (
-        <p className="mt-1.5 text-[10px] text-white/28">
+        <p className="mt-1.5 text-2xs text-ink-faint">
           A typical simulated result: {awayTeam.split(' ').slice(-1)[0]} {typical.away} –{' '}
           {typical.home} {homeTeam.split(' ').slice(-1)[0]}. The figures above are averages
           across every simulation, not scorelines.
@@ -441,21 +441,21 @@ export function Reasoning({
   const blocks: { title: string; tone: string; mark: string; items: Factor[]; sr: string }[] = [
     {
       title: 'Why we like it',
-      tone: 'text-emerald-300',
+      tone: 'text-status-good',
       mark: '✓',
       items: support.slice(0, 3),
       sr: 'Supporting factor:',
     },
     {
       title: 'Risks',
-      tone: 'text-amber-300',
+      tone: 'text-status-warn',
       mark: '!',
       items: risks.slice(0, 3),
       sr: 'Risk factor:',
     },
     {
       title: 'Match context',
-      tone: 'text-white/30',
+      tone: 'text-ink-faint',
       mark: '·',
       items: context.slice(0, 2),
       sr: 'Context:',
@@ -468,12 +468,12 @@ export function Reasoning({
         .filter((block) => block.items.length > 0)
         .map((block) => (
           <div key={block.title} className="mt-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/28">{block.title}</p>
+            <p className="text-2xs uppercase tracking-wider text-ink-faint">{block.title}</p>
             <ul className="mt-1.5 space-y-1">
               {block.items.map((factor) => (
                 <li
                   key={factor.text}
-                  className="flex gap-2 text-[11px] leading-5 text-white/45"
+                  className="flex gap-2 text-2xs leading-5 text-ink-subtle"
                 >
                   <span aria-hidden="true" className={`shrink-0 ${block.tone}`}>
                     {block.mark}
@@ -515,7 +515,7 @@ export function Expandable({
   const toggle = useCallback(() => setOpen((current) => !current), []);
 
   return (
-    <div className="mt-3 border-t border-white/7 pt-3">
+    <div className="mt-3 border-t border-line pt-3">
       <button
         type="button"
         onClick={toggle}
@@ -523,7 +523,7 @@ export function Expandable({
         aria-controls={id}
         // Padded to a comfortable target: this is the primary way to open a
         // leg's analysis on a phone, and it was 17px tall.
-        className="flex w-full items-center justify-between gap-2 py-2 text-left text-[11px] text-white/40 transition hover:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        className="flex w-full items-center justify-between gap-2 py-2 text-left text-2xs text-ink-subtle transition hover:text-ink focus-ring"
       >
         {label}
         <ChevronDown
@@ -542,8 +542,8 @@ export function Expandable({
 export function Note({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'warning' }) {
   return (
     <p
-      className={`flex gap-2 text-[11px] leading-5 ${
-        tone === 'warning' ? 'text-amber-200/70' : 'text-white/30'
+      className={`flex gap-2 text-2xs leading-5 ${
+        tone === 'warning' ? 'text-status-warn' : 'text-ink-faint'
       }`}
     >
       <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />

@@ -87,15 +87,6 @@ export function formatTime(iso: string | null): string | null {
   }).format(date);
 }
 
-export const STATUS_LABEL: Record<GameDetail['status'], string> = {
-  scheduled: 'Scheduled',
-  live: 'Live',
-  finished: 'Finished',
-  postponed: 'Postponed',
-  cancelled: 'Cancelled',
-  unknown: 'Status unavailable',
-};
-
 /** A game shows a score only once it has actually started. */
 export function hasScore(game: GameDetail): boolean {
   return (

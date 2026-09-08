@@ -95,10 +95,10 @@ function MarketRow({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus-ring ${
         selected
           ? 'border-violet-400/40 bg-violet-500/10'
-          : 'border-white/8 bg-white/[.02] hover:bg-white/[.045]'
+          : 'border-line bg-surface-1 hover:bg-surface-2'
       }`}
     >
       <span
@@ -106,26 +106,26 @@ function MarketRow({
         className={`grid size-5 shrink-0 place-items-center rounded-md border ${
           selected
             ? 'border-violet-400/50 bg-violet-500/25 text-violet-200'
-            : 'border-white/12 text-white/25'
+            : 'border-line-strong text-ink-faint'
         }`}
       >
         {selected ? <Check className="size-3" /> : <Plus className="size-3" />}
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-white/85">
+        <span className="block truncate text-sm font-medium text-ink-strong">
           {selection.label}
         </span>
-        <span className="mt-0.5 block truncate text-[10px] text-white/32">
+        <span className="mt-0.5 block truncate text-2xs text-ink-faint">
           {selection.explanation}
         </span>
       </span>
 
       <span className="shrink-0 text-right">
-        <span className="block text-[13px] font-semibold tabular-nums text-violet-300">
+        <span className="block text-sm font-semibold tabular-nums text-violet-300">
           {percent(selection.probability)}
         </span>
-        <span className="block text-[10px] tabular-nums text-white/35">
+        <span className="block text-2xs tabular-nums text-ink-faint">
           {selection.market.price ? selection.market.price.decimal.toFixed(2) : 'no price'}
         </span>
       </span>
@@ -223,7 +223,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
   if (state === 'loading') {
     return (
       <section className="panel p-5" aria-busy="true" aria-label="Loading markets">
-        <div className="h-40 rounded-xl bg-white/[.03] motion-safe:animate-pulse motion-reduce:animate-none" />
+        <div className="h-40 rounded-xl bg-surface-1 motion-safe:animate-pulse motion-reduce:animate-none" />
       </section>
     );
   }
@@ -232,7 +232,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
     return (
       <section className="panel p-5">
         <h2 className="text-sm font-semibold">Markets</h2>
-        <p className="mt-2 text-[12px] leading-5 text-white/38">
+        <p className="mt-2 text-xs leading-5 text-ink-subtle">
           {state === 'error'
             ? 'Markets could not be loaded right now.'
             : 'No markets for this fixture. Either it is already under way, or there is not enough completed match history behind these sides to project it.'}
@@ -248,7 +248,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
         <h2 id="markets-heading" className="text-sm font-semibold">
           Markets
         </h2>
-        <span className="ml-auto text-[10px] text-white/28">
+        <span className="ml-auto text-2xs text-ink-faint">
           {data.pricing
             ? `${data.pricing.markets} priced by ${data.pricing.source}`
             : 'No bookmaker prices published'}
@@ -256,7 +256,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
       </div>
 
       {!data.pricing && (
-        <p className="mt-2 text-[11px] leading-5 text-amber-200/70">
+        <p className="mt-2 text-2xs leading-5 text-status-warn">
           Every line below is one the model derived itself. Nothing confirms a bookmaker offers
           them, so treat them as analysis rather than as bets you can place.
         </p>
@@ -265,8 +265,8 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
       {/* Model picks */}
       {data.model_picks && data.model_picks.length > 0 && (
         <div className="mt-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">Model picks</p>
-          <p className="mt-1 text-[10px] leading-4 text-white/28">
+          <p className="text-2xs uppercase tracking-wider text-ink-faint">Model picks</p>
+          <p className="mt-1 text-2xs leading-4 text-ink-faint">
             Ranked by probability tempered by confidence, how much history stands behind it, and
             whether the line is one a bookmaker is offering — not by probability alone.
           </p>
@@ -286,7 +286,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
       {/* Every market, grouped */}
       {data.groups.map((group) => (
         <div key={group.market} className="mt-5">
-          <p className="text-[10px] uppercase tracking-wider text-white/28">
+          <p className="text-2xs uppercase tracking-wider text-ink-faint">
             <GlossaryTerm
               termKey={glossaryKeyForMarket(group.market, group.selections[0]?.sport ?? '')}
             >
@@ -310,7 +310,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
       ))}
 
       {/* Builder */}
-      <div className="mt-6 border-t border-white/7 pt-4">
+      <div className="mt-6 border-t border-line pt-4">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">
             <GlossaryTerm termKey="bet_builder">Build your own</GlossaryTerm>
@@ -320,7 +320,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
             <button
               type="button"
               onClick={clear}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-white/40 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs text-ink-subtle transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
             >
               <Trash2 className="size-3" aria-hidden="true" />
               Clear
@@ -329,18 +329,18 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
         </div>
 
         {chosen.length === 0 ? (
-          <p className="mt-2 text-[11px] leading-5 text-white/32">
+          <p className="mt-2 text-2xs leading-5 text-ink-faint">
             Choose selections above to see what the model makes of them together.
           </p>
         ) : !slip ? (
-          <p className="mt-2 text-[11px] leading-5 text-white/32">Working it out…</p>
+          <p className="mt-2 text-2xs leading-5 text-ink-faint">Working it out…</p>
         ) : (
           <div className="mt-3">
             <ul className="space-y-1.5">
               {slip.legs.map((leg) => (
                 <li key={leg.id} className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 truncate text-[12px] text-white/70">{leg.label}</span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-violet-300/80">
+                  <span className="min-w-0 truncate text-xs text-ink">{leg.label}</span>
+                  <span className="shrink-0 text-2xs tabular-nums text-violet-300/80">
                     {percent(leg.probability)}
                   </span>
                 </li>
@@ -348,16 +348,16 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
             </ul>
 
             {slip.dropped > 0 && (
-              <p className="mt-2 text-[11px] text-amber-200/70">
+              <p className="mt-2 text-2xs text-status-warn">
                 {slip.dropped} selection{slip.dropped === 1 ? ' was' : 's were'} left out as
                 incompatible with one already chosen — two sides of the same market cannot both
                 win.
               </p>
             )}
 
-            <dl className="mt-3 space-y-2 border-t border-white/7 pt-3 text-[11px]">
+            <dl className="mt-3 space-y-2 border-t border-line pt-3 text-2xs">
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">
+                <dt className="text-ink-subtle">
                   <GlossaryTerm termKey="model_probability">Combined probability</GlossaryTerm>
                 </dt>
                 <dd className="text-base font-semibold tabular-nums text-violet-300">
@@ -367,31 +367,31 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
 
               {slip.legs.length > 1 && (
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-white/38">If simply multiplied</dt>
-                  <dd className="tabular-nums text-white/45">
+                  <dt className="text-ink-subtle">If simply multiplied</dt>
+                  <dd className="tabular-nums text-ink-subtle">
                     {percent(slip.independent_probability, 1)}
                   </dd>
                 </div>
               )}
 
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Combined odds</dt>
-                <dd className="tabular-nums text-white/70">
+                <dt className="text-ink-subtle">Combined odds</dt>
+                <dd className="tabular-nums text-ink">
                   {slip.price ? slip.price.decimal.toFixed(2) : 'Not priced'}
                 </dd>
               </div>
 
               {slip.price && (
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-white/38">
+                  <dt className="text-ink-subtle">
                     <GlossaryTerm termKey="model_edge">Model edge</GlossaryTerm>
                   </dt>
-                  <dd className="tabular-nums text-white/70">{signedPercent(slip.price.edge)}</dd>
+                  <dd className="tabular-nums text-ink">{signedPercent(slip.price.edge)}</dd>
                 </div>
               )}
 
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-white/38">Correlation</dt>
+                <dt className="text-ink-subtle">Correlation</dt>
                 <dd>
                   <CorrelationBadge correlation={slip.correlation} />
                 </dd>
@@ -399,7 +399,7 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
             </dl>
 
             {slip.legs.length > 1 && (
-              <p className="mt-2 text-[11px] leading-5 text-white/32">{slip.correlation.note}</p>
+              <p className="mt-2 text-2xs leading-5 text-ink-faint">{slip.correlation.note}</p>
             )}
           </div>
         )}

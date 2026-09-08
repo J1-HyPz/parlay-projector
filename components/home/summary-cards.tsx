@@ -1,44 +1,19 @@
 'use client';
 
 /**
- * The four overview cards. Same markup as the original placeholders — only the
- * values are now real, and they stay `--` until data arrives or when a section
- * is unavailable.
+ * The four overview cards. Values stay `--` until data arrives, or when a
+ * section is unavailable; nothing here is ever a placeholder number.
+ *
+ * The card itself is now shared -- see components/ui/stat-card.tsx, and the
+ * note there about why these are two-across on a phone rather than four
+ * stacked.
  */
 
 import { Activity, CalendarDays, Clock3, Trophy } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { percent } from '@/lib/utils';
+import { MIN_REPORTABLE } from '@/lib/projections/metrics';
+import { StatCard, StatGrid } from '@/components/ui/stat-card';
 import { useHomeData } from './home-data';
-
-function StatCard({
-  label,
-  icon: Icon,
-  value,
-  note,
-}: {
-  label: string;
-  icon: LucideIcon;
-  value: string;
-  note?: string;
-}) {
-  return (
-    <article className="panel flex min-h-28 items-center justify-between p-4">
-      <div>
-        <p className="text-xs text-white/42">{label}</p>
-        <p className="mt-2 text-2xl font-semibold text-white/75">{value}</p>
-        {note ? (
-          <p className="mt-1 text-[10px] text-white/27">{note}</p>
-        ) : (
-          <span className="mt-2 block h-1.5 w-20 rounded-full bg-white/[.06]" />
-        )}
-      </div>
-      <span className="grid size-10 place-items-center rounded-xl border border-violet-400/15 bg-violet-500/[.08] text-violet-300">
-        <Icon className="size-[18px]" />
-      </span>
-    </article>
-  );
-}
 
 export function SummaryCards() {
   const { state, data } = useHomeData();
@@ -49,6 +24,26 @@ export function SummaryCards() {
 
   const accuracy = ready && summary.accuracy !== null ? percent(summary.accuracy, 1) : '--%';
 
+  /*
+   * Why the rate is missing, when it is.
+   *
+   * A percentage is withheld below MIN_REPORTABLE settled predictions, because
+   * a rate from a handful of results is noise. But the card used to show
+   * `--%` beside "12 settled", which reads as a broken widget rather than a
+   * deliberate one -- there plainly *is* history, so why is there no number?
+   *
+   * Saying how far off the threshold is answers that, and costs no new data:
+   * both figures are already here.
+   */
+  const accuracyNote = (() => {
+    if (!ready) return undefined;
+    if (summary.predictions_settled === 0) return 'No settled predictions yet';
+    if (summary.accuracy === null) {
+      return `${summary.predictions_settled} of ${MIN_REPORTABLE} settled needed for a rate`;
+    }
+    return `${summary.predictions_settled} settled`;
+  })();
+
   // Games still to start today, derived from what the API already returned.
   const upcoming =
     state === 'loaded' && data
@@ -56,20 +51,11 @@ export function SummaryCards() {
       : '--';
 
   return (
-    <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Overview">
+    <StatGrid label="Overview">
       <StatCard label="Games Today" icon={CalendarDays} value={number(summary?.games_today)} />
       <StatCard label="Sports Tracked" icon={Trophy} value={number(summary?.sports_active)} />
-      <StatCard
-        label="Prediction Accuracy"
-        icon={Activity}
-        value={accuracy}
-        note={
-          ready && summary.predictions_settled > 0
-            ? `${summary.predictions_settled} settled`
-            : 'No settled predictions yet'
-        }
-      />
+      <StatCard label="Prediction Accuracy" icon={Activity} value={accuracy} note={accuracyNote} />
       <StatCard label="Upcoming Games" icon={Clock3} value={upcoming} />
-    </section>
+    </StatGrid>
   );
 }

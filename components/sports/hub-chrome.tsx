@@ -38,7 +38,7 @@ export function HubHeader({
   const { terminology } = hub;
 
   return (
-    <header className="border-b border-white/8 pb-5">
+    <header className="border-b border-line pb-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span aria-hidden="true" className="text-2xl">
           {hub.emoji}
@@ -46,21 +46,21 @@ export function HubHeader({
         <h1 className="text-2xl font-semibold md:text-3xl">{hub.label}</h1>
 
         {liveCount > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-500/12 px-2.5 py-1 text-[11px] font-medium text-rose-300">
+          <span className="tone-live inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium">
             <Radio className="size-3" aria-hidden="true" />
             {liveCount} live
           </span>
         )}
 
         {collegiate && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[.03] px-2.5 py-1 text-[11px] text-white/45">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-1 px-2.5 py-1 text-2xs text-ink-subtle">
             <GraduationCap className="size-3" aria-hidden="true" />
             Collegiate
           </span>
         )}
       </div>
 
-      <p className="mt-2 text-sm text-white/40">
+      <p className="mt-2 text-sm text-ink-subtle">
         {season ? `${season} season · ` : ''}
         {[terminology.games, terminology.standings, 'News', terminology.teams, terminology.transactions].join(' · ')}
       </p>
@@ -98,10 +98,10 @@ export function HubNavigation({
           type="button"
           aria-current={active === section.id ? 'page' : undefined}
           onClick={() => onSelect(section.id)}
-          className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+          className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-ring ${
             active === section.id
-              ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
-              : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+              ? 'border-violet-500 bg-violet-600 text-ink-strong hover:bg-violet-500'
+              : 'chip-off'
           }`}
         >
           {section.label}
@@ -139,10 +139,10 @@ export function DivisionSelector({
           type="button"
           aria-pressed={active === division.id}
           onClick={() => onSelect(division.id)}
-          className={`min-h-8 shrink-0 rounded-lg border px-3 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+          className={`min-h-8 shrink-0 rounded-lg border px-3 text-xs transition focus-ring ${
             active === division.id
-              ? 'border-violet-500 bg-violet-600 text-white'
-              : 'border-white/9 bg-white/[.02] text-white/48 hover:text-white'
+              ? 'chip-on'
+              : 'border-line bg-surface-1 text-ink-muted hover:text-ink-strong'
           }`}
         >
           {division.label}
@@ -168,14 +168,14 @@ export function CompetitionSelector({ activeSlug }: { activeSlug: string }) {
 
   return (
     <section className="panel mt-4 p-4" aria-labelledby="competition-selector">
-      <h2 id="competition-selector" className="text-xs font-medium uppercase tracking-wider text-white/32">
+      <h2 id="competition-selector" className="text-xs font-medium uppercase tracking-wider text-ink-faint">
         Football competitions
       </h2>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
         {FOOTBALL_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="text-[11px] uppercase tracking-wider text-violet-300/70">
+            <p className="text-2xs uppercase tracking-wider text-violet-300/70">
               {group.label}
             </p>
             <ul className="mt-2 space-y-1">
@@ -184,10 +184,10 @@ export function CompetitionSelector({ activeSlug }: { activeSlug: string }) {
                   <a
                     href={`/sports/${slug}`}
                     aria-current={slug === activeSlug ? 'page' : undefined}
-                    className={`block truncate rounded-lg px-2 py-1.5 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                    className={`block truncate rounded-lg px-2 py-1.5 text-xs transition focus-ring ${
                       slug === activeSlug
                         ? 'bg-violet-500/12 text-violet-200'
-                        : 'text-white/48 hover:bg-white/[.04] hover:text-white'
+                        : 'text-ink-muted hover:bg-surface-2 hover:text-ink-strong'
                     }`}
                   >
                     {labels.get(slug) ?? slug}

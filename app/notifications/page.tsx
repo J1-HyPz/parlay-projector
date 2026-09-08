@@ -33,7 +33,7 @@ export default function NotificationsPage() {
         }
       : {
           icon: CircleSlash,
-          tone: 'text-white/40',
+          tone: 'text-ink-subtle',
           title: 'Not configured',
           detail: 'Set DISCORD_WEBHOOK_URL in the app environment to start receiving notifications.',
         };
@@ -49,7 +49,7 @@ export default function NotificationsPage() {
       />
 
       <section
-        className="mt-6 rounded-2xl border border-white/8 bg-white/[.02] p-5"
+        className="mt-6 rounded-2xl border border-line bg-surface-1 p-5"
         aria-labelledby="status-heading"
       >
         <div className="flex items-start gap-3">
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
             <h2 id="status-heading" className="text-base font-semibold">
               {status.title}
             </h2>
-            <p className="mt-1 text-sm text-white/45">{status.detail}</p>
+            <p className="mt-1 text-sm text-ink-subtle">{status.detail}</p>
           </div>
         </div>
       </section>

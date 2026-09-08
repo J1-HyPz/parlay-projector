@@ -23,9 +23,24 @@ Categories, used consistently:
 ## Unreleased
 
 The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
-and sport and competition filtering for parlays. 712 tests.
+sport and competition filtering for parlays, and a design system that makes the
+whole application readable on a phone and a tablet. 764 tests.
 
 ### Added
+
+**A design system, and readable text**
+
+- The interface had grown fifty-three different shades of white across about
+  seven hundred usages — twenty-seven of them for text alone. Text now comes
+  from a **five-step ramp**, and **every step of it passes WCAG AA** against
+  the page background.
+- This was not a tidying exercise. The most-used text colour in the
+  application measured **2.35:1** where the standard asks 4.5:1, and it was
+  carrying the game status, the venue and the kick-off time on every card.
+  Measured on Home before the change: **104 elements failed**. After: none.
+- The smallest text was 9px. The floor is now **11px**.
+- Documented in [docs/design-system.md](docs/design-system.md), together with
+  the breakpoints, the shared components and what each replaced.
 
 **More than one bet on the same match**
 
@@ -235,6 +250,45 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Fixed
 
+**The Schedule lost every fixture's status on a tablet**
+
+- The fixture table appeared from 768px, but its columns need about 910px. It
+  was therefore rendered into a container too narrow to hold it — and because
+  the page suppresses horizontal scrolling, it was **clipped rather than
+  scrolled**. Measured on an 805px viewport: the row needed 906px in a 747px
+  box, which put Broadcast half off-screen and Status and the watch control
+  entirely past the edge.
+- The table now waits until there is room for it, and the width it vacated
+  gets a **two-column card layout**, which suits a tablet better than a table
+  did.
+
+**Prediction accuracy read as broken when it was working**
+
+- The widget showed `--%` beside "12 settled", which looks like a fault: there
+  is plainly history, so where is the number? A rate is deliberately withheld
+  below twenty settled predictions, because a percentage from a dozen results
+  has a margin of error wide enough to cover almost any claim.
+- It now says so — "12 of 20 settled needed for a rate" — so the empty state
+  reads as the deliberate decision it is. The threshold itself has not changed.
+
+**Controls too small, and too close together, to tap**
+
+- The watch and slip buttons were 32px squares whose centres sat 40px apart.
+  Their hit areas are now **44px**, and spaced exactly 44px apart so they abut
+  without overlapping. The visible buttons are unchanged.
+
+**Other**
+
+- The primary navigation had **no keyboard focus indicator at all** — the one
+  component on every page. It has one now, and so does every other control:
+  forty hand-written rings at two different opacities became a single class.
+- Team crests reserve their box before loading, so a list no longer reflows as
+  the provider's CDN answers, and a badge that 404s leaves the team's initials
+  rather than a broken-image icon.
+- "View schedule" on Home looked like a link and did nothing. It is a link.
+- Loading skeletons ignored `prefers-reduced-motion`. One rule now covers the
+  whole application.
+
 - **NCAA Football was being projected with the NFL's model, and it showed.** It
   was the only competition dragging the accuracy figure down: 14 correct from
   25 against a model claiming 84%, with the projected margin out by 21 points a
@@ -341,6 +395,12 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Removed
 
+- `components/interactive-controls.tsx`, which was never imported and rendered
+  a hardcoded list of seven sports that had nothing to do with the catalogue —
+  along with two placeholder components that displayed permanent `--` values.
+  In an application with a rule against fabricating data, a component whose
+  only job is to show invented values is a liability.
+
 - **The Builder workspace, and the model suggestions added to it.** Both were
   built against a misunderstanding of what was wanted, so they are gone rather
   than left to be worked around: `/builder`, its API routes, its odds-provider
@@ -354,7 +414,6 @@ and sport and competition filtering for parlays. 712 tests.
   hours as though settled, game enrichment records the provider it actually
   used, and a neutral-site fixture whose feed reverses home and away is now
   enriched by team rather than by slot.
-
 
 - Nothing has been taken away.
 

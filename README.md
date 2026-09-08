@@ -283,6 +283,24 @@ Transition rules, batching, rate-limit handling and the restart behaviour:
 
 ---
 
+## Interface
+
+Mobile first, and dark throughout. Every page is built for a phone and
+progressively given more at `sm`, `md`, `lg` and `xl` — chip rows wrap once
+there is room rather than only scrolling, the Schedule becomes a table only at
+a width that fits one, and the sidebar replaces the bottom tab bar at 1024px.
+
+Text comes from a five-step ramp in which **every step clears WCAG AA** against
+the page background. That is worth stating because it was not previously true:
+the most-used text colour in the application measured 2.35:1 against a required
+4.5:1, and it was carrying the game status, the venue and the kick-off time on
+every card.
+
+Tokens, breakpoints, the shared components and what each replaced:
+**[docs/design-system.md](docs/design-system.md)**.
+
+---
+
 ## Leagues, teams and players
 
 A league catalogue covering the professional and collegiate competitions, with
@@ -998,11 +1016,17 @@ committed.
 ```
 parlay-projector/
 ├── app/                        routes (App Router)
+│   ├── api/                    every JSON endpoint
 │   ├── health/route.ts         liveness endpoint
-│   ├── live/  parlays/  profile/  schedule/
+│   ├── games/[gameId]/         game detail
+│   ├── sports/[competition]/   competition hubs
+│   ├── live/  parlays/  schedule/  slips/  notifications/
 │   ├── layout.tsx  page.tsx  globals.css
-├── components/                 app shell + UI primitives
-├── hooks/  lib/  public/
+├── components/
+│   ├── ui/                     the design system's shared primitives
+│   ├── app-shell.tsx           header, sidebar, mobile tab bar
+│   └── game/  home/  live/  parlays/  schedule/  slip/  sports/  watchlist/
+├── lib/  public/
 │
 ├── deploy/truenas/
 │   ├── compose.yaml            TrueNAS Custom App YAML

@@ -16,8 +16,7 @@
  * hint that six other sports were being followed at all.
  */
 
-import { Activity, Radio, RefreshCw, Search, Trophy, X } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Activity, Radio, RadioTower, RefreshCw, Search, Trophy, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
 import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
@@ -35,54 +34,25 @@ import {
 } from '@/lib/live/filters';
 import type { LiveFilters } from '@/lib/live/filters';
 import { formatKickoff, separatorFor, sportLabel } from '@/lib/schedule/filters';
+import { Chip, ChipRow } from '@/components/ui/chip';
+import { Crest } from '@/components/ui/crest';
+import { StatCard, StatGrid } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { EmptyState, ErrorState, StaleNotice } from '@/components/ui/states';
 import { WatchButton } from '@/components/watchlist/watch-button';
 import { SlipButton } from '@/components/slip/slip-button';
 import { formatUpdatedAt, useLive } from './live-data';
 
-function StatCard({
-  label,
-  icon: Icon,
-  value,
-  note,
-}: {
-  label: string;
-  icon: LucideIcon;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article className="panel flex min-h-28 items-center justify-between p-4">
-      <div>
-        <p className="text-xs text-white/42">{label}</p>
-        <p className="mt-2 text-2xl font-semibold text-white/75">{value}</p>
-        <p className="mt-1 text-[10px] text-white/27">{note}</p>
-      </div>
-      <span className="grid size-10 place-items-center rounded-xl border border-violet-400/15 bg-violet-500/[.08] text-violet-300">
-        <Icon className="size-[18px]" />
-      </span>
-    </article>
-  );
-}
-
 /**
- * Live badge.
+ * A score that has not arrived yet shows `--`, never 0 or NaN.
  *
- * Uses the application's purple accent, and the pulse is disabled under
- * `prefers-reduced-motion` via Tailwind's `motion-reduce` variant.
+ * Right-aligned in a fixed minimum box with tabular figures, so a score
+ * ticking from 9 to 10 on the thirty-second refresh does not shunt the team
+ * name beside it.
  */
-function LiveBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-400/25 bg-violet-500/12 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-      <span className="size-1.5 rounded-full bg-violet-400 motion-safe:animate-pulse motion-reduce:animate-none" />
-      Live
-    </span>
-  );
-}
-
-/** A score that has not arrived yet shows `--`, never 0 or NaN. */
 function Score({ value }: { value: number | null }) {
   return (
-    <span className="text-xl font-semibold tabular-nums text-white/85 md:text-2xl">
+    <span className="min-w-[2ch] text-right text-xl font-semibold tabular-nums text-ink-strong md:text-2xl">
       {value === null ? '--' : value}
     </span>
   );
@@ -98,20 +68,8 @@ function TeamRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2.5">
-        {team.logo ? (
-          // oxlint-disable-next-line nextjs/no-img-element -- remote team badge from the sports provider CDN; see components/home/games-today.tsx
-          <img
-            src={team.logo}
-            alt=""
-            loading="lazy"
-            className="size-8 shrink-0 rounded-full border border-white/9 bg-white/[.04] object-contain"
-          />
-        ) : (
-          <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/9 bg-white/[.04] text-[9px] text-white/40">
-            {team.name.slice(0, 2).toUpperCase()}
-          </span>
-        )}
-        <span className="truncate text-sm text-white/72">{team.name}</span>
+        <Crest name={team.name} logo={team.logo} size="md" />
+        <span className="truncate text-sm text-ink">{team.name}</span>
       </div>
       <Score value={score} />
     </div>
@@ -130,27 +88,27 @@ function GameCard({ game }: { game: LiveGame }) {
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, live, view game details`
             : `${eventLabel(game)}, live, view details`
         }
-        className="panel block p-4 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06] md:p-5"
+        className="panel-interactive focus-ring block p-4 md:p-5"
       >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-10">
-        <LiveBadge />
-        <span className="truncate text-[11px] font-medium uppercase tracking-wider text-violet-300">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-[92px]">
+        <StatusBadge status="live" />
+        <span className="truncate text-2xs font-medium uppercase tracking-wider text-violet-300">
           {sportLabel(game.sport)}
         </span>
         {game.league && (
           <>
-            <span className="text-white/20">·</span>
-            <span className="truncate text-[11px] text-white/45">{game.league}</span>
+            <span className="text-ink-faint">·</span>
+            <span className="truncate text-2xs text-ink-subtle">{game.league}</span>
           </>
         )}
         {game.game_state.display && (
-          <span className="ml-auto shrink-0 text-[11px] font-medium text-white/60">
+          <span className="ml-auto shrink-0 text-2xs font-medium text-ink-muted">
             {game.game_state.display}
           </span>
         )}
       </div>
 
-      <div className="mt-4 space-y-3 border-t border-white/7 pt-4">
+      <div className="mt-4 space-y-3 border-t border-line pt-4">
         {sides ? (
           <>
             <TeamRow team={sides.away} score={game.score.away} />
@@ -162,35 +120,35 @@ function GameCard({ game }: { game: LiveGame }) {
       </div>
 
       {(game.venue.name ?? game.venue.city) && (
-        <p className="mt-4 truncate border-t border-white/7 pt-3 text-[11px] text-white/31">
+        <p className="mt-4 truncate border-t border-line pt-3 text-2xs text-ink-faint">
           {[game.venue.name, game.venue.city].filter(Boolean).join(' · ')}
         </p>
       )}
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
-      <SlipButton game={game} className="absolute right-[52px] top-3" />
+      <SlipButton game={game} className="absolute right-[56px] top-3" />
     </div>
   );
 }
 
 function Skeleton() {
   return (
-    <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Loading live scores">
+    <div className="space-y-3 motion-safe:animate-pulse" aria-busy="true" aria-label="Loading live scores">
       {[0, 1, 2].map((card) => (
         <div key={card} className="panel p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <div className="h-5 w-14 rounded-md bg-white/[.06]" />
-            <div className="h-3 w-16 rounded-full bg-white/[.05]" />
-            <div className="ml-auto h-3 w-20 rounded-full bg-white/[.045]" />
+            <div className="h-5 w-14 rounded-md bg-surface-3" />
+            <div className="h-3 w-16 rounded-full bg-surface-2" />
+            <div className="ml-auto h-3 w-20 rounded-full bg-surface-2" />
           </div>
-          <div className="mt-4 space-y-3 border-t border-white/7 pt-4">
+          <div className="mt-4 space-y-3 border-t border-line pt-4">
             {[0, 1].map((row) => (
               <div key={row} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="size-8 rounded-full bg-white/[.06]" />
-                  <div className="h-3 w-36 rounded-full bg-white/[.05]" />
+                  <div className="size-8 rounded-full bg-surface-3" />
+                  <div className="h-3 w-36 rounded-full bg-surface-2" />
                 </div>
-                <div className="h-5 w-8 rounded bg-white/[.06]" />
+                <div className="h-5 w-8 rounded bg-surface-3" />
               </div>
             ))}
           </div>
@@ -216,27 +174,27 @@ function UpcomingRow({ game, timezone }: { game: Game; timezone: string }) {
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, starts ${formatKickoff(game.start_time, timezone)}, view game details`
             : `${eventLabel(game)}, starts ${formatKickoff(game.start_time, timezone)}, view details`
         }
-        className="panel flex items-center gap-3 p-3 pr-12 transition hover:border-violet-400/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 active:bg-white/[.06]"
+        className="panel-interactive focus-ring flex items-center gap-3 p-3 pr-[100px]"
       >
       <span className="w-12 shrink-0 text-xs font-medium tabular-nums text-violet-300">
         {formatKickoff(game.start_time, timezone)}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm text-white/68">
+      <span className="min-w-0 flex-1 truncate text-sm text-ink">
         {sides ? (
           <>
-            {sides.away.name} <span className="text-white/28">{separatorFor(game.sport)}</span>{' '}
+            {sides.away.name} <span className="text-ink-faint">{separatorFor(game.sport)}</span>{' '}
             {sides.home.name}
           </>
         ) : (
           eventLabel(game)
         )}
       </span>
-      <span className="hidden shrink-0 truncate text-[11px] text-white/32 sm:block">
+      <span className="hidden shrink-0 truncate text-2xs text-ink-faint sm:block">
         {game.league ?? sportLabel(game.sport)}
       </span>
       </a>
       <WatchButton game={game} className="absolute right-2 top-1/2 -translate-y-1/2" />
-      <SlipButton game={game} className="absolute right-[44px] top-1/2 -translate-y-1/2" />
+      <SlipButton game={game} className="absolute right-[56px] top-1/2 -translate-y-1/2" />
     </div>
   );
 }
@@ -332,7 +290,7 @@ export function LiveView() {
 
   return (
     <>
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Live overview">
+      <StatGrid label="Live overview">
         <StatCard
           label="Live Now"
           icon={Radio}
@@ -359,7 +317,7 @@ export function LiveView() {
           value={updatedAt ?? '--'}
           note={`Refreshes every ${Math.round((data?.refresh_interval_ms ?? 30_000) / 1000)}s`}
         />
-      </section>
+      </StatGrid>
 
       <section className="mt-5 space-y-3" aria-label="Live filters">
         {/*
@@ -369,75 +327,36 @@ export function LiveView() {
           vanishing, so the row is a stable thing a reader can learn and the
           page says what it follows even when nothing is on.
         */}
-        <div className="horizontal-cards" aria-label="Sport filters">
-          <button
-            type="button"
-            aria-pressed={sport === ALL_SPORTS}
+        <ChipRow label="Sport filters">
+          <Chip
+            active={sport === ALL_SPORTS}
             onClick={() => chooseSport(ALL_SPORTS)}
-            className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-              sport === ALL_SPORTS
-                ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
-                : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
-            }`}
+            count={ready ? acrossSports : '--'}
           >
             All sports
-            <span
-              className={`ml-1.5 tabular-nums ${
-                sport === ALL_SPORTS ? 'text-white/70' : 'text-white/30'
-              }`}
+          </Chip>
+
+          {sports.map((entry) => (
+            <Chip
+              key={entry.id}
+              active={sport === entry.id}
+              // A sport the application does not track yet can never produce a
+              // game, so it is offered as information rather than as a choice.
+              inert={entry.tracked === 0}
+              title={
+                entry.unavailable ??
+                (entry.live === 0 && entry.upcoming > 0
+                  ? `${entry.upcoming} still to start today`
+                  : undefined)
+              }
+              onClick={() => chooseSport(entry.id)}
+              count={ready ? entry.live : '--'}
+              countTone={entry.live > 0 ? 'active' : 'default'}
             >
-              {ready ? acrossSports : '--'}
-            </span>
-          </button>
-
-          {sports.map((entry) => {
-            const active = sport === entry.id;
-            // A sport the application does not track yet can never produce a
-            // game, so it is offered as information rather than as a choice.
-            const selectable = entry.tracked > 0;
-
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                aria-pressed={active}
-                disabled={!selectable}
-                title={
-                  entry.unavailable ??
-                  (entry.live === 0 && entry.upcoming > 0
-                    ? `${entry.upcoming} still to start today`
-                    : undefined)
-                }
-                onClick={() => chooseSport(entry.id)}
-                className={`min-h-9 shrink-0 rounded-xl border px-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-                  active
-                    ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-500'
-                    : !selectable
-                      ? 'cursor-not-allowed border-white/6 bg-white/[.01] text-white/18'
-                      : entry.live > 0
-                        ? 'border-white/9 bg-white/[.02] text-white/60 hover:bg-white/[.05] hover:text-white'
-                        : // Nothing live: still selectable, because it may have
-                          // games later today, but it should not compete for
-                          // attention with a sport that is actually on.
-                          'border-white/7 bg-white/[.01] text-white/28 hover:bg-white/[.04] hover:text-white/60'
-                }`}
-              >
-                {entry.label}
-                <span
-                  className={`ml-1.5 tabular-nums ${
-                    active
-                      ? 'text-white/70'
-                      : entry.live > 0
-                        ? 'text-violet-300/80'
-                        : 'text-white/20'
-                  }`}
-                >
-                  {ready ? entry.live : '--'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+              {entry.label}
+            </Chip>
+          ))}
+        </ChipRow>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/*
@@ -450,7 +369,7 @@ export function LiveView() {
           <div className="relative flex-1">
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/28"
+              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-faint"
             />
             <input
               type="search"
@@ -458,14 +377,14 @@ export function LiveView() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search team, competition, driver or venue"
               aria-label="Search live games"
-              className="h-10 w-full rounded-xl border border-white/9 bg-white/[.02] pl-9 pr-9 text-xs text-white/70 outline-none placeholder:text-white/25 focus:border-violet-400/40"
+              className="h-10 w-full rounded-xl border border-line bg-surface-1 pl-9 pr-9 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-violet-400/40"
             />
             {search !== '' && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
                 aria-label="Clear search"
-                className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                className="tap-target focus-ring absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-lg text-ink-subtle transition hover:bg-surface-3 hover:text-ink-strong"
               >
                 <X className="size-3.5" />
               </button>
@@ -486,7 +405,7 @@ export function LiveView() {
               aria-label="Competition"
               value={league}
               onChange={(event) => setLeague(event.target.value)}
-              className="h-10 min-w-44 rounded-xl border border-white/9 bg-[#0f0d17] px-3 text-xs text-white/60 outline-none focus:border-violet-400/40 sm:max-w-[280px]"
+              className="h-10 min-w-44 rounded-xl border border-line bg-[#0f0d17] px-3 text-xs text-ink-muted outline-none focus:border-violet-400/40 sm:max-w-[280px]"
             >
               {competitions
                 .filter((entry) => entry.id === ALL_COMPETITIONS || entry.id === TRACKED_COMPETITIONS)
@@ -522,7 +441,7 @@ export function LiveView() {
             <button
               type="button"
               onClick={clear}
-              className="h-10 shrink-0 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/50 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              className="h-10 shrink-0 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
             >
               Clear
             </button>
@@ -531,9 +450,7 @@ export function LiveView() {
       </section>
 
       {stale && updatedAt && (
-        <p className="mt-4 rounded-xl border border-amber-400/15 bg-amber-500/[.06] px-3 py-2 text-[11px] text-amber-200/80">
-          Unable to refresh. Showing scores from {updatedAt}.
-        </p>
+        <StaleNotice>Unable to refresh. Showing scores from {updatedAt}.</StaleNotice>
       )}
 
       {/*
@@ -557,56 +474,50 @@ export function LiveView() {
         {state === 'loading' ? (
           <Skeleton />
         ) : state === 'error' ? (
-          <div className="panel flex min-h-[160px] flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-xs text-white/38">Live scores are temporarily unavailable.</p>
-            <button
-              type="button"
-              onClick={refresh}
-              className="min-h-9 rounded-xl border border-white/9 bg-white/[.025] px-3 text-xs text-white/55 transition hover:border-violet-400/30 hover:text-white"
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState title="Live scores are temporarily unavailable." onRetry={refresh} />
         ) : filtered.length === 0 ? (
-          <div className="panel flex min-h-[160px] flex-col items-center justify-center gap-2 p-6 text-center">
-            {/*
-              What "nothing" actually means here.
+          /*
+            What "nothing" actually means here.
 
-              Three different situations used to share one sentence. Nothing on
-              anywhere, nothing on in the chosen sport, and a search that found
-              nothing are different facts, and only the last is something the
-              reader can act on.
-            */}
-            <p className="text-xs text-white/45">
-              {games.length === 0
+            Three different situations used to share one sentence. Nothing on
+            anywhere, nothing on in the chosen sport, and a search that found
+            nothing are different facts, and only the last is something the
+            reader can act on.
+          */
+          <EmptyState
+            icon={RadioTower}
+            title={
+              games.length === 0
                 ? 'No games are live right now, in any tracked sport.'
-                : `Nothing live ${describeFilters(filters)}.`}
-            </p>
-
-            {upcoming.length > 0 ? (
-              <p className="text-[11px] text-white/32">
-                {upcoming.length} {upcoming.length === 1 ? 'game is' : 'games are'} still to start
-                today.
-              </p>
-            ) : null}
-
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
-              {isFiltered(filters) && games.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clear}
-                  className="text-xs text-violet-300 transition hover:text-violet-200"
+                : `Nothing live ${describeFilters(filters)}.`
+            }
+            hint={
+              upcoming.length > 0
+                ? `${upcoming.length} ${upcoming.length === 1 ? 'game is' : 'games are'} still to start today.`
+                : undefined
+            }
+            action={
+              <>
+                {isFiltered(filters) && games.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="focus-ring rounded-lg px-1 py-1 text-xs text-violet-300 transition hover:text-violet-200"
+                  >
+                    Show all {games.length} live {games.length === 1 ? 'game' : 'games'}
+                  </button>
+                )}
+                <a
+                  href="/schedule"
+                  className="focus-ring rounded-lg px-1 py-1 text-xs text-violet-300 hover:text-violet-200"
                 >
-                  Show all {games.length} live {games.length === 1 ? 'game' : 'games'}
-                </button>
-              )}
-              <a href="/schedule" className="py-1 text-xs text-violet-300 hover:text-violet-200">
-                Check the Schedule
-              </a>
-            </div>
-          </div>
+                  Check the Schedule
+                </a>
+              </>
+            }
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             {filtered.map((game) => (
               <GameCard key={game.id} game={game} />
             ))}
@@ -622,11 +533,14 @@ export function LiveView() {
               <h2 id="upcoming-heading" className="text-base font-semibold">
                 Upcoming today
               </h2>
-              <p className="mt-1 text-xs text-white/34">
+              <p className="mt-1 text-xs text-ink-faint">
                 {upcoming.length} {upcoming.length === 1 ? 'game' : 'games'} still to start today
               </p>
             </div>
-            <a href="/schedule" className="shrink-0 py-1 text-xs text-violet-300 hover:text-violet-200">
+            <a
+              href="/schedule"
+              className="focus-ring shrink-0 rounded-lg px-1 py-1 text-xs text-violet-300 hover:text-violet-200"
+            >
               Full schedule
             </a>
           </div>
@@ -638,9 +552,9 @@ export function LiveView() {
           </div>
 
           {upcoming.length > MAX_UPCOMING && (
-            <p className="mt-3 text-center text-[11px] text-white/30">
+            <p className="mt-3 text-center text-2xs text-ink-faint">
               Showing {MAX_UPCOMING} of {upcoming.length}.{' '}
-              <a href="/schedule" className="text-violet-300 hover:text-violet-200">
+              <a href="/schedule" className="focus-ring rounded text-violet-300 hover:text-violet-200">
                 See all on the Schedule
               </a>
             </p>

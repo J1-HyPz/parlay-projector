@@ -24,7 +24,7 @@ export default function ParlaysPage() {
         subtitle="Statistical projections for upcoming fixtures, combined by risk profile."
       />
       <ParlayView />
-      <p className="mt-8 border-t border-white/7 pt-4 text-[11px] leading-5 text-white/25">
+      <p className="mt-8 border-t border-line pt-4 text-2xs leading-5 text-ink-faint">
         Parlay Projector provides statistical estimates based on available data. Sports
         outcomes are uncertain and projections may be incorrect.
       </p>

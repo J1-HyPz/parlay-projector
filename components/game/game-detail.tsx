@@ -43,7 +43,7 @@ function BackLink() {
     <button
       type="button"
       onClick={goBack}
-      className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/9 bg-white/[.025] px-3 text-xs text-white/55 transition hover:border-violet-400/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+      className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink-muted transition hover:border-violet-400/30 hover:text-ink-strong focus-ring"
     >
       <ArrowLeft className="size-4" /> Back
     </button>
@@ -54,19 +54,19 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-6" aria-busy="true" aria-label="Loading game">
       <section className="panel p-5 md:p-7">
-        <div className="h-5 w-40 rounded-full bg-white/[.06]" />
+        <div className="h-5 w-40 rounded-full bg-surface-3" />
         <div className="mt-7 flex items-center justify-between gap-6">
           {[0, 1].map((side) => (
             <div key={side} className="flex flex-1 flex-col items-center gap-3">
-              <div className="size-16 rounded-full bg-white/[.06] md:size-20" />
-              <div className="h-3 w-24 rounded-full bg-white/[.06]" />
-              <div className="h-2 w-12 rounded-full bg-white/[.045]" />
+              <div className="size-16 rounded-full bg-surface-3 md:size-20" />
+              <div className="h-3 w-24 rounded-full bg-surface-3" />
+              <div className="h-2 w-12 rounded-full bg-surface-2" />
             </div>
           ))}
         </div>
-        <div className="mt-7 flex justify-center gap-6 border-t border-white/7 pt-5">
-          <div className="h-2.5 w-28 rounded-full bg-white/[.05]" />
-          <div className="h-2.5 w-20 rounded-full bg-white/[.05]" />
+        <div className="mt-7 flex justify-center gap-6 border-t border-line pt-5">
+          <div className="h-2.5 w-28 rounded-full bg-surface-2" />
+          <div className="h-2.5 w-20 rounded-full bg-surface-2" />
         </div>
       </section>
 
@@ -74,17 +74,17 @@ function Skeleton() {
         <div className="space-y-6">
           {[0, 1].map((block) => (
             <section key={block} className="panel space-y-3 p-5">
-              <div className="h-3 w-32 rounded-full bg-white/[.06]" />
+              <div className="h-3 w-32 rounded-full bg-surface-3" />
               {[0, 1, 2, 3].map((line) => (
-                <div key={line} className="h-2.5 w-full rounded-full bg-white/[.04]" />
+                <div key={line} className="h-2.5 w-full rounded-full bg-surface-2" />
               ))}
             </section>
           ))}
         </div>
         <section className="panel space-y-3 p-5">
-          <div className="h-3 w-28 rounded-full bg-white/[.06]" />
+          <div className="h-3 w-28 rounded-full bg-surface-3" />
           {[0, 1, 2].map((line) => (
-            <div key={line} className="h-2.5 w-full rounded-full bg-white/[.04]" />
+            <div key={line} className="h-2.5 w-full rounded-full bg-surface-2" />
           ))}
         </section>
       </div>
@@ -107,10 +107,10 @@ function Notice({
         <Icon className="size-5" />
       </span>
       <h1 className="text-lg font-semibold">{title}</h1>
-      <p className="max-w-sm text-xs leading-6 text-white/40">{body}</p>
+      <p className="max-w-sm text-xs leading-6 text-ink-subtle">{body}</p>
       <a
         href="/"
-        className="mt-2 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-500"
+        className="mt-2 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-xs font-medium text-ink-strong transition hover:bg-violet-500"
       >
         Back to Home
       </a>

@@ -18,35 +18,35 @@ import type { LucideIcon } from 'lucide-react';
 export type LegStatus = 'pending' | 'live' | 'won' | 'lost' | 'push' | 'void' | 'unsettled';
 
 const PRESENTATION: Record<LegStatus, { label: string; tone: string; icon: LucideIcon }> = {
-  pending: { label: 'Pending', tone: 'border-white/10 text-white/40', icon: CircleDot },
+  pending: { label: 'Pending', tone: 'tone-neutral', icon: CircleDot },
   live: {
     label: 'Live',
-    tone: 'border-rose-400/25 bg-rose-500/10 text-rose-300',
+    tone: 'tone-live',
     icon: Radio,
   },
   won: {
     label: 'Won',
-    tone: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300',
+    tone: 'tone-good',
     icon: CircleCheck,
   },
   lost: {
     label: 'Lost',
-    tone: 'border-white/10 bg-white/[.03] text-white/35',
+    tone: 'tone-neutral',
     icon: CircleX,
   },
   push: {
     label: 'Push',
-    tone: 'border-amber-400/25 bg-amber-500/10 text-amber-200',
+    tone: 'tone-warn',
     icon: CircleMinus,
   },
   void: {
     label: 'Void',
-    tone: 'border-amber-400/25 bg-amber-500/10 text-amber-200',
+    tone: 'tone-warn',
     icon: CircleMinus,
   },
   unsettled: {
     label: 'Awaiting result',
-    tone: 'border-white/10 text-white/35',
+    tone: 'tone-neutral',
     icon: CircleDot,
   },
 };
@@ -62,7 +62,7 @@ export function LegStatusBadge({ status }: { status: LegStatus }) {
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${tone}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-2xs font-medium ${tone}`}
     >
       <Icon className="size-3" aria-hidden="true" />
       {label}
@@ -104,6 +104,6 @@ export function LegOutcomeLine({ outcome }: { outcome: LegOutcome }) {
   if (parts.length === 0) return null;
 
   return (
-    <p className="mt-2 text-[11px] text-white/32">{parts.join(' · ')}</p>
+    <p className="mt-2 text-2xs text-ink-faint">{parts.join(' · ')}</p>
   );
 }

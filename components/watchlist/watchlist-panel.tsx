@@ -40,19 +40,19 @@ export function WatchlistPanel() {
           <h2 id="watchlist-heading" className="text-base font-semibold">
             Watchlist
           </h2>
-          <p className="mt-1 text-xs text-white/34">
+          <p className="mt-1 text-xs text-ink-faint">
             Only these games are announced. Each one drops off once it finishes.
           </p>
         </div>
         {entries.length > 0 && (
-          <span className="shrink-0 text-xs text-white/32">{entries.length} watched</span>
+          <span className="shrink-0 text-xs text-ink-faint">{entries.length} watched</span>
         )}
       </div>
 
       {!ready ? (
-        <p className="mt-3 text-sm text-white/32">Loading…</p>
+        <p className="mt-3 text-sm text-ink-faint">Loading…</p>
       ) : entries.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-white/8 bg-white/[.02] px-4 py-5 text-sm text-white/40">
+        <p className="mt-3 rounded-xl border border-line bg-surface-1 px-4 py-5 text-sm text-ink-subtle">
           Nothing is being watched, so nothing will be sent. Star a game on Schedule, Live or
           Home to add it.
         </p>
@@ -61,16 +61,16 @@ export function WatchlistPanel() {
           {entries.map((entry) => (
             <li
               key={entry.gameId}
-              className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[.02] px-4 py-3"
+              className="flex items-center gap-3 rounded-xl border border-line bg-surface-1 px-4 py-3"
             >
               <Star className="size-4 shrink-0 text-amber-300" fill="currentColor" />
 
               <a
                 href={`/games/${entry.gameId}`}
-                className="min-w-0 flex-1 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                className="min-w-0 flex-1 transition hover:text-ink-strong focus-ring"
               >
-                <span className="block truncate text-sm text-white/72">{entry.label}</span>
-                <span className="block truncate text-[11px] text-white/32">
+                <span className="block truncate text-sm text-ink">{entry.label}</span>
+                <span className="block truncate text-2xs text-ink-faint">
                   {entry.league ? `${entry.league} · ` : ''}
                   {kickoff(entry.startTime)}
                 </span>
@@ -82,7 +82,7 @@ export function WatchlistPanel() {
                 onClick={() => {
                   void watchlist.remove(entry.gameId);
                 }}
-                className="grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[.03] text-white/35 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-surface-1 text-ink-faint transition hover:border-line-strong hover:text-ink-strong focus-ring"
               >
                 <X className="size-4" />
               </button>

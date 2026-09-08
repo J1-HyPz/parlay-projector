@@ -34,7 +34,7 @@ export default function SportsIndexPage() {
           <section key={group.id} aria-labelledby={`group-${group.id}`}>
             <h2
               id={`group-${group.id}`}
-              className="flex items-center gap-2 text-sm font-semibold text-white/70"
+              className="flex items-center gap-2 text-sm font-semibold text-ink"
             >
               <span aria-hidden="true">{group.emoji}</span>
               {group.label}
@@ -50,17 +50,17 @@ export default function SportsIndexPage() {
                 <li key={hub.slug}>
                   <a
                     href={`/sports/${hub.slug}`}
-                    className="panel flex min-h-14 items-center gap-3 p-3 transition hover:border-violet-400/35 active:bg-white/[.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                    className="panel flex min-h-14 items-center gap-3 p-3 transition hover:border-violet-400/35 active:bg-surface-3 focus-ring"
                   >
                     <span
                       aria-hidden="true"
-                      className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[.03] text-base"
+                      className="grid size-9 shrink-0 place-items-center rounded-xl border border-line bg-surface-1 text-base"
                     >
                       {hub.emoji}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-white/75">{hub.label}</span>
-                      <span className="block truncate text-[11px] text-white/30">
+                      <span className="block truncate text-sm text-ink">{hub.label}</span>
+                      <span className="block truncate text-2xs text-ink-faint">
                         {[hub.terminology.games, hub.terminology.standings, hub.terminology.teams].join(
                           ' · ',
                         )}

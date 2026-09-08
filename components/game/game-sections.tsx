@@ -12,6 +12,7 @@ import { Info, LineChart, Swords, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { GameDetail, FormResult, RecentGame, TeamStanding } from '@/lib/games/types';
 import { formatDate, formatRecord, formatTime, ordinal, scoreNoun } from './game-data';
+import { EmptyNote } from '@/components/ui/states';
 
 // ---------------------------------------------------------------------------
 // Shared shells
@@ -37,17 +38,13 @@ export function Section({
   );
 }
 
-function EmptyState({ children }: { children: string }) {
-  return <p className="text-xs leading-5 text-white/36">{children}</p>;
-}
-
 /** A label/value row. Renders nothing at all when the value is absent. */
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-white/[.055] py-2.5 last:border-b-0">
-      <span className="shrink-0 text-xs text-white/38">{label}</span>
-      <span className="text-right text-xs font-medium text-white/68">{value}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-line py-2.5 last:border-b-0">
+      <span className="shrink-0 text-xs text-ink-subtle">{label}</span>
+      <span className="text-right text-xs font-medium text-ink">{value}</span>
     </div>
   );
 }
@@ -78,7 +75,7 @@ export function GameInformation({ game }: { game: GameDetail }) {
           ))}
         </div>
       ) : (
-        <EmptyState>No further details available for this game.</EmptyState>
+        <EmptyNote>No further details available for this game.</EmptyNote>
       )}
     </Section>
   );
@@ -113,18 +110,18 @@ export function MatchupOverview({ game }: { game: GameDetail }) {
           {sides.map(({ team, standing, label }) => {
             const summary = standingSummary(standing, game.sport);
             return (
-              <div key={label} className="rounded-xl border border-white/7 bg-white/[.018] p-3">
+              <div key={label} className="rounded-xl border border-line bg-surface-1 p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-xs font-medium text-white/68">{team.name}</span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-wider text-white/28">
+                  <span className="truncate text-xs font-medium text-ink">{team.name}</span>
+                  <span className="shrink-0 text-2xs uppercase tracking-wider text-ink-faint">
                     {label}
                   </span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-white/42">
+                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-2xs text-ink-subtle">
                   {summary.record && <span>Record {summary.record}</span>}
                   {summary.position && <span>{summary.position}</span>}
                   {!summary.record && !summary.position && (
-                    <span className="text-white/28">No standings data</span>
+                    <span className="text-ink-faint">No standings data</span>
                   )}
                 </div>
                 {standing && standing.form.length > 0 && (
@@ -137,9 +134,9 @@ export function MatchupOverview({ game }: { game: GameDetail }) {
           })}
         </div>
       ) : (
-        <EmptyState>
+        <EmptyNote>
           Standings are not published for this competition yet.
-        </EmptyState>
+        </EmptyNote>
       )}
     </Section>
   );
@@ -150,9 +147,9 @@ export function MatchupOverview({ game }: { game: GameDetail }) {
 // ---------------------------------------------------------------------------
 
 const FORM_TONE: Record<FormResult, string> = {
-  W: 'border-emerald-400/25 bg-emerald-500/12 text-emerald-300',
-  D: 'border-white/12 bg-white/[.05] text-white/55',
-  L: 'border-rose-400/25 bg-rose-500/12 text-rose-300',
+  W: 'tone-good',
+  D: 'tone-neutral',
+  L: 'tone-bad',
 };
 
 export function FormRun({ form }: { form: FormResult[] }) {
@@ -161,7 +158,7 @@ export function FormRun({ form }: { form: FormResult[] }) {
       {form.map((result, index) => (
         <span
           key={`${result}-${index}`}
-          className={`grid size-6 place-items-center rounded-md border text-[10px] font-semibold ${FORM_TONE[result]}`}
+          className={`grid size-6 place-items-center rounded-md border text-2xs font-semibold ${FORM_TONE[result]}`}
         >
           {result}
         </span>
@@ -183,17 +180,17 @@ export function RecentForm({ game }: { game: GameDetail }) {
         <div className="space-y-4">
           {sides.map(({ team, form }) => (
             <div key={team.name}>
-              <p className="mb-2 truncate text-xs text-white/50">{team.name}</p>
+              <p className="mb-2 truncate text-xs text-ink-muted">{team.name}</p>
               {form.length > 0 ? (
                 <FormRun form={form} />
               ) : (
-                <p className="text-[11px] text-white/28">No form data</p>
+                <p className="text-2xs text-ink-faint">No form data</p>
               )}
             </div>
           ))}
         </div>
       ) : (
-        <EmptyState>Recent form is not available for these teams.</EmptyState>
+        <EmptyNote>Recent form is not available for these teams.</EmptyNote>
       )}
     </Section>
   );
@@ -219,9 +216,9 @@ export function TeamComparison({ game }: { game: GameDetail }) {
   if (!away && !home) {
     return (
       <Section title="Team Comparison" icon={LineChart}>
-        <EmptyState>
+        <EmptyNote>
           Season statistics are not published for this competition yet.
-        </EmptyState>
+        </EmptyNote>
       </Section>
     );
   }
@@ -262,20 +259,20 @@ export function TeamComparison({ game }: { game: GameDetail }) {
     <Section title="Team Comparison" icon={LineChart}>
       {/* Header: away | stat | home. Stacks safely because it is a 3-column
           grid rather than a table, so it never scrolls horizontally. */}
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 border-b border-white/7 pb-3 text-[10px] uppercase tracking-wider text-white/28">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 border-b border-line pb-3 text-2xs uppercase tracking-wider text-ink-faint">
         <span className="truncate text-left">{game.away_team.abbreviation ?? game.away_team.name}</span>
         <span className="text-center">Stat</span>
         <span className="truncate text-right">{game.home_team.abbreviation ?? game.home_team.name}</span>
       </div>
 
-      <div className="divide-y divide-white/[.055]">
+      <div className="divide-y divide-line">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2.5">
-            <span className="text-left text-xs font-medium tabular-nums text-white/68">
+            <span className="text-left text-xs font-medium tabular-nums text-ink">
               {row.away ?? '--'}
             </span>
-            <span className="text-center text-[11px] text-white/38">{row.label}</span>
-            <span className="text-right text-xs font-medium tabular-nums text-white/68">
+            <span className="text-center text-2xs text-ink-subtle">{row.label}</span>
+            <span className="text-right text-xs font-medium tabular-nums text-ink">
               {row.home ?? '--'}
             </span>
           </div>
@@ -292,10 +289,10 @@ export function TeamComparison({ game }: { game: GameDetail }) {
 function RecentGameRow({ game }: { game: RecentGame }) {
   const tone =
     game.result === 'W'
-      ? 'text-emerald-300'
+      ? 'text-status-good'
       : game.result === 'L'
-        ? 'text-rose-300'
-        : 'text-white/55';
+        ? 'text-status-bad'
+        : 'text-ink-muted';
 
   const score =
     game.team_score !== null && game.opponent_score !== null
@@ -303,9 +300,9 @@ function RecentGameRow({ game }: { game: RecentGame }) {
       : null;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-white/[.055] py-2 last:border-b-0">
-      <span className="min-w-0 truncate text-xs text-white/55">
-        <span className="text-white/30">{game.home ? 'vs' : '@'}</span> {game.opponent}
+    <div className="flex items-center justify-between gap-3 border-b border-line py-2 last:border-b-0">
+      <span className="min-w-0 truncate text-xs text-ink-muted">
+        <span className="text-ink-faint">{game.home ? 'vs' : '@'}</span> {game.opponent}
       </span>
       <span className={`shrink-0 text-xs font-medium tabular-nums ${tone}`}>
         {game.result ?? ''} {score ?? '--'}
@@ -327,7 +324,7 @@ export function RecentGames({ game }: { game: GameDetail }) {
         <div className="grid gap-5 md:grid-cols-2">
           {sides.map(({ team, games }) => (
             <div key={team.name} className="min-w-0">
-              <p className="mb-2 truncate text-xs font-medium text-white/50">{team.name}</p>
+              <p className="mb-2 truncate text-xs font-medium text-ink-muted">{team.name}</p>
               {games.length > 0 ? (
                 <div>
                   {games.map((recent) => (
@@ -335,13 +332,13 @@ export function RecentGames({ game }: { game: GameDetail }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-[11px] text-white/28">No recent results</p>
+                <p className="text-2xs text-ink-faint">No recent results</p>
               )}
             </div>
           ))}
         </div>
       ) : (
-        <EmptyState>No recent results available for these teams.</EmptyState>
+        <EmptyNote>No recent results available for these teams.</EmptyNote>
       )}
     </Section>
   );
@@ -361,9 +358,9 @@ export function HeadToHead({ game }: { game: GameDetail }) {
           ))}
         </div>
       ) : (
-        <EmptyState>
+        <EmptyNote>
           Previous meetings are not available from the current sports data provider.
-        </EmptyState>
+        </EmptyNote>
       )}
     </Section>
   );

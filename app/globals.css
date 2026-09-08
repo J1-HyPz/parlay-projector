@@ -4,12 +4,108 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+ * Design tokens.
+ *
+ * The application had grown fifty-three distinct white-alpha values across
+ * roughly seven hundred usages -- twenty-seven of them for text alone. That is
+ * not a hierarchy a reader can learn, and measured against the page background
+ * the bottom of it was not readable at all: `white/28`, the single most common
+ * text colour in the codebase, resolves to 2.35:1 where WCAG AA asks 4.5:1.
+ *
+ * So the ramp below is not a tidy-up. Every step is chosen to clear AA for
+ * normal-size text on the page background, measured rather than assumed, and
+ * the whole ramp is five steps because five is what the interface actually
+ * distinguishes.
+ *
+ * Stated in oklch: lightness is perceptually uniform there, so the steps look
+ * evenly spaced as well as testing evenly spaced. The small chroma keeps the
+ * faint violet cast the design already had.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* Text. Contrast against --background, measured, in the comments. */
+  --ink-strong: oklch(0.98 0.012 285); /* 18.8:1 — headings, scores, key figures */
+  --ink: oklch(0.86 0.012 285); /*  13.1:1 — body copy, team names */
+  --ink-muted: oklch(0.76 0.012 285); /*  9.3:1 — labels, secondary values */
+  --ink-subtle: oklch(0.68 0.012 285); /*  6.9:1 — metadata, captions */
+  --ink-faint: oklch(0.62 0.012 285); /*  5.5:1 — the smallest labels, still readable */
+
+  /*
+   * Disabled only, and never for text carrying information. WCAG exempts
+   * inactive controls from contrast; nothing else may use this.
+   */
+  --ink-disabled: oklch(0.5 0.012 285); /*  3.3:1 */
+
+  /* Surfaces, stacked over --background. Not text: no contrast floor applies. */
+  --surface-1: rgba(255, 255, 255, 0.025);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --surface-3: rgba(255, 255, 255, 0.07);
+
+  /* Lines. Two weights: one to separate, one to enclose. */
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.14);
+
+  /*
+   * Status. Colour is never the only signal — every badge carries its label
+   * too — but the hues must still be legible, so each is a 300-weight tint.
+   */
+  --status-live: #fda4af; /* rose-300    — in progress */
+  --status-upcoming: #c4b5fd; /* violet-300  — scheduled */
+  --status-settled: var(--ink-subtle); /*             — finished, deliberately quiet */
+  --status-warn: #fcd34d; /* amber-300   — postponed, cancelled, degraded, middling */
+  --status-good: #6ee7b7; /* emerald-300 — won, high quality, low risk */
+
+  /*
+   * A negative reading: a loss, poor data, high correlation, an edge against.
+   *
+   * The same hue as `--status-live` today, and named separately on purpose --
+   * "this game is on" and "this bet lost" are different facts that happened to
+   * be drawn the same way, and finding every instance of one without the other
+   * meant reading each call site.
+   */
+  --status-bad: #fda4af; /* rose-300 */
+
+  /* Spacing rhythm. Panels sit on 4px; sections step in 8px. */
+  --gap-section: 1.75rem;
+  --gap-block: 1.25rem;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+
+  /* The ramp, as utilities: text-ink, text-ink-muted, bg-surface-1, border-line. */
+  --color-ink-strong: var(--ink-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-status-live: var(--status-live);
+  --color-status-upcoming: var(--status-upcoming);
+  --color-status-settled: var(--status-settled);
+  --color-status-warn: var(--status-warn);
+  --color-status-good: var(--status-good);
+  --color-status-bad: var(--status-bad);
+
+  /*
+   * One step below `xs`, because the interface genuinely needs a label size.
+   * It replaces the ad-hoc 9px, 10px and 11px sizes, which were three steps
+   * where the design only ever meant one -- and the 9px and 10px of it were
+   * too small to read at the contrast they were set in.
+   */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-2xs--line-height: 1rem;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -103,8 +199,8 @@ body {
   --accent: #1d1730;
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(255, 255, 255, 0.09);
-  --input: rgba(255, 255, 255, 0.11);
+  --border: var(--line);
+  --input: var(--line-strong);
   --ring: #8b5cf6;
   --chart-1: #8b5cf6;
   --chart-2: #a78bfa;
@@ -117,7 +213,7 @@ body {
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: #1b1530;
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-border: var(--line);
   --sidebar-ring: #8b5cf6;
 }
 
@@ -134,18 +230,222 @@ body {
 }
 
 @layer base {
-  html { background: #08070d; }
-  body { min-width: 320px; overflow-x: hidden; background-image: radial-gradient(circle at 78% 6%, rgba(124, 58, 237, 0.07), transparent 28%); }
-  button, a { -webkit-tap-highlight-color: transparent; }
+  html {
+    background: #08070d;
+  }
+  body {
+    min-width: 320px;
+    overflow-x: hidden;
+    background-image: radial-gradient(circle at 78% 6%, rgba(124, 58, 237, 0.07), transparent 28%);
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /*
+   * One motion switch for the whole application.
+   *
+   * Individual components carried `motion-safe:` / `motion-reduce:` pairs, but
+   * only some of them -- the loading skeletons animated regardless. A global
+   * rule cannot be forgotten by the next component.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {
-  .panel { @apply rounded-2xl border border-white/[.085] bg-white/[.025] shadow-[0_20px_60px_rgba(0,0,0,.16)]; }
-  .section-label { @apply text-[10px] font-semibold uppercase tracking-[.17em] text-white/28; }
-  .sidebar-item { @apply flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs text-white/48 transition hover:bg-white/[.04] hover:text-white; }
-  .icon-button { @apply grid size-10 place-items-center rounded-xl text-white/48 transition hover:bg-white/[.05] hover:text-white; }
-  .placeholder-line { @apply h-2 rounded-full bg-white/[.075]; }
-  .horizontal-cards { @apply flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden; }
-  .accuracy-ring { background: conic-gradient(#8b5cf6 0 28%, rgba(255,255,255,.075) 28% 100%); box-shadow: 0 0 36px rgba(124,58,237,.12); }
-  .mini-ring { background: conic-gradient(rgba(139,92,246,.72) 0 24%, rgba(255,255,255,.065) 24% 100%); }
+  /* --- Surfaces ---------------------------------------------------------- */
+
+  .panel,
+  .panel-interactive {
+    @apply rounded-2xl border border-line bg-surface-1 shadow-[0_20px_60px_rgba(0,0,0,.16)];
+  }
+
+  /* A panel that is also a link or button. Hover and focus belong together. */
+  .panel-interactive {
+    @apply transition hover:border-violet-400/35 hover:bg-surface-2 active:bg-surface-3;
+  }
+
+  /* --- Focus ------------------------------------------------------------- */
+
+  /*
+   * Every focusable thing gets the same ring.
+   *
+   * The primary navigation -- header, sidebar and the mobile tab bar -- had no
+   * focus style at all, so keyboard users had no idea where they were in the
+   * one component present on every page.
+   */
+  .focus-ring,
+  .sidebar-item,
+  .icon-button,
+  .chip,
+  .field,
+  .field-select,
+  .button-quiet,
+  .button-accent {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* For rows and cells, where an offset ring would be clipped by the container. */
+  .focus-ring-inset {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400/60;
+  }
+
+  /* --- Type -------------------------------------------------------------- */
+
+  .section-label {
+    @apply text-2xs font-semibold uppercase tracking-[.17em] text-ink-faint;
+  }
+
+  /* --- Navigation -------------------------------------------------------- */
+
+  .sidebar-item {
+    @apply flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs text-ink-subtle transition hover:bg-surface-2 hover:text-ink-strong;
+  }
+
+  .icon-button {
+    @apply grid size-10 place-items-center rounded-xl text-ink-subtle transition hover:bg-surface-2 hover:text-ink-strong;
+  }
+
+  /*
+   * Touch targets.
+   *
+   * The watch and slip buttons were 32px squares sitting 20px apart, which is
+   * under every published minimum and close enough together to mis-tap. The
+   * visible chrome stays small; the *target* is grown to 44px with a padded
+   * pseudo-element, so nothing about the layout changes.
+   */
+  .tap-target {
+    @apply relative;
+  }
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    inset: 50% 50% 50% 50%;
+    min-width: 44px;
+    min-height: 44px;
+    translate: -50% -50%;
+  }
+
+  /* --- Chips ------------------------------------------------------------- */
+
+  /*
+   * Wraps where there is room, scrolls where there is not.
+   *
+   * Seventeen competition chips cannot fit one line on a phone, and a row that
+   * only scrolls hides most of what the application tracks on every screen
+   * size. So: scroll below `md` with a fade marking that there is more, wrap
+   * above it, where the whole set is worth seeing at once.
+   */
+  .chip-row {
+    @apply flex min-w-0 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+    scroll-snap-type: x proximity;
+    mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent);
+  }
+  .chip-row > * {
+    scroll-snap-align: start;
+  }
+  @media (min-width: 48rem) {
+    .chip-row {
+      @apply flex-wrap overflow-visible;
+      mask-image: none;
+    }
+  }
+
+  .chip {
+    @apply inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition;
+  }
+  .chip-on {
+    @apply border-violet-500 bg-violet-600 text-white hover:bg-violet-500;
+  }
+  .chip-off {
+    @apply border-line bg-surface-1 text-ink-muted hover:bg-surface-2 hover:text-ink-strong;
+  }
+  /* Present for information, not selectable: an untracked or out-of-season sport. */
+  .chip-inert {
+    @apply cursor-not-allowed border-line bg-transparent text-ink-disabled;
+  }
+
+  /* --- Controls ---------------------------------------------------------- */
+
+  .field,
+  .field-select {
+    @apply h-10 rounded-xl border border-line px-3 text-xs text-ink placeholder:text-ink-faint focus:border-violet-400/40;
+  }
+  .field {
+    @apply bg-surface-1;
+  }
+  /* A native select needs an opaque background or its popup inherits the page. */
+  .field-select {
+    @apply bg-[#0f0d17];
+  }
+  .button-quiet {
+    @apply inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface-1 px-3.5 text-xs text-ink-muted transition hover:border-violet-400/30 hover:text-ink-strong;
+  }
+  .button-accent {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-500;
+  }
+
+  /* --- Cards, lists ------------------------------------------------------ */
+
+  .horizontal-cards {
+    @apply flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+    scroll-snap-type: x proximity;
+  }
+  .horizontal-cards > * {
+    scroll-snap-align: start;
+  }
+
+  .placeholder-line {
+    @apply h-2 rounded-full bg-surface-3;
+  }
+
+  /*
+   * Crests reserve their box before the image arrives.
+   *
+   * A remote badge that sizes itself on load shifts every row beneath it. The
+   * box is fixed, the image fills it, and a failed load leaves the initials
+   * behind rather than a broken-image glyph.
+   */
+  .crest {
+    @apply grid shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-surface-2 text-ink-subtle;
+    aspect-ratio: 1;
+  }
+
+  /* --- Semantic tones ----------------------------------------------------
+   *
+   * Border, background and text as one name. Amber alone had grown four
+   * different text values across the application with no rule for which; these
+   * are the rule. Colour is never the only signal -- every badge that uses one
+   * carries its label too.
+   */
+
+  .tone-good {
+    @apply border-emerald-400/25 bg-emerald-500/10 text-status-good;
+  }
+  .tone-warn {
+    @apply border-amber-400/25 bg-amber-500/10 text-status-warn;
+  }
+  .tone-bad {
+    @apply border-rose-400/25 bg-rose-500/10 text-status-bad;
+  }
+  .tone-live {
+    @apply border-rose-400/25 bg-rose-500/10 text-status-live;
+  }
+  .tone-neutral {
+    @apply border-line bg-surface-1 text-ink-subtle;
+  }
+
+  .accuracy-ring {
+    box-shadow: 0 0 36px rgba(124, 58, 237, 0.12);
+  }
 }

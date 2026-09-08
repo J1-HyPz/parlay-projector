@@ -1,5 +1,15 @@
+/**
+ * Page chrome shared by every route.
+ *
+ * The dead placeholder pieces that used to live here -- a StatCard that always
+ * rendered `--` and a TeamPlaceholder that rendered "Team placeholder" -- are
+ * gone. Both were left over from before the data was real, neither was
+ * imported anywhere, and a component whose whole job is to display a fake
+ * value is a liability in an application with a rule against fabricating them.
+ * The live StatCard is components/ui/stat-card.tsx.
+ */
+
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
 
 export function PageHeader({
   eyebrow,
@@ -13,29 +23,18 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-[.15em] text-violet-300">{eyebrow}</p>
-        <h1 className="text-2xl font-semibold tracking-[-0.035em] sm:text-[28px]">{title}</h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-white/45">{subtitle}</p>
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0">
+        <p className="mb-2 text-2xs font-semibold uppercase tracking-[.15em] text-violet-300">
+          {eyebrow}
+        </p>
+        <h1 className="text-2xl font-semibold tracking-[-0.035em] text-ink-strong sm:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-xs leading-6 text-ink-subtle sm:text-sm">{subtitle}</p>
       </div>
       {action}
     </div>
-  );
-}
-
-export function StatCard({ label, icon: Icon, note }: { label: string; icon: LucideIcon; note?: string }) {
-  return (
-    <article className="panel flex min-h-28 items-center justify-between p-4">
-      <div>
-        <p className="text-xs text-white/42">{label}</p>
-        <p className="mt-2 text-2xl font-semibold text-white/75">--</p>
-        {note ? <p className="mt-1 text-[10px] text-white/27">{note}</p> : <span className="mt-2 block h-1.5 w-20 rounded-full bg-white/[.06]" />}
-      </div>
-      <span className="grid size-10 place-items-center rounded-xl border border-violet-400/15 bg-violet-500/[.08] text-violet-300">
-        <Icon className="size-[18px]" />
-      </span>
-    </article>
   );
 }
 
@@ -43,20 +42,38 @@ export function PlaceholderLine({ className = '' }: { className?: string }) {
   return <span className={`placeholder-line block ${className}`} />;
 }
 
-export function TeamPlaceholder({ label = 'Team placeholder' }: { label?: string }) {
-  return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/9 bg-white/[.04] text-[9px] text-white/32">--</span>
-      <span className="truncate text-sm text-white/68">{label}</span>
-    </div>
-  );
-}
-
-export function SectionHeading({ title, link }: { title: string; link?: string }) {
+/**
+ * A section title, and optionally a link out of it.
+ *
+ * The link used to be a `<span>`. It was styled as a link, sat where a link
+ * sits, said "View schedule" -- and did nothing when clicked. Either it goes
+ * somewhere or it should not look like it does, so `href` is now required
+ * alongside the label and it renders as an anchor.
+ */
+export function SectionHeading({
+  title,
+  href,
+  linkLabel,
+  id,
+}: {
+  title: string;
+  href?: string;
+  linkLabel?: string;
+  id?: string;
+}) {
   return (
     <div className="mb-3 flex items-center justify-between gap-4">
-      <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-      {link && <span className="text-xs text-violet-300">{link}</span>}
+      <h2 id={id} className="text-base font-semibold tracking-tight text-ink-strong">
+        {title}
+      </h2>
+      {href && linkLabel && (
+        <a
+          href={href}
+          className="focus-ring shrink-0 rounded-lg px-1 py-1 text-xs text-violet-300 transition hover:text-violet-200"
+        >
+          {linkLabel}
+        </a>
+      )}
     </div>
   );
 }

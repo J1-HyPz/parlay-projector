@@ -47,7 +47,15 @@ export function eventLabel(game: Game): string {
   return parts.join(', ');
 }
 
-const PLACE_TONE = ['text-amber-200', 'text-white/60', 'text-orange-200/70'];
+/*
+ * Gold, silver, bronze.
+ *
+ * Deliberately literal rather than routed through the status tokens: these are
+ * not a good/warn/bad reading, they are the three podium colours, and folding
+ * first place into "warning" amber would make the ramp meaningless. The middle
+ * step uses the ink ramp because silver is exactly that.
+ */
+const PLACE_TONE = ['text-amber-200', 'text-ink-muted', 'text-orange-200/70'];
 
 export function EventBody({ game, compact = false }: { game: Game; compact?: boolean }) {
   const order = finishers(game);
@@ -56,27 +64,27 @@ export function EventBody({ game, compact = false }: { game: Game; compact?: boo
 
   return (
     <div className={compact ? 'mt-2.5' : 'mt-4'}>
-      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-white/85">
+      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink-strong">
         <Flag className="size-3.5 shrink-0 text-violet-300" aria-hidden="true" />
         {game.title ?? game.league ?? 'Event'}
       </p>
 
       {game.session && (
-        <p className="mt-0.5 pl-5 text-[11px] text-violet-300/70">{game.session}</p>
+        <p className="mt-0.5 pl-5 text-2xs text-violet-300/70">{game.session}</p>
       )}
 
       {settled ? (
         <ol className="mt-2 space-y-1 pl-5">
           {order.slice(0, 3).map((entrant, place) => (
-            <li key={entrant.id ?? entrant.name} className="flex items-center gap-2 text-[12px]">
+            <li key={entrant.id ?? entrant.name} className="flex items-center gap-2 text-xs">
               <span
-                className={`w-3 shrink-0 tabular-nums ${PLACE_TONE[place] ?? 'text-white/40'}`}
+                className={`w-3 shrink-0 tabular-nums ${PLACE_TONE[place] ?? 'text-ink-subtle'}`}
                 aria-hidden="true"
               >
                 {entrant.position}
               </span>
               <span className="sr-only">Position {entrant.position}:</span>
-              <span className="min-w-0 truncate text-white/70">{entrant.name}</span>
+              <span className="min-w-0 truncate text-ink">{entrant.name}</span>
               {place === 0 && (
                 <Trophy className="size-3 shrink-0 text-amber-200/70" aria-hidden="true" />
               )}
@@ -84,7 +92,7 @@ export function EventBody({ game, compact = false }: { game: Game; compact?: boo
           ))}
         </ol>
       ) : (
-        <p className="mt-2 pl-5 text-[11px] text-white/32">
+        <p className="mt-2 pl-5 text-2xs text-ink-faint">
           {field > 0 ? `${field} entered` : 'Entry list to be confirmed'}
         </p>
       )}

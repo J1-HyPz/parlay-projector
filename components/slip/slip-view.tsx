@@ -93,30 +93,30 @@ function PickRow({
   return (
     <li
       className={`relative rounded-xl border p-3 ${
-        muted ? 'border-white/7 bg-white/[.012]' : 'border-white/9 bg-white/[.02]'
+        muted ? 'border-line bg-surface-1' : 'border-line bg-surface-1'
       }`}
     >
       <a
         href={`/games/${entry.gameId}`}
-        className="block pr-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+        className="block pr-9 focus-ring"
       >
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs">
           <span
-            className={`font-medium uppercase tracking-wider ${muted ? 'text-white/30' : 'text-violet-300/80'}`}
+            className={`font-medium uppercase tracking-wider ${muted ? 'text-ink-faint' : 'text-violet-300/80'}`}
           >
             {sportLabel(entry.sport as SportId)}
           </span>
           {entry.league && (
             <>
-              <span className="text-white/18">·</span>
-              <span className="truncate text-white/38">{entry.league}</span>
+              <span className="text-ink-disabled">·</span>
+              <span className="truncate text-ink-subtle">{entry.league}</span>
             </>
           )}
-          <span className="text-white/18">·</span>
-          <span className="text-white/32">{kickoff(entry.startTime)}</span>
+          <span className="text-ink-disabled">·</span>
+          <span className="text-ink-faint">{kickoff(entry.startTime)}</span>
         </span>
         <span
-          className={`mt-1 block truncate text-sm ${muted ? 'text-white/45' : 'text-white/78'}`}
+          className={`mt-1 block truncate text-sm ${muted ? 'text-ink-subtle' : 'text-ink-strong'}`}
         >
           {entry.label}
         </span>
@@ -127,7 +127,7 @@ function PickRow({
           type="button"
           onClick={() => onRemove(entry.gameId)}
           aria-label={`Remove ${entry.label} from the slip`}
-          className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/30 transition hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+          className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-ink-faint transition hover:bg-surface-3 hover:text-ink-strong focus-ring"
         >
           <X className="size-4" />
         </button>
@@ -231,13 +231,13 @@ export function SlipView() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">
               Active picks
-              <span className="ml-2 text-white/35">{active.length}</span>
+              <span className="ml-2 text-ink-faint">{active.length}</span>
             </h2>
             {slip.entries.length > 0 && (
               <button
                 type="button"
                 onClick={() => void slip.clear()}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/9 bg-white/[.02] px-2.5 text-xs text-white/50 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-surface-1 px-2.5 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
                 Clear
@@ -246,7 +246,7 @@ export function SlipView() {
           </div>
 
           {slip.notice && (
-            <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/[.06] px-2.5 py-2 text-[11px] leading-5 text-amber-200/80">
+            <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/[.06] px-2.5 py-2 text-2xs leading-5 text-status-warn">
               {slip.notice}
             </p>
           )}
@@ -256,7 +256,7 @@ export function SlipView() {
             things between visits.
           */}
           {sections?.removed && sections.removed.length > 0 && (
-            <p className="mt-2 text-[11px] leading-5 text-white/38">
+            <p className="mt-2 text-2xs leading-5 text-ink-subtle">
               {sections.removed.length}{' '}
               {sections.removed.length === 1 ? 'pick has' : 'picks have'} been cleared:{' '}
               {sections.removed.map((item) => item.label).join(', ')}.
@@ -264,10 +264,10 @@ export function SlipView() {
           )}
 
           {active.length === 0 ? (
-            <div className="mt-3 rounded-xl border border-white/8 bg-white/[.02] px-3 py-5 text-[13px] leading-6 text-white/45">
-              <p className="font-medium text-white/60">No matches picked</p>
+            <div className="mt-3 rounded-xl border border-line bg-surface-1 px-3 py-5 text-sm leading-6 text-ink-subtle">
+              <p className="font-medium text-ink-muted">No matches picked</p>
               <p className="mt-1.5">
-                Add matches with the <span className="text-white/70">+</span> button on Home,
+                Add matches with the <span className="text-ink">+</span> button on Home,
                 Schedule, Live or any game page. Pick at least {MIN_LEGS} and the model builds
                 the strongest line it can from them.
               </p>
@@ -281,7 +281,7 @@ export function SlipView() {
           )}
 
           {active.length > 0 && active.length < MIN_LEGS && (
-            <p className="mt-3 text-[11px] leading-5 text-amber-200/70">
+            <p className="mt-3 text-2xs leading-5 text-status-warn">
               A line needs at least {MIN_LEGS} matches. Add one more.
             </p>
           )}
@@ -290,7 +290,7 @@ export function SlipView() {
         {/* Risk */}
         <div className="panel p-4">
           <fieldset className="border-0 p-0">
-            <legend className="text-[10px] uppercase tracking-wider text-white/28">
+            <legend className="text-2xs uppercase tracking-wider text-ink-faint">
               Risk level
             </legend>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -303,17 +303,17 @@ export function SlipView() {
                     setRisk(option.id);
                     setVariant(0);
                   }}
-                  className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                  className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
                     risk === option.id
-                      ? 'border-violet-500 bg-violet-600 text-white'
-                      : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                      ? 'chip-on'
+                      : 'chip-off'
                   }`}
                 >
                   {option.label}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] leading-5 text-white/32">
+            <p className="mt-2 text-2xs leading-5 text-ink-faint">
               {RISKS.find((option) => option.id === risk)?.note}
             </p>
           </fieldset>
@@ -327,7 +327,7 @@ export function SlipView() {
             that match's simulations before being multiplied between matches.
           */}
           <fieldset className="mt-4 border-0 p-0">
-            <legend className="text-[10px] uppercase tracking-wider text-white/28">
+            <legend className="text-2xs uppercase tracking-wider text-ink-faint">
               Bets per match
             </legend>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -340,17 +340,17 @@ export function SlipView() {
                     setPerGame(count);
                     setVariant(0);
                   }}
-                  className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                  className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-ring ${
                     perGame === count
-                      ? 'border-violet-500 bg-violet-600 text-white'
-                      : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                      ? 'chip-on'
+                      : 'chip-off'
                   }`}
                 >
                   {count}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] leading-5 text-white/32">
+            <p className="mt-2 text-2xs leading-5 text-ink-faint">
               {perGame === 1
                 ? 'One bet per match, so the legs do not depend on one another.'
                 : `Up to ${perGame} bets on the same match. Related legs are measured against that match’s simulations rather than multiplied, so the combined figure stays honest.`}
@@ -363,9 +363,9 @@ export function SlipView() {
           <div className="panel p-4">
             <h2 className="text-sm font-semibold">
               Settled
-              <span className="ml-2 text-white/35">{settled.length}</span>
+              <span className="ml-2 text-ink-faint">{settled.length}</span>
             </h2>
-            <p className="mt-1 text-[11px] leading-5 text-white/32">
+            <p className="mt-1 text-2xs leading-5 text-ink-faint">
               Cleared automatically once the day after the match has passed. The predictions
               themselves stay in the accuracy history.
             </p>
@@ -391,7 +391,7 @@ export function SlipView() {
             <button
               type="button"
               onClick={regenerate}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-4 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface-1 px-4 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
             >
               <RefreshCw className="size-3.5" aria-hidden="true" />
               Regenerate
@@ -399,7 +399,7 @@ export function SlipView() {
           )}
         </div>
 
-        <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-[11px]">
+        <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-2xs">
           {working && (
             <span className="text-violet-300/80">
               Projecting your {active.length} matches and simulating outcomes…
@@ -408,18 +408,18 @@ export function SlipView() {
         </output>
 
         {!enough ? (
-          <div className="rounded-xl border border-white/8 bg-white/[.02] px-4 py-6 text-sm text-white/40">
-            <p className="font-medium text-white/60">
+          <div className="rounded-xl border border-line bg-surface-1 px-4 py-6 text-sm text-ink-subtle">
+            <p className="font-medium text-ink-muted">
               {active.length === 0 ? 'Nothing to build from yet' : 'One more match'}
             </p>
-            <p className="mt-1.5 text-[13px] leading-6">
+            <p className="mt-1.5 text-sm leading-6">
               {active.length === 0
                 ? `Pick at least ${MIN_LEGS} matches and the model will build the strongest line it can from exactly those, at ${risk} risk.`
                 : `A line needs at least ${MIN_LEGS} matches. Add one more and it will build.`}
             </p>
           </div>
         ) : current?.failed ? (
-          <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-amber-200/80">
+          <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-status-warn">
             The line could not be built right now.
           </output>
         ) : (
@@ -429,7 +429,7 @@ export function SlipView() {
               was added, or never had enough history behind it.
             */}
             {chosen?.unavailable && chosen.unavailable.length > 0 && (
-              <p className="rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-3 py-2.5 text-[12px] leading-5 text-amber-200/80">
+              <p className="rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-3 py-2.5 text-xs leading-5 text-status-warn">
                 {chosen.unavailable.length} of your {chosen.requested} picks could not be
                 projected — most likely already under way, or without enough completed history
                 behind it. The line uses the {chosen.used} that remain.
@@ -441,7 +441,7 @@ export function SlipView() {
               one above, and it calls for a different response.
             */}
             {parlay && chosen && available !== null && available < chosen.used && (
-              <p className="rounded-xl border border-white/8 bg-white/[.02] px-3 py-2.5 text-[12px] leading-5 text-white/45">
+              <p className="rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-xs leading-5 text-ink-subtle">
                 {chosen.used - available} of your picks{' '}
                 {chosen.used - available === 1 ? 'offers' : 'offer'} no market that clears {risk}{' '}
                 risk, so {chosen.used - available === 1 ? 'it is' : 'they are'} left out rather
@@ -467,9 +467,9 @@ export function SlipView() {
               </>
             ) : (
               !working && (
-                <div className="rounded-xl border border-white/8 bg-white/[.02] px-4 py-6 text-sm text-white/40">
-                  <p className="font-medium text-white/60">No line at {risk} risk</p>
-                  <p className="mt-1.5 text-[13px] leading-6">
+                <div className="rounded-xl border border-line bg-surface-1 px-4 py-6 text-sm text-ink-subtle">
+                  <p className="font-medium text-ink-muted">No line at {risk} risk</p>
+                  <p className="mt-1.5 text-sm leading-6">
                     {available === 0
                       ? 'None of your picks has a market the model can stand behind at this level.'
                       : `Only ${available ?? 0} of your picks ${
@@ -478,7 +478,7 @@ export function SlipView() {
                     Nothing is padded to make one. Try a lower risk level, or add another match.
                   </p>
                   {typeof current?.body?.eligible === 'number' && current.body.eligible > 0 && (
-                    <p className="mt-2 text-[11px] leading-5 text-white/30">
+                    <p className="mt-2 text-2xs leading-5 text-ink-faint">
                       {current.body.eligible} model-backed selection
                       {current.body.eligible === 1 ? '' : 's'} across your picks in total.
                     </p>
@@ -488,7 +488,7 @@ export function SlipView() {
             )}
 
             {parlay && (
-              <p className="border-t border-white/7 pt-3 text-[11px] leading-5 text-white/30">
+              <p className="border-t border-line pt-3 text-2xs leading-5 text-ink-faint">
                 You chose the matches; the model chose what to back on each, within {risk} risk.
                 {parlay.kind === 'mixed'
                   ? ' Where a match contributes more than one bet, those legs were measured together against that match’s simulations rather than multiplied.'

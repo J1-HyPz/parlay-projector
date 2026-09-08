@@ -68,8 +68,8 @@ function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
-        checked ? 'border-violet-400/40 bg-violet-600' : 'border-white/12 bg-white/[.06]'
+      className={`relative h-6 w-11 shrink-0 rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 focus-ring ${
+        checked ? 'border-violet-400/40 bg-violet-600' : 'border-line-strong bg-surface-3'
       }`}
     >
       <span
@@ -153,7 +153,7 @@ export function NotificationSettings() {
   if (loading) {
     return (
       <section className="mt-6" aria-busy="true" aria-label="Loading notification settings">
-        <div className="h-56 rounded-2xl bg-white/[.035] motion-safe:animate-pulse motion-reduce:animate-none" />
+        <div className="h-56 rounded-2xl bg-surface-2 motion-safe:animate-pulse motion-reduce:animate-none" />
       </section>
     );
   }
@@ -161,7 +161,7 @@ export function NotificationSettings() {
   if (!data) {
     return (
       <section className="mt-6">
-        <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-amber-200/80">
+        <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-status-warn">
           Notification settings could not be loaded.
         </output>
       </section>
@@ -181,19 +181,19 @@ export function NotificationSettings() {
           <h2 id="settings-heading" className="text-base font-semibold">
             Settings
           </h2>
-          <p className="mt-1 text-xs text-white/34">
+          <p className="mt-1 text-xs text-ink-faint">
             Applied within one poll. No redeploy needed.
           </p>
         </div>
         {saving && <Spinner className="size-4 text-violet-300/70" />}
       </div>
 
-      <div className="panel mt-3 divide-y divide-white/7">
+      <div className="panel mt-3 divide-y divide-line">
         {/* Master switch */}
         <div className="flex items-center gap-4 p-4">
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-white/72">Send notifications</p>
-            <p className="mt-0.5 text-[11px] text-white/32">
+            <p className="text-sm text-ink">Send notifications</p>
+            <p className="mt-0.5 text-2xs text-ink-faint">
               {locked
                 ? 'Requires a webhook in the app environment.'
                 : 'Turn off to pause everything without losing your settings.'}
@@ -211,7 +211,7 @@ export function NotificationSettings() {
         {data.supported_events.map((event) => (
           <div key={event} className="flex items-center gap-4 p-4">
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-white/72">{EVENT_COPY[event] ?? event}</p>
+              <p className="text-sm text-ink">{EVENT_COPY[event] ?? event}</p>
             </div>
             <Toggle
               label={EVENT_COPY[event] ?? event}
@@ -230,10 +230,10 @@ export function NotificationSettings() {
         {/* Interval */}
         <div className="flex items-center gap-4 p-4">
           <div className="min-w-0 flex-1">
-            <label htmlFor="poll-interval" className="text-sm text-white/72">
+            <label htmlFor="poll-interval" className="text-sm text-ink">
               Check for changes every
             </label>
-            <p className="mt-0.5 text-[11px] text-white/32">
+            <p className="mt-0.5 text-2xs text-ink-faint">
               Shorter means faster alerts and more requests to the data provider.
             </p>
           </div>
@@ -242,7 +242,7 @@ export function NotificationSettings() {
             value={settings.poll_seconds}
             disabled={locked || saving}
             onChange={(event) => void save({ pollSeconds: Number(event.target.value) })}
-            className="min-h-9 shrink-0 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="min-h-9 shrink-0 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink disabled:opacity-40 focus-ring"
           >
             {[60, 120, 300, 600, 1800, 3600].map((seconds) => (
               <option key={seconds} value={seconds} className="bg-[#0e0c15]">
@@ -255,8 +255,8 @@ export function NotificationSettings() {
         {/* Proof of delivery */}
         <div className="flex flex-wrap items-center gap-3 p-4">
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-white/72">Test the connection</p>
-            <p className="mt-0.5 text-[11px] text-white/32">
+            <p className="text-sm text-ink">Test the connection</p>
+            <p className="mt-0.5 text-2xs text-ink-faint">
               Posts one message now. The only way to prove the whole path works.
             </p>
           </div>
@@ -265,21 +265,21 @@ export function NotificationSettings() {
             type="button"
             onClick={() => void sendTest()}
             disabled={locked || test === 'sending'}
-            className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-40 focus-ring"
           >
             {test === 'sending' ? <Spinner className="size-3.5" /> : <Send className="size-3.5" aria-hidden="true" />}
             Send test
           </button>
 
-          <output aria-live="polite" className="w-full text-[11px]">
+          <output aria-live="polite" className="w-full text-2xs">
             {test === 'delivered' && (
-              <span className="flex items-center gap-1.5 text-emerald-300">
+              <span className="flex items-center gap-1.5 text-status-good">
                 <CircleCheck className="size-3.5" aria-hidden="true" />
                 Delivered — check your Discord channel.
               </span>
             )}
             {test === 'failed' && (
-              <span className="flex items-center gap-1.5 text-amber-300">
+              <span className="flex items-center gap-1.5 text-status-warn">
                 <CircleAlert className="size-3.5" aria-hidden="true" />
                 {testMessage ?? 'Not delivered.'}
               </span>
@@ -289,7 +289,7 @@ export function NotificationSettings() {
       </div>
 
       {data.error === 'settings_not_persisted' && (
-        <output className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-3 text-[11px] text-amber-200/80">
+        <output className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-3 text-2xs text-status-warn">
           <CircleSlash className="size-3.5 shrink-0" aria-hidden="true" />
           Saved for now, but not written to disk — the data directory is not writable, so this
           will reset on restart.

@@ -65,9 +65,9 @@ function scopeLabel(scope: ResultScope | undefined): string | null {
 }
 
 const VERDICT: Record<string, { label: string; mark: string; tone: string }> = {
-  won: { label: 'Success', mark: '✓', tone: 'text-emerald-300' },
-  lost: { label: 'Failed', mark: '✕', tone: 'text-white/45' },
-  void: { label: 'Void', mark: '—', tone: 'text-amber-200/80' },
+  won: { label: 'Success', mark: '✓', tone: 'text-status-good' },
+  lost: { label: 'Failed', mark: '✕', tone: 'text-ink-subtle' },
+  void: { label: 'Void', mark: '—', tone: 'text-status-warn' },
 };
 
 /**
@@ -92,14 +92,14 @@ function Leg({ leg }: { leg: ResultLeg }) {
     <li className="flex gap-2">
       <span
         aria-hidden="true"
-        className={`shrink-0 text-[11px] leading-5 ${won ? 'text-emerald-300' : 'text-white/35'}`}
+        className={`shrink-0 text-2xs leading-5 ${won ? 'text-status-good' : 'text-ink-faint'}`}
       >
         {won ? '✓' : '✕'}
       </span>
       <span className="min-w-0">
         <span className="sr-only">{won ? 'Correct: ' : 'Incorrect: '}</span>
-        <span className="block text-[12px] leading-5 text-white/72">{leg.selection}</span>
-        {score && <span className="block text-[11px] leading-4 text-white/34">{score}</span>}
+        <span className="block text-xs leading-5 text-ink">{leg.selection}</span>
+        {score && <span className="block text-2xs leading-4 text-ink-faint">{score}</span>}
       </span>
     </li>
   );
@@ -191,18 +191,18 @@ export function RecentResults() {
 
   if (state === 'loading') {
     return (
-      <section className="mt-5 border-t border-white/7 pt-5" aria-busy="true">
-        <p className="text-[10px] uppercase tracking-wider text-white/28">Recent parlay results</p>
-        <div className="mt-3 h-28 rounded-xl bg-white/[.035] motion-safe:animate-pulse motion-reduce:animate-none" />
+      <section className="mt-5 border-t border-line pt-5" aria-busy="true">
+        <p className="text-2xs uppercase tracking-wider text-ink-faint">Recent parlay results</p>
+        <div className="mt-3 h-28 rounded-xl bg-surface-2 motion-safe:animate-pulse motion-reduce:animate-none" />
       </section>
     );
   }
 
   if (state === 'error' || state === 'empty') {
     return (
-      <section className="mt-5 border-t border-white/7 pt-5">
-        <p className="text-[10px] uppercase tracking-wider text-white/28">Recent parlay results</p>
-        <p className="mt-2 text-[11px] leading-5 text-white/32">
+      <section className="mt-5 border-t border-line pt-5">
+        <p className="text-2xs uppercase tracking-wider text-ink-faint">Recent parlay results</p>
+        <p className="mt-2 text-2xs leading-5 text-ink-faint">
           {state === 'error'
             ? 'Recent results unavailable.'
             : 'No completed parlays yet. Results will appear here once generated parlays have finished.'}
@@ -219,10 +219,10 @@ export function RecentResults() {
   return (
     <section
       ref={container}
-      className="mt-5 border-t border-white/7 pt-5"
+      className="mt-5 overflow-hidden border-t border-line pt-5"
       aria-label="Recent parlay results"
     >
-      <p className="text-[10px] uppercase tracking-wider text-white/28">Recent parlay results</p>
+      <p className="text-2xs uppercase tracking-wider text-ink-faint">Recent parlay results</p>
 
       <div
         // Keyed on the result so the card remounts and replays its entrance.
@@ -236,10 +236,10 @@ export function RecentResults() {
         </span>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-200/80">
+          <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wider text-violet-200/80">
             {result.risk} risk
           </span>
-          <span className={`text-[11px] font-semibold uppercase tracking-wide ${verdict.tone}`}>
+          <span className={`text-2xs font-semibold uppercase tracking-wide ${verdict.tone}`}>
             <span aria-hidden="true">{verdict.mark} </span>
             {verdict.label}
           </span>
@@ -250,9 +250,9 @@ export function RecentResults() {
             them, which would be true of a third of it.
           */}
           {scopeLabel(result.scope) && (
-            <span className="truncate text-[11px] text-white/34">{scopeLabel(result.scope)}</span>
+            <span className="truncate text-2xs text-ink-faint">{scopeLabel(result.scope)}</span>
           )}
-          <span className="ml-auto text-[11px] tabular-nums text-white/32">
+          <span className="ml-auto text-2xs tabular-nums text-ink-faint">
             {result.correct_legs} / {result.total_legs} correct
           </span>
         </div>
@@ -264,22 +264,22 @@ export function RecentResults() {
         </ul>
 
         {result.status === 'void' && (
-          <p className="mt-3 text-[11px] leading-5 text-white/34">
+          <p className="mt-3 text-2xs leading-5 text-ink-faint">
             One or more games were not played, so this line could not be judged.
           </p>
         )}
 
         {result.went_right && (
           <div className="mt-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/28">What went right</p>
-            <p className="mt-1 text-[11px] leading-5 text-white/45">{result.went_right}</p>
+            <p className="text-2xs uppercase tracking-wider text-ink-faint">What went right</p>
+            <p className="mt-1 text-2xs leading-5 text-ink-subtle">{result.went_right}</p>
           </div>
         )}
 
         {result.went_wrong && (
           <div className="mt-2">
-            <p className="text-[10px] uppercase tracking-wider text-white/28">What went wrong</p>
-            <p className="mt-1 text-[11px] leading-5 text-white/45">{result.went_wrong}</p>
+            <p className="text-2xs uppercase tracking-wider text-ink-faint">What went wrong</p>
+            <p className="mt-1 text-2xs leading-5 text-ink-subtle">{result.went_wrong}</p>
           </div>
         )}
       </div>
@@ -290,7 +290,7 @@ export function RecentResults() {
             type="button"
             onClick={() => move(-1)}
             aria-label="Previous result"
-            className="grid size-7 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="tap-target focus-ring grid size-8 place-items-center rounded-lg text-ink-subtle transition hover:bg-surface-2 hover:text-ink-strong"
           >
             <ChevronLeft className="size-4" aria-hidden="true" />
           </button>
@@ -300,7 +300,7 @@ export function RecentResults() {
               <span
                 key={entry.id}
                 className={`size-1.5 rounded-full transition ${
-                  position === index % count ? 'bg-violet-400' : 'bg-white/15'
+                  position === index % count ? 'bg-violet-400' : 'bg-surface-3'
                 }`}
               />
             ))}
@@ -310,14 +310,14 @@ export function RecentResults() {
             type="button"
             onClick={() => move(1)}
             aria-label="Next result"
-            className="grid size-7 place-items-center rounded-lg text-white/35 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="tap-target focus-ring grid size-8 place-items-center rounded-lg text-ink-subtle transition hover:bg-surface-2 hover:text-ink-strong"
           >
             <ChevronRight className="size-4" aria-hidden="true" />
           </button>
         </div>
       )}
 
-      <p className="mt-3 flex items-center gap-1.5 text-[10px] text-white/22">
+      <p className="mt-3 flex items-center gap-1.5 text-2xs text-ink-faint">
         <History className="size-3 shrink-0" aria-hidden="true" />
         Settled lines this application generated and stored before kick-off.
       </p>

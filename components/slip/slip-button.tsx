@@ -45,10 +45,10 @@ export function SlipButton({
         event.stopPropagation();
         void slip.toggle(game);
       }}
-      className={`grid size-8 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+      className={`tap-target focus-ring grid size-8 shrink-0 place-items-center rounded-lg border transition ${
         picked
           ? 'border-violet-400/40 bg-violet-500/20 text-violet-200 hover:bg-violet-500/30'
-          : 'border-white/10 bg-white/[.03] text-white/30 hover:border-white/20 hover:text-white/70'
+          : 'border-line bg-surface-1 text-ink-faint hover:border-line-strong hover:text-ink'
       } ${className}`}
     >
       {picked ? <Check className="size-4" /> : <Plus className="size-4" />}

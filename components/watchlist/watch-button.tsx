@@ -28,6 +28,9 @@ export function WatchButton({
   return (
     <button
       type="button"
+      // Amber here is the star's own colour, not a status. It is left literal
+      // rather than routed through `--status-warn` so a starred game never
+      // reads as a warning.
       aria-pressed={watched}
       aria-label={watched ? `Stop watching ${fixture}` : `Watch ${fixture}`}
       title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
@@ -37,10 +40,10 @@ export function WatchButton({
         event.stopPropagation();
         void watchlist.toggle(game);
       }}
-      className={`grid size-8 shrink-0 place-items-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+      className={`tap-target focus-ring grid size-8 shrink-0 place-items-center rounded-lg border transition ${
         watched
           ? 'border-amber-300/30 bg-amber-400/12 text-amber-300 hover:bg-amber-400/20'
-          : 'border-white/10 bg-white/[.03] text-white/30 hover:border-white/20 hover:text-white/70'
+          : 'border-line bg-surface-1 text-ink-faint hover:border-line-strong hover:text-ink'
       } ${className}`}
     >
       <Star className="size-4" fill={watched ? 'currentColor' : 'none'} />

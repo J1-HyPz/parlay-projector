@@ -21,7 +21,7 @@ export default function SlipsPage() {
         subtitle="Choose the matches; the model picks the strongest bet on each, at the risk level you set."
       />
       <SlipView />
-      <p className="mt-8 border-t border-white/7 pt-4 text-[11px] leading-5 text-white/25">
+      <p className="mt-8 border-t border-line pt-4 text-2xs leading-5 text-ink-faint">
         Parlay Projector provides statistical estimates based on available data. Sports outcomes
         are uncertain and projections may be incorrect.
       </p>

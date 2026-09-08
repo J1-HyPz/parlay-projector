@@ -16,7 +16,7 @@ export function SlipCount() {
   return (
     <span
       aria-label={`${slip.entries.length} on the slip`}
-      className="ml-1.5 inline-grid min-w-[18px] place-items-center rounded-full bg-violet-500/25 px-1.5 text-[10px] font-semibold tabular-nums text-violet-200"
+      className="ml-1.5 inline-grid min-w-[18px] place-items-center rounded-full bg-violet-500/25 px-1.5 text-2xs font-semibold tabular-nums text-violet-200"
     >
       {slip.entries.length}
     </span>

@@ -26,14 +26,14 @@ function percent(value: number): string {
 function Bar({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 truncate text-[11px] text-white/45">{label}</span>
-      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[.06]">
+      <span className="w-20 shrink-0 truncate text-2xs text-ink-subtle">{label}</span>
+      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3">
         <span
           className="block h-full rounded-full bg-violet-500"
           style={{ width: `${Math.round(value * 100)}%` }}
         />
       </span>
-      <span className="w-10 shrink-0 text-right text-xs tabular-nums text-white/70">
+      <span className="w-10 shrink-0 text-right text-xs tabular-nums text-ink">
         {percent(value)}
       </span>
     </div>
@@ -81,13 +81,13 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
       </div>
 
       {state === 'loading' && (
-        <div className="h-40 animate-pulse rounded-xl bg-white/[.035]" aria-busy="true" />
+        <div className="h-40 animate-pulse rounded-xl bg-surface-2" aria-busy="true" />
       )}
 
       {(state === 'unavailable' || state === 'error') && (
         <div className="rounded-xl border border-violet-400/10 bg-violet-500/[.045] p-4">
-          <p className="text-xs font-medium text-white/60">Projection unavailable</p>
-          <p className="mt-1.5 text-[11px] leading-5 text-white/36">
+          <p className="text-xs font-medium text-ink-muted">Projection unavailable</p>
+          <p className="mt-1.5 text-2xs leading-5 text-ink-faint">
             {state === 'error'
               ? 'The projection could not be loaded right now.'
               : 'There is not enough completed match history for these teams to support a projection. Nothing is estimated until there is.'}
@@ -108,7 +108,7 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
           {/* Named sides and a scoreline a game could finish on. An
               unlabelled "4.5 - 4.6" says neither who is who nor anything a
               real result could look like. */}
-          <div className="border-t border-white/7 pt-4">
+          <div className="border-t border-line pt-4">
             <ProjectedScore
               homeTeam={projection.home_team}
               awayTeam={projection.away_team}
@@ -120,36 +120,36 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
             />
           </div>
 
-          <dl className="grid grid-cols-3 gap-3 border-t border-white/7 pt-4 text-xs">
+          <dl className="grid grid-cols-3 gap-3 border-t border-line pt-4 text-xs">
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-white/28">Model line</dt>
-              <dd className="mt-1 font-medium tabular-nums text-white/70">
+              <dt className="text-2xs uppercase tracking-wider text-ink-faint">Model line</dt>
+              <dd className="mt-1 font-medium tabular-nums text-ink">
                 {projection.model_spread > 0 ? '+' : ''}
                 {projection.model_spread}
               </dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-white/28">Confidence</dt>
-              <dd className="mt-1 font-medium tabular-nums text-white/70">
+              <dt className="text-2xs uppercase tracking-wider text-ink-faint">Confidence</dt>
+              <dd className="mt-1 font-medium tabular-nums text-ink">
                 {percent(projection.confidence)}
               </dd>
             </div>
             <div>
-              <dt className="text-[10px] uppercase tracking-wider text-white/28">Data quality</dt>
-              <dd className="mt-1 font-medium text-white/70">
+              <dt className="text-2xs uppercase tracking-wider text-ink-faint">Data quality</dt>
+              <dd className="mt-1 font-medium text-ink">
                 {qualityLabel(projection.data_quality)}
               </dd>
             </div>
           </dl>
 
           {projection.factors.length > 0 && (
-            <ul className="space-y-1.5 border-t border-white/7 pt-4">
+            <ul className="space-y-1.5 border-t border-line pt-4">
               {projection.factors.slice(0, 4).map((factor) => (
-                <li key={factor.text} className="flex gap-2 text-[11px] leading-5">
+                <li key={factor.text} className="flex gap-2 text-2xs leading-5">
                   <span
                     aria-hidden="true"
                     className={
-                      factor.direction === 'positive' ? 'text-emerald-300' : 'text-amber-300'
+                      factor.direction === 'positive' ? 'text-status-good' : 'text-status-warn'
                     }
                   >
                     {factor.direction === 'positive' ? '+' : '−'}
@@ -157,13 +157,13 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
                   <span className="sr-only">
                     {factor.direction === 'positive' ? 'Supporting factor:' : 'Risk factor:'}
                   </span>
-                  <span className="text-white/45">{factor.text}</span>
+                  <span className="text-ink-subtle">{factor.text}</span>
                 </li>
               ))}
             </ul>
           )}
 
-          <p className="border-t border-white/7 pt-3 text-[10px] leading-4 text-white/25">
+          <p className="border-t border-line pt-3 text-2xs leading-4 text-ink-faint">
             Statistical estimate from available data, model {projection.model_version}. Sports
             outcomes are uncertain and projections may be incorrect.
           </p>

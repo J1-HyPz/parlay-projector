@@ -32,14 +32,8 @@ import {
   HubNavigation,
   type HubSection,
 } from './hub-chrome';
-import {
-  EmptyState,
-  ErrorState,
-  GameList,
-  NewsList,
-  SectionHeader,
-  SkeletonRows,
-} from './hub-pieces';
+import { GameList, NewsList, SectionHeader, SkeletonRows } from './hub-pieces';
+import { InlineEmpty, InlineError } from '@/components/ui/states';
 import { MoreLink, StandingsGroups, TeamGrid, TransactionList } from './hub-tables';
 
 const NEWS_LIMIT = 9;
@@ -59,7 +53,7 @@ function SummaryCard({
   return (
     <article className="panel flex items-center justify-between gap-3 p-4">
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-[.14em] text-white/30">{label}</p>
+        <p className="text-2xs uppercase tracking-[.14em] text-ink-faint">{label}</p>
         <p className="mt-1 truncate text-xl font-semibold">{value}</p>
       </div>
       <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-500/[.08] text-violet-300">
@@ -114,7 +108,7 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
   function gamesSection(list: 'live' | 'today' | 'results' | 'upcoming', empty: string) {
     if (games.state === 'loading') return <SkeletonRows rows={2} />;
     if (games.state === 'error' || !sections) {
-      return <ErrorState>Unable to load {terminology.games.toLowerCase()} right now.</ErrorState>;
+      return <InlineError>Unable to load {terminology.games.toLowerCase()} right now.</InlineError>;
     }
     const source = section === 'overview' && preview ? preview : sections;
     return <GameList games={source[list]} timezone={timezone} empty={empty} />;
@@ -123,17 +117,17 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
   function standingsBody(limit?: number) {
     if (!single) {
       return (
-        <EmptyState>
+        <InlineEmpty>
           Choose Men&apos;s or Women&apos;s to see a {terminology.standings.toLowerCase()}.
-        </EmptyState>
+        </InlineEmpty>
       );
     }
     if (!single.hasStandings) {
-      return <EmptyState>No {terminology.standings.toLowerCase()} is published for this competition.</EmptyState>;
+      return <InlineEmpty>No {terminology.standings.toLowerCase()} is published for this competition.</InlineEmpty>;
     }
     if (standings.state === 'loading') return <SkeletonRows rows={4} />;
     if (standings.state === 'error' || !standings.data) {
-      return <ErrorState>Unable to load the {terminology.standings.toLowerCase()} right now.</ErrorState>;
+      return <InlineError>Unable to load the {terminology.standings.toLowerCase()} right now.</InlineError>;
     }
     return <StandingsGroups groups={standings.data} leagueGroup={leagueGroup} limit={limit} />;
   }
@@ -141,14 +135,14 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
   function teamsBody(limit?: number) {
     if (!single) {
       return (
-        <EmptyState>
+        <InlineEmpty>
           Choose Men&apos;s or Women&apos;s to see {terminology.teams.toLowerCase()}.
-        </EmptyState>
+        </InlineEmpty>
       );
     }
     if (teams.state === 'loading') return <SkeletonRows rows={2} />;
     if (teams.state === 'error' || !teams.data) {
-      return <ErrorState>Unable to load {terminology.teams.toLowerCase()} right now.</ErrorState>;
+      return <InlineError>Unable to load {terminology.teams.toLowerCase()} right now.</InlineError>;
     }
     return <TeamGrid teams={teams.data} leagueId={single.id} limit={limit} />;
   }
@@ -156,7 +150,7 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
   function newsBody(limit?: number) {
     if (news.state === 'loading') return <SkeletonRows rows={2} />;
     if (news.state === 'error' || !news.data) {
-      return <ErrorState>Unable to load news right now.</ErrorState>;
+      return <InlineError>Unable to load news right now.</InlineError>;
     }
     return <NewsList articles={limit ? news.data.slice(0, limit) : news.data} />;
   }
@@ -165,7 +159,7 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
     if (transactions.state === 'loading') return <SkeletonRows rows={3} />;
     if (transactions.state === 'error' || !transactions.data) {
       return (
-        <ErrorState>{terminology.transactions} data is currently unavailable.</ErrorState>
+        <InlineError>{terminology.transactions} data is currently unavailable.</InlineError>
       );
     }
     return (
@@ -204,14 +198,14 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
       <div className="mt-4 flex flex-wrap gap-2">
         <a
           href={scheduleHref}
-          className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+          className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
         >
           <CalendarDays className="size-3.5" aria-hidden="true" />
           View full schedule
         </a>
         <a
           href={liveHref}
-          className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+          className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong focus-ring"
         >
           <Radio className="size-3.5" aria-hidden="true" />
           View live games
@@ -279,7 +273,7 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
                   <button
                     type="button"
                     onClick={() => setSection('standings')}
-                    className="text-xs text-violet-300 transition hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                    className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
                   >
                     Full {terminology.standings.toLowerCase()}
                   </button>
@@ -302,7 +296,7 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
                 <button
                   type="button"
                   onClick={() => setSection('teams')}
-                  className="text-xs text-violet-300 transition hover:text-violet-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                  className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
                 >
                   All {terminology.teams.toLowerCase()}
                 </button>

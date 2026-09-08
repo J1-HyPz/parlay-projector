@@ -145,20 +145,20 @@ function LoadingLeg({ index }: { index: number }) {
       style={{ animationDelay: `${index * 120}ms` }}
     >
       <div className="flex items-center gap-2">
-        <span className="size-5 rounded-md bg-white/[.07]" />
-        <span className="h-3 w-16 rounded bg-white/[.06]" />
-        <span className="h-3 w-24 rounded bg-white/[.04]" />
+        <span className="size-5 rounded-md bg-surface-3" />
+        <span className="h-3 w-16 rounded bg-surface-3" />
+        <span className="h-3 w-24 rounded bg-surface-2" />
       </div>
 
-      <span className="mt-3 block h-4 w-48 rounded bg-white/[.05]" />
+      <span className="mt-3 block h-4 w-48 rounded bg-surface-2" />
 
-      <div className="mt-3 flex items-end justify-between gap-3 border-t border-white/7 pt-3">
-        <span className="block h-6 w-40 rounded bg-white/[.07]" />
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-line pt-3">
+        <span className="block h-6 w-40 rounded bg-surface-3" />
         <span className="block h-7 w-16 rounded bg-violet-500/15" />
       </div>
 
-      <span className="mt-3 block h-4 w-52 rounded-full bg-white/[.04]" />
-      <span className="mt-3 block h-10 rounded-xl bg-white/[.03]" />
+      <span className="mt-3 block h-4 w-52 rounded-full bg-surface-2" />
+      <span className="mt-3 block h-10 rounded-xl bg-surface-1" />
     </article>
   );
 }
@@ -166,7 +166,7 @@ function LoadingLeg({ index }: { index: number }) {
 /** A labelled control in the toolbar. */
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="text-[10px] uppercase tracking-wider text-white/28">
+    <label className="text-2xs uppercase tracking-wider text-ink-faint">
       {label}
       {children}
     </label>
@@ -174,7 +174,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const SELECT_CLASS =
-  'mt-1 block min-h-10 w-full rounded-xl border border-white/9 bg-white/[.02] px-3 text-xs text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50';
+  'mt-1 block min-h-10 w-full rounded-xl border border-line bg-surface-1 px-3 text-xs text-ink focus-ring';
 
 /**
  * Which competition a sport should start on.
@@ -374,7 +374,7 @@ export function ParlayView() {
       {/* Controls */}
       <section className="mt-6 space-y-4" aria-label="Projection controls">
         <fieldset className="border-0 p-0">
-          <legend className="text-[10px] uppercase tracking-wider text-white/28">
+          <legend className="text-2xs uppercase tracking-wider text-ink-faint">
             Risk level
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -387,23 +387,23 @@ export function ParlayView() {
                   setRisk(option.id);
                   reset();
                 }}
-                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
                   risk === option.id
-                    ? 'border-violet-500 bg-violet-600 text-white'
-                    : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                    ? 'chip-on'
+                    : 'chip-off'
                 }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-5 text-white/32">
+          <p className="mt-2 text-2xs leading-5 text-ink-faint">
             {RISKS.find((option) => option.id === risk)?.note}
           </p>
         </fieldset>
 
         <fieldset className="border-0 p-0">
-          <legend className="text-[10px] uppercase tracking-wider text-white/28">
+          <legend className="text-2xs uppercase tracking-wider text-ink-faint">
             Parlay type
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -416,17 +416,17 @@ export function ParlayView() {
                   setType(option.id);
                   reset();
                 }}
-                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
                   type === option.id
-                    ? 'border-violet-500 bg-violet-600 text-white'
-                    : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                    ? 'chip-on'
+                    : 'chip-off'
                 }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-5 text-white/32">
+          <p className="mt-2 text-2xs leading-5 text-ink-faint">
             {TYPES.find((option) => option.id === type)?.note}
           </p>
         </fieldset>
@@ -438,8 +438,8 @@ export function ParlayView() {
           four has four fixtures this risk level would actually accept.
         */}
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-white/28">Day</p>
-          <div className="horizontal-cards mt-2 rounded-2xl border border-white/[.085] bg-white/[.02] p-1.5">
+          <p className="text-2xs uppercase tracking-wider text-ink-faint">Day</p>
+          <div className="horizontal-cards mt-2 rounded-2xl border border-line bg-surface-1 p-1.5">
             <button
               type="button"
               aria-pressed={day === ALL_DAYS}
@@ -447,15 +447,15 @@ export function ParlayView() {
                 setDay(ALL_DAYS);
                 reset();
               }}
-              className={`min-h-[54px] min-w-[84px] shrink-0 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+              className={`min-h-[54px] min-w-fit shrink-0 rounded-xl px-4 text-center transition focus-ring ${
                 day === ALL_DAYS
-                  ? 'border border-violet-400/35 bg-violet-500/15 text-white'
-                  : 'text-white/42 hover:bg-white/[.035] hover:text-white'
+                  ? 'border border-violet-400/35 bg-violet-500/15 text-ink-strong'
+                  : 'text-ink-subtle hover:bg-surface-2 hover:text-ink-strong'
               }`}
             >
               <span className="block text-xs font-semibold uppercase tracking-wide">All</span>
               <span
-                className={`mt-1 block text-[10px] ${day === ALL_DAYS ? 'text-violet-300' : 'text-white/28'}`}
+                className={`mt-1 block text-2xs ${day === ALL_DAYS ? 'text-violet-300' : 'text-ink-faint'}`}
               >
                 {data?.days
                   ? `${data.days.reduce((sum, entry) => sum + entry.eligible, 0)} games`
@@ -489,19 +489,19 @@ export function ParlayView() {
                     setDay(date);
                     reset();
                   }}
-                  className={`min-h-[54px] min-w-[92px] flex-1 rounded-xl px-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                  className={`min-h-[54px] min-w-fit flex-1 rounded-xl px-3 sm:px-4 text-center transition focus-ring ${
                     isActive
-                      ? 'border border-violet-400/35 bg-violet-500/15 text-white'
+                      ? 'border border-violet-400/35 bg-violet-500/15 text-ink-strong'
                       : disabled
-                        ? 'cursor-not-allowed text-white/18'
-                        : 'text-white/42 hover:bg-white/[.035] hover:text-white'
+                        ? 'cursor-not-allowed text-ink-disabled'
+                        : 'text-ink-subtle hover:bg-surface-2 hover:text-ink-strong'
                   }`}
                 >
                   <span className="block text-xs font-semibold uppercase tracking-wide">
                     {index === 0 && real ? 'TODAY' : weekday}
                   </span>
                   <span
-                    className={`mt-1 block text-[10px] ${isActive ? 'text-violet-300' : 'text-white/28'}`}
+                    className={`mt-1 block text-2xs ${isActive ? 'text-violet-300' : 'text-ink-faint'}`}
                   >
                     {label}
                     {real && availability ? ` · ${availability.eligible}` : ''}
@@ -610,7 +610,7 @@ export function ParlayView() {
           choose one and then be failed by it.
         */}
         {(catalogue ?? []).some((option) => !option.supported) && (
-          <p className="text-[11px] leading-5 text-white/32">
+          <p className="text-2xs leading-5 text-ink-faint">
             {(catalogue ?? [])
               .filter((option) => !option.supported)
               .map((option) => `${option.label}: ${option.unavailable}`)
@@ -640,7 +640,7 @@ export function ParlayView() {
             type="button"
             onClick={regenerate}
             disabled={state === 'loading'}
-            className="mt-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/9 bg-white/[.02] px-4 text-xs text-white/60 transition hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white/[.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            className="mt-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface-1 px-4 text-xs text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface-1 focus-ring"
           >
             {state === 'loading' ? (
               <Spinner className="size-3.5" />
@@ -660,7 +660,7 @@ export function ParlayView() {
           four legs is not a shorter line — it is not a line at all.
         */}
         <fieldset className="border-0 p-0">
-          <legend className="text-[10px] uppercase tracking-wider text-white/28">
+          <legend className="text-2xs uppercase tracking-wider text-ink-faint">
             Selections
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -682,12 +682,12 @@ export function ParlayView() {
                       setLegs(count);
                       reset();
                     }}
-                    className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                    className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-ring ${
                       unreachable
-                        ? 'cursor-not-allowed border-white/6 bg-white/[.01] text-white/18'
+                        ? 'cursor-not-allowed border-line bg-surface-1 text-ink-disabled'
                         : shownLegs === count
-                          ? 'border-violet-500 bg-violet-600 text-white'
-                          : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                          ? 'chip-on'
+                          : 'chip-off'
                     }`}
                   >
                     {count}
@@ -704,7 +704,7 @@ export function ParlayView() {
             fixtures on the card — the two differ, and the useful one is this.
           */}
           {eligibleGames !== null && (
-            <p className="mt-2 text-[11px] leading-5 text-white/32">
+            <p className="mt-2 text-2xs leading-5 text-ink-faint">
               {eligibleGames === 0
                 ? 'No eligible events for this selection.'
                 : `${eligibleGames} eligible ${eligibleGames === 1 ? 'event' : 'events'}${
@@ -723,7 +723,7 @@ export function ParlayView() {
           polite and the element is always present, so a screen reader is not
           surprised by a region appearing and vanishing.
         */}
-        <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-[11px]">
+        <output aria-live="polite" className="flex min-h-4 items-center gap-2 text-2xs">
           {state === 'loading' && (
             <>
               <Spinner className="size-3 text-violet-300" />
@@ -759,20 +759,20 @@ export function ParlayView() {
           )}
 
           {state === 'error' && (
-            <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-amber-200/80">
+            <output className="block rounded-xl border border-amber-400/20 bg-amber-500/[.06] px-4 py-5 text-sm text-status-warn">
               Projections could not be loaded right now.
             </output>
           )}
 
           {state === 'empty' && (
-            <div className="rounded-xl border border-white/8 bg-white/[.02] px-4 py-6 text-sm text-white/40">
-              <p className="font-medium text-white/60">
+            <div className="rounded-xl border border-line bg-surface-1 px-4 py-6 text-sm text-ink-subtle">
+              <p className="font-medium text-ink-muted">
                 No line available
                 {current?.body?.scope && current.body.scope.sport !== ALL_SPORTS
                   ? ` for ${current.body.scope.league_label}`
                   : ''}
               </p>
-              <p className="mt-1.5 text-[13px] leading-6">
+              <p className="mt-1.5 text-sm leading-6">
                 {data?.games_available === 0
                   ? day === ALL_DAYS
                     ? 'No upcoming event in this selection has enough completed history to project.'
@@ -788,7 +788,7 @@ export function ParlayView() {
                 question nobody asked.
               */}
               {current?.body?.scope && current.body.scope.sport !== ALL_SPORTS && (
-                <p className="mt-2 text-[13px] leading-6 text-white/32">
+                <p className="mt-2 text-sm leading-6 text-ink-faint">
                   Try{' '}
                   {current.body.scope.league !== null
                     ? 'every competition in this sport, a lower risk level, or fewer selections.'
@@ -797,14 +797,14 @@ export function ParlayView() {
                 </p>
               )}
               {markets === 'available' && (
-                <p className="mt-2 text-[13px] leading-6 text-amber-200/70">
+                <p className="mt-2 text-sm leading-6 text-status-warn">
                   You have asked for confirmed markets only. Bookmaker prices are not published
                   for every competition — try &ldquo;Any market&rdquo; to include the model&rsquo;s
                   own lines, which are labelled as unverified.
                 </p>
               )}
               {type === 'same' && (
-                <p className="mt-2 text-[13px] leading-6 text-white/32">
+                <p className="mt-2 text-sm leading-6 text-ink-faint">
                   A same-game line needs several selections from one fixture to clear the risk
                   thresholds together. Lower the risk level or ask for fewer selections.
                 </p>
@@ -835,7 +835,7 @@ export function ParlayView() {
           ) : (
             <section className="panel p-5" aria-label="Parlay summary">
               <h2 className="text-sm font-semibold">Parlay summary</h2>
-              <p className="mt-3 text-[11px] leading-5 text-white/32">
+              <p className="mt-3 text-2xs leading-5 text-ink-faint">
                 {state === 'loading'
                   ? 'Working out the line.'
                   : 'Choose a risk level and a day to generate a line.'}
@@ -850,26 +850,26 @@ export function ParlayView() {
                 How this works
               </h2>
             </div>
-            <ul className="mt-3 space-y-2 text-[11px] leading-5 text-white/38">
+            <ul className="mt-3 space-y-2 text-2xs leading-5 text-ink-subtle">
               <li className="flex gap-2">
-                <Target className="mt-0.5 size-3.5 shrink-0 text-white/25" aria-hidden="true" />
+                <Target className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden="true" />
                 Team ratings are built from completed results — scoring rates adjusted for
                 opposition, recent form, rest and an Elo rating.
               </li>
               <li className="flex gap-2">
-                <Layers3 className="mt-0.5 size-3.5 shrink-0 text-white/25" aria-hidden="true" />
+                <Layers3 className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden="true" />
                 Each fixture is simulated thousands of times, and every probability on this page
                 is read off the same set of simulations.
               </li>
               <li className="flex gap-2">
-                <Shield className="mt-0.5 size-3.5 shrink-0 text-white/25" aria-hidden="true" />
+                <Shield className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden="true" />
                 Where a bookmaker&rsquo;s lines are published, the model is run against those
                 exact lines. Where they are not, its own lines are shown and marked unverified.
               </li>
             </ul>
 
             {typeof data?.priced_games === 'number' && (
-              <p className="mt-3 border-t border-white/7 pt-3 text-[10px] leading-4 text-white/28">
+              <p className="mt-3 border-t border-line pt-3 text-2xs leading-4 text-ink-faint">
                 {data.priced_games === 0
                   ? 'No bookmaker prices were published for any fixture in this window, so every line here is a model projection.'
                   : `Bookmaker prices were published for ${data.priced_games} fixture${data.priced_games === 1 ? '' : 's'} in this window.`}

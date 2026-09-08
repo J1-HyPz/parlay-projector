@@ -11,6 +11,7 @@
 
 import { Activity, Sparkles } from 'lucide-react';
 import { percent } from '@/lib/utils';
+import { MIN_REPORTABLE } from '@/lib/projections/metrics';
 import { useHomeData, useSectionFailed } from './home-data';
 import { RecentResults } from './recent-results';
 
@@ -53,7 +54,7 @@ export function AccuracyPanel() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Prediction Accuracy</p>
-          <p className="mt-1 text-xs text-white/36">Model outcomes overview</p>
+          <p className="mt-1 text-xs text-ink-faint">Model outcomes overview</p>
         </div>
         <Activity className="size-5 text-violet-300" />
       </div>
@@ -64,19 +65,19 @@ export function AccuracyPanel() {
           style={{ background: ring(loading || failed ? null : value) }}
         >
           <div className="grid size-[112px] place-items-center rounded-full bg-[#0d0b14] text-center">
-            <span className="text-2xl font-semibold">{display}</span>
-            <span className="-mt-8 text-[10px] uppercase tracking-wider text-white/30">Accuracy</span>
+            <span className="text-2xl font-semibold text-ink-strong">{display}</span>
+            <span className="-mt-8 text-2xs uppercase tracking-wider text-ink-faint">Accuracy</span>
           </div>
         </div>
       </div>
 
-      <div className="space-y-4 border-t border-white/7 pt-5">
+      <div className="space-y-4 border-t border-line pt-5">
         <div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/43">Correct predictions</span>
-            <span className="text-white/32">{accuracy ? accuracy.correct : '--'}</span>
+            <span className="text-ink-subtle">Correct predictions</span>
+            <span className="text-ink-faint">{accuracy ? accuracy.correct : '--'}</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[.055]">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-violet-500/35"
               style={{ width: `${correctPct}%` }}
@@ -85,10 +86,10 @@ export function AccuracyPanel() {
         </div>
         <div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/43">Settled predictions</span>
-            <span className="text-white/32">{accuracy ? accuracy.settled : '--'}</span>
+            <span className="text-ink-subtle">Settled predictions</span>
+            <span className="text-ink-faint">{accuracy ? accuracy.settled : '--'}</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[.055]">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-violet-500/35"
               style={{ width: accuracy && accuracy.settled > 0 ? '100%' : '0%' }}
@@ -97,15 +98,26 @@ export function AccuracyPanel() {
         </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-2 rounded-xl border border-violet-400/10 bg-violet-500/[.045] p-3 text-[11px] leading-5 text-white/36">
-        <Sparkles className="size-4 shrink-0 text-violet-300" />
-        {failed
-          ? 'Accuracy currently unavailable.'
-          : loading
-            ? 'Loading prediction history.'
-            : accuracy && accuracy.settled > 0
-              ? `Based on ${accuracy.settled} settled predictions.`
-              : 'No settled predictions yet.'}
+      <div className="mt-5 flex items-start gap-2 rounded-xl border border-violet-400/10 bg-violet-500/[.045] p-3 text-2xs leading-5 text-ink-subtle">
+        <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-violet-300" />
+        <span>
+          {failed
+            ? 'Accuracy currently unavailable.'
+            : loading
+              ? 'Loading prediction history.'
+              : accuracy === null || accuracy.settled === 0
+                ? 'No settled predictions yet.'
+                : accuracy.accuracy === null
+                  ? /*
+                     * Withheld, not missing. A rate from a dozen results has a
+                     * margin of error wide enough to cover almost any claim, so
+                     * the dial stays empty until there is enough behind it --
+                     * and now says so, instead of leaving `--%` to read as a
+                     * fault.
+                     */
+                    `${accuracy.settled} settled. A rate is published from ${MIN_REPORTABLE}.`
+                  : `Based on ${accuracy.settled} settled predictions.`}
+        </span>
       </div>
 
       {/* What the percentage above is made of. Loads on its own, so a failure
