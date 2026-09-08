@@ -139,6 +139,7 @@ function PickRow({
 export function SlipView() {
   const slip = useSlip();
   const [risk, setRisk] = useState<RiskLevel>('medium');
+  const [perGame, setPerGame] = useState(1);
   const [variant, setVariant] = useState(0);
 
   /*
@@ -175,7 +176,7 @@ export function SlipView() {
   const settled = sections?.settled ?? [];
   const enough = active.length >= MIN_LEGS;
 
-  const search = `risk=${risk}&variant=${variant}&games=${active
+  const search = `risk=${risk}&per_game=${perGame}&variant=${variant}&games=${active
     .map((entry) => entry.gameId)
     .join(',')}`;
 
@@ -316,6 +317,45 @@ export function SlipView() {
               {RISKS.find((option) => option.id === risk)?.note}
             </p>
           </fieldset>
+
+          {/*
+            Bets per match.
+
+            One keeps the ordinary rule — a leg per match, so the legs are
+            independent and the product means something. Above one, the legs
+            from a match are related and the combined figure is counted against
+            that match's simulations before being multiplied between matches.
+          */}
+          <fieldset className="mt-4 border-0 p-0">
+            <legend className="text-[10px] uppercase tracking-wider text-white/28">
+              Bets per match
+            </legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[1, 2, 3].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={perGame === count}
+                  onClick={() => {
+                    setPerGame(count);
+                    setVariant(0);
+                  }}
+                  className={`min-h-10 min-w-11 rounded-xl border px-4 text-xs font-medium tabular-nums transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 ${
+                    perGame === count
+                      ? 'border-violet-500 bg-violet-600 text-white'
+                      : 'border-white/9 bg-white/[.02] text-white/48 hover:bg-white/[.05] hover:text-white'
+                  }`}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-5 text-white/32">
+              {perGame === 1
+                ? 'One bet per match, so the legs do not depend on one another.'
+                : `Up to ${perGame} bets on the same match. Related legs are measured against that match’s simulations rather than multiplied, so the combined figure stays honest.`}
+            </p>
+          </fieldset>
         </div>
 
         {/* Settled */}
@@ -450,6 +490,9 @@ export function SlipView() {
             {parlay && (
               <p className="border-t border-white/7 pt-3 text-[11px] leading-5 text-white/30">
                 You chose the matches; the model chose what to back on each, within {risk} risk.
+                {parlay.kind === 'mixed'
+                  ? ' Where a match contributes more than one bet, those legs were measured together against that match’s simulations rather than multiplied.'
+                  : ''}{' '}
                 Estimated hit rate is {percent(parlay.combined_probability, 1)} — an estimate from
                 past results, not a promise.
               </p>

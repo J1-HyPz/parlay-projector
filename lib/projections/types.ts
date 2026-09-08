@@ -322,7 +322,20 @@ export type RiskLevel = 'low' | 'medium' | 'high';
  *   multi_game  one leg per fixture, so the legs are near enough independent
  *   same_game   several legs from one fixture, which are not
  */
-export type ParlayKind = 'multi_game' | 'same_game';
+export type ParlayKind =
+  /** One leg per fixture. The legs are near enough independent. */
+  | 'multi_game'
+  /** Several legs from a single fixture, combined by counting. */
+  | 'same_game'
+  /**
+   * Several legs from each of several fixtures.
+   *
+   * Correlated within a fixture and independent across them, so the combined
+   * probability is counted inside each fixture and multiplied between them.
+   * Neither of the other two describes that, and calling it either would
+   * misstate how the figure was reached.
+   */
+  | 'mixed';
 
 /**
  * How much the legs move together.

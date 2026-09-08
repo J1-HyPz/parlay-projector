@@ -51,7 +51,8 @@ import {
   selectionsOnDate,
 } from '@/lib/projections/optimiser';
 import type { MarketFilter } from '@/lib/projections/optimiser';
-import { buildSameGame } from '@/lib/projections/same-game';
+import { buildMixed, buildSameGame } from '@/lib/projections/same-game';
+import type { FixtureBundle } from '@/lib/projections/same-game';
 import { buildCandidates, gameCandidates } from '@/lib/projections/service';
 import { getGameDetail } from '@/lib/games/service';
 import type { Game } from '@/lib/home/types';
@@ -90,6 +91,50 @@ const SAME_GAME_ATTEMPTS = 6;
  * one request into an unbounded scan.
  */
 const MAX_CHOSEN_GAMES = 30;
+
+/**
+ * How many fixtures a mixed line will re-simulate.
+ *
+ * Several bets on one match need that match's simulated games to count the
+ * joint probability, and the bulk candidate build deliberately does not keep
+ * them. Each fixture is therefore re-projected, which is affordable for a
+ * handful and not for a card.
+ */
+const MAX_MIXED_GAMES = 8;
+
+/**
+ * Bets a single match may contribute.
+ *
+ * One is the ordinary rule and the default everywhere. Above that the legs
+ * from a fixture are correlated, and the arithmetic changes — see buildMixed.
+ */
+const MAX_PER_GAME = 3;
+
+/**
+ * Candidates and simulations for each chosen fixture.
+ *
+ * Bounded and sequential-ish by design: this is the expensive path, and it is
+ * only reached when a reader has asked for more than one bet on a match.
+ */
+async function bundlesFor(gameIds: readonly string[]): Promise<FixtureBundle[]> {
+  const bundles: FixtureBundle[] = [];
+
+  for (const gameId of gameIds.slice(0, MAX_MIXED_GAMES)) {
+    const detail = await getGameDetail(gameId);
+    if (detail.kind !== 'ok') continue;
+
+    const candidates = await gameCandidates(detail.game as unknown as Game);
+    if (!candidates) continue;
+
+    bundles.push({
+      gameId,
+      selections: candidates.selections,
+      distribution: candidates.outcome.distribution,
+    });
+  }
+
+  return bundles;
+}
 
 async function bestSameGame(
   selections: readonly Selection[],
@@ -181,6 +226,19 @@ export async function GET(request: Request): Promise<Response> {
   const sameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
 
   /*
+   * How many bets one match may contribute.
+   *
+   * One keeps the long-standing rule: a leg per fixture, so the product of the
+   * legs means something. Above one the legs from a match are correlated and
+   * the combined figure is counted within each fixture before being multiplied
+   * between them.
+   */
+  const rawPerGame = Number.parseInt(params.get('per_game') ?? '', 10);
+  const perGame = Number.isFinite(rawPerGame)
+    ? Math.min(Math.max(rawPerGame, 1), MAX_PER_GAME)
+    : 1;
+
+  /*
    * Fixtures the reader picked, if any.
    *
    * De-duplicated, shape-checked and capped here rather than trusted: these
@@ -251,9 +309,25 @@ export async function GET(request: Request): Promise<Response> {
   const requestedLegs =
     legs ?? (chosenGames.length > 0 ? Math.min(usableGames.size, MAX_LEGS) : undefined);
 
+  /*
+   * More than one bet per match needs each fixture's simulations, which the
+   * bulk build does not keep. Only reached when asked for, and only for
+   * fixtures the reader named — re-projecting the whole card would be
+   * unaffordable and pointless.
+   */
+  const mixed = perGame > 1 && !sameGame && usableGames.size > 0;
+
   const result = sameGame
     ? await bestSameGame(pool, { risk, legs: requestedLegs, markets, variant })
-    : optimise(pool, { risk, legs: requestedLegs, markets, variant });
+    : mixed
+      ? buildMixed(await bundlesFor([...usableGames]), {
+          risk,
+          perGame,
+          legs: legs ?? undefined,
+          markets,
+          variant,
+        })
+      : optimise(pool, { risk, legs: requestedLegs, markets, variant });
 
   /*
    * How many legs this filter can actually support.
@@ -264,7 +338,9 @@ export async function GET(request: Request): Promise<Response> {
    * returning three without explanation. A same-game line draws several legs
    * from one fixture, so no such ceiling applies to it.
    */
-  const maxLegs = sameGame ? MAX_LEGS : Math.min(result.gamesAvailable, MAX_LEGS);
+  const maxLegs = sameGame
+    ? MAX_LEGS
+    : Math.min(result.gamesAvailable * perGame, MAX_LEGS);
 
   const described = describeScope(scope);
   const scopeBlock = {
@@ -296,6 +372,7 @@ export async function GET(request: Request): Promise<Response> {
       risk,
       scope: scopeBlock,
       chosen: chosenBlock,
+      per_game: perGame,
       max_legs: maxLegs,
       date,
       dates: window.dates,
@@ -378,6 +455,7 @@ export async function GET(request: Request): Promise<Response> {
     risk,
     scope: scopeBlock,
     chosen: chosenBlock,
+    per_game: perGame,
     max_legs: maxLegs,
     date,
     dates: window.dates,

@@ -85,11 +85,41 @@ not the record of them.
 The pool is narrowed to the picked fixtures **before anything is ranked**, so
 the choice is binding in the same structural way the sport and competition
 filters are. There is no later stage that could reach past it for a better leg
-elsewhere. One leg per match, which is the existing correlation rule.
+elsewhere. One leg per match by default; see below for taking more.
 
 Picking four matches asks for a four-leg line. That is what picking them means,
 and the risk profile's default of three would otherwise drop one of your picks
 without saying so.
+
+### More than one bet per match
+
+**Bets per match** takes 1, 2 or 3. One is the ordinary rule and the default:
+a leg per match, so the legs are independent and the product of their
+probabilities means something.
+
+Above one, the arithmetic changes, and this is the part worth understanding.
+Two bets on the same match are *related* — a side winning and the game going
+over arrive together more often than chance. So:
+
+| Where | How the probability is reached |
+| --- | --- |
+| Within one match | **Counted** against that match's simulated games |
+| Between matches | **Multiplied**, as before |
+
+Doing either one everywhere would be wrong. Multiplying throughout understates
+a match whose legs reinforce each other; counting throughout is impossible,
+because two matches share no simulations.
+
+Seen live on three matches at two bets each: the counted figure came out at
+**17.0%** against a product of **16.1%** — the legs reinforcing, priced in
+rather than assumed away.
+
+Legs are taken **round-robin**: the best from each match, then the second best
+from each. Four legs across three matches is 2-1-1, never 3-1. Loading a line
+onto one fixture would concentrate it exactly where correlation is strongest.
+
+A line where no match ends up doubled is reported as an ordinary multi-game
+line, and its correlation is not described as measured — because it was not.
 
 ### Nothing is padded, and nothing is substituted
 
@@ -114,8 +144,10 @@ distinguishable.
 
 ## Deliberately not offered
 
-- Same-game combinations within a picked match. That exists on the game page
-  and has its own correlation handling.
+- A same-game line from a *single* match. That is Parlays' same-game mode and
+  the game page's builder; the Slip always spans the matches you picked.
+- Choosing which market a match contributes. That is the model's half of the
+  split, and taking it back would make this the old bet builder.
 - Stakes, returns, or any monetary figure.
 - More than one saved slip.
 - Any bookmaker account, placement or deep link. This reports what the model

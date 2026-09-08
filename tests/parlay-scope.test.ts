@@ -32,6 +32,13 @@ import { bestPerGame, eligible, optimise } from '../lib/projections/optimiser.ts
 import { RISK_PROFILES } from '../lib/projections/config.ts';
 import { selectionScore } from '../lib/projections/project.ts';
 import { priceFromDecimal } from '../lib/markets/price.ts';
+import { buildMixed } from '../lib/projections/same-game.ts';
+import type { FixtureBundle } from '../lib/projections/same-game.ts';
+import { simulate } from '../lib/projections/model.ts';
+import type { Distribution } from '../lib/projections/model.ts';
+import { jointProbability } from '../lib/projections/correlation.ts';
+import type { SettlementRule } from '../lib/markets/types.ts';
+import { modelConfigFor } from '../lib/projections/config.ts';
 import type { MarketContext } from '../lib/markets/types.ts';
 import type { ConcreteSportId } from '../lib/home/types.ts';
 import type { Selection } from '../lib/projections/types.ts';
@@ -299,5 +306,131 @@ describe('a filter is never overruled', () => {
     const { parlay } = optimise(premierLeague, { risk: 'medium', legs: 3 });
     assert.ok(parlay);
     assert.equal(new Set(parlay.legs.map((leg) => leg.sport)).size, 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Several bets on one match
+// ---------------------------------------------------------------------------
+
+describe('more than one bet per match', () => {
+  /*
+   * Real simulations rather than a hand-built distribution: the point of this
+   * builder is that legs from one fixture are measured against the games they
+   * were read from, and a fabricated distribution would not exercise that.
+   */
+  /*
+   * Each leg's probability is read from the distribution it will be judged
+   * against, so the fixture is self-consistent. A leg claiming 78% that the
+   * simulations put at 50% is refused by the conditional test - correctly, and
+   * it would make this a test of nothing.
+   */
+  function leg(
+    gameId: string,
+    name: string,
+    rule: SettlementRule,
+    market: { type: string; line: number | null },
+    distribution: Distribution,
+  ): Selection {
+    const probability = jointProbability(distribution, [rule]);
+    const base = selection(`${gameId}-${name}`, gameId, { probability });
+
+    return {
+      ...base,
+      settlement: rule,
+      score: selectionScore(probability, 0.8, 0.8),
+      // Distinct market identities, or `conflicts` would treat these as the
+      // same bet and refuse the second and third.
+      market: { ...base.market, type: market.type, line: market.line },
+    } as Selection;
+  }
+
+  function bundle(gameId: string, seed: number): FixtureBundle {
+    const distribution = simulate(
+      { home: 1.7, away: 1.1, eloEdge: 0, homeRest: null, awayRest: null, shortRested: null },
+      modelConfigFor('football')!,
+      { simulations: 4000, seed },
+    );
+
+    return {
+      gameId,
+      distribution,
+      selections: [
+        leg(gameId, 'a', { kind: 'total', direction: 'under', line: 5.5 }, { type: 'total', line: 5.5 }, distribution),
+        leg(gameId, 'b', { kind: 'team_total', side: 'home', direction: 'over', line: 0.5 }, { type: 'team_total', line: 0.5 }, distribution),
+        leg(gameId, 'c', { kind: 'double_chance', sides: ['home', 'draw'] }, { type: 'double_chance', line: null }, distribution),
+      ],
+    };
+  }
+
+  const bundles = [bundle('g1', 1), bundle('g2', 2), bundle('g3', 3)];
+
+  const spread = (parlay: { legs: { game_id: string }[] }) => {
+    const counts = new Map<string, number>();
+    for (const leg of parlay.legs) counts.set(leg.game_id, (counts.get(leg.game_id) ?? 0) + 1);
+    return counts;
+  };
+
+  it('reproduces one leg per match when asked for one', () => {
+    const { parlay } = buildMixed(bundles, { risk: 'low', perGame: 1, legs: 3 });
+    assert.ok(parlay);
+    assert.equal(parlay.legs.length, 3);
+    assert.equal(spread(parlay).size, 3);
+    assert.equal(parlay.kind, 'multi_game', 'nothing doubled up, so nothing changed');
+  });
+
+  it('takes several bets from one match when asked', () => {
+    const { parlay } = buildMixed(bundles, { risk: 'low', perGame: 2, legs: 6 });
+    assert.ok(parlay);
+
+    const counts = [...spread(parlay).values()];
+    assert.ok(counts.some((count) => count > 1), 'a match contributed more than one leg');
+    assert.ok(counts.every((count) => count <= 2), 'and none exceeded the limit asked for');
+  });
+
+  it('spreads across matches before doubling up on one', () => {
+    /*
+     * Four legs from three matches is 2-1-1, never 3-1 or 4. Loading a line
+     * onto whichever fixture ranks first would concentrate it exactly where
+     * correlation is strongest.
+     */
+    const { parlay } = buildMixed(bundles, { risk: 'low', perGame: 3, legs: 4 });
+    assert.ok(parlay);
+    assert.deepEqual([...spread(parlay).values()].sort((a, b) => a - b), [1, 1, 2]);
+  });
+
+  it('counts within a match and multiplies between them', () => {
+    /*
+     * The arithmetic that makes this honest. Legs from one fixture are related,
+     * so multiplying throughout would misstate the line — and counting
+     * throughout is impossible, because two fixtures share no simulations.
+     */
+    const { parlay } = buildMixed(bundles, { risk: 'low', perGame: 2, legs: 4 });
+    assert.ok(parlay);
+    assert.equal(parlay.kind, 'mixed');
+    assert.notEqual(
+      parlay.combined_probability,
+      parlay.independent_probability,
+      'a doubled-up match must not price as if its legs were independent',
+    );
+  });
+
+  it('never claims correlation was measured when nothing doubled up', () => {
+    const { parlay } = buildMixed(bundles, { risk: 'low', perGame: 3, legs: 3 });
+    assert.ok(parlay);
+    assert.equal(parlay.kind, 'multi_game');
+    assert.equal(parlay.correlation.ratio, 1);
+  });
+
+  it('is bounded by the matches available, not by what was asked for', () => {
+    const { parlay } = buildMixed([bundles[0]], { risk: 'low', perGame: 3, legs: 6 });
+    assert.ok(parlay);
+    assert.ok(parlay.legs.length <= 3, 'one match cannot supply six bets here');
+    assert.ok(parlay.legs.every((leg) => leg.game_id === 'g1'));
+  });
+
+  it('returns nothing rather than a one-leg line', () => {
+    const thin = [{ ...bundles[0], selections: [selection('only', 'g1', { probability: 0.78 })] }];
+    assert.equal(buildMixed(thin, { risk: 'low', perGame: 3, legs: 4 }).parlay, null);
   });
 });

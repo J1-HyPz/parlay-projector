@@ -231,3 +231,156 @@ export function assembleSlip(
     verified_legs: legs.filter((leg) => leg.market.availability === 'verified').length,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Several bets from each of several fixtures
+// ---------------------------------------------------------------------------
+
+/** One fixture's candidates, with the simulations they were read from. */
+export interface FixtureBundle {
+  gameId: string;
+  selections: readonly Selection[];
+  distribution: Distribution;
+}
+
+export interface MixedOptions {
+  risk: RiskLevel;
+  /** Most legs to take from any one fixture. One reproduces the old behaviour. */
+  perGame: number;
+  legs?: number;
+  markets?: MarketFilter;
+  variant?: number;
+  now?: Date;
+}
+
+/**
+ * A line with several bets on some matches and legs from others.
+ *
+ * The reason this needs its own builder rather than a looser optimiser is the
+ * arithmetic. Two bets on one fixture are correlated and must be **counted**
+ * against that fixture's simulations; bets on different fixtures are near
+ * enough independent and are **multiplied**. Doing either one everywhere would
+ * be wrong in a way that shows up as a headline number:
+ *
+ *   multiply throughout   understates a fixture whose legs reinforce
+ *   count throughout      impossible — two fixtures share no simulations
+ *
+ * So the joint probability here is the product, across fixtures, of each
+ * fixture's counted joint. Correlation is handled exactly where it exists and
+ * nowhere else.
+ *
+ * Legs are taken round-robin: the best from each fixture, then the second best
+ * from each, and so on. That spreads the line across the matches the reader
+ * picked instead of loading three bets onto whichever fixture happens to rank
+ * first — the same instinct as the multi-game optimiser's diversity pass.
+ */
+export function buildMixed(
+  bundles: readonly FixtureBundle[],
+  options: MixedOptions,
+): OptimiseResult {
+  const profile = RISK_PROFILES[options.risk];
+  const perGame = Math.max(1, Math.min(options.perGame, MAX_LEGS));
+
+  // Each fixture's candidates, strongest first, with the conditional test
+  // applied against that fixture's own simulations as legs accumulate.
+  const pools = bundles
+    .map((bundle) => ({
+      bundle,
+      queue: eligible(bundle.selections, profile, options.markets ?? 'any').sort(
+        (a, b) => b.score - a.score,
+      ),
+      chosen: [] as Selection[],
+    }))
+    .filter((pool) => pool.queue.length > 0)
+    // Strongest fixture first, so a short line is built from the best matches.
+    .sort((a, b) => b.queue[0].score - a.queue[0].score);
+
+  const eligibleCount = pools.reduce((sum, pool) => sum + pool.queue.length, 0);
+  if (pools.length === 0) {
+    return { parlay: null, eligibleCount: 0, gamesAvailable: 0 };
+  }
+
+  const ceiling = Math.min(pools.length * perGame, MAX_LEGS);
+  const requested = clamp(options.legs ?? ceiling, MIN_LEGS, ceiling);
+
+  /*
+   * The variant rotates which fixture leads, so Regenerate explores a
+   * different combination without touching a single probability.
+   */
+  const offset = options.variant ? options.variant % pools.length : 0;
+  const rotated = [...pools.slice(offset), ...pools.slice(0, offset)];
+
+  let taken = 0;
+  for (let pass = 0; pass < perGame && taken < requested; pass += 1) {
+    for (const pool of rotated) {
+      if (taken >= requested) break;
+      if (pool.chosen.length > pass) continue;
+
+      const candidate = pool.queue.find((entry) => {
+        if (pool.chosen.some((leg) => conflicts(leg, entry))) return false;
+        // Still likely enough given this fixture's legs already chosen. This
+        // is what refuses a contradiction without enumerating contradictions.
+        return (
+          conditionalProbability(pool.chosen, entry, pool.bundle.distribution) >=
+          profile.minProbability
+        );
+      });
+
+      if (!candidate) continue;
+      pool.chosen.push(candidate);
+      taken += 1;
+    }
+  }
+
+  const used = pools.filter((pool) => pool.chosen.length > 0);
+  const legs = used.flatMap((pool) => pool.chosen);
+
+  if (legs.length < MIN_LEGS) {
+    return { parlay: null, eligibleCount, gamesAvailable: pools.length };
+  }
+
+  /*
+   * Counted within each fixture, multiplied between them.
+   *
+   * A fixture contributing one leg counts to that leg's own probability, so a
+   * line with no doubled-up fixture gives exactly the multi-game answer.
+   */
+  const joint = used.reduce(
+    (product, pool) =>
+      product *
+      jointProbability(
+        pool.bundle.distribution,
+        pool.chosen.map((leg) => leg.settlement),
+      ),
+    1,
+  );
+
+  const independent = legs.reduce((product, leg) => product * leg.probability, 1);
+  const doubled = used.some((pool) => pool.chosen.length > 1);
+
+  const ordered = [...legs].sort((a, b) => b.probability - a.probability);
+
+  const parlay: Parlay = {
+    risk: options.risk,
+    kind: doubled ? 'mixed' : 'multi_game',
+    legs: ordered,
+    independent_probability: Number(independent.toFixed(4)),
+    combined_probability: Number(joint.toFixed(4)),
+    // Only claim correlation was measured when a fixture actually contributes
+    // more than one leg; otherwise this is an ordinary independent line.
+    correlation: describeCorrelation(joint, independent, doubled),
+    price: priceParlay(ordered, joint),
+    average_confidence: Number(
+      (ordered.reduce((sum, leg) => sum + leg.confidence, 0) / ordered.length).toFixed(3),
+    ),
+    average_data_quality: Number(
+      (ordered.reduce((sum, leg) => sum + leg.data_quality, 0) / ordered.length).toFixed(3),
+    ),
+    verified_legs: ordered.filter((leg) => leg.market.availability === 'verified').length,
+    risk_rationale: explainRisk(ordered, options.risk),
+    model_version: MODEL_VERSION,
+    generated_at: (options.now ?? new Date()).toISOString(),
+  };
+
+  return { parlay, eligibleCount, gamesAvailable: pools.length };
+}

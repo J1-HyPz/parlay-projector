@@ -27,6 +27,24 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Added
 
+**More than one bet on the same match**
+
+- **Bets per match** on Slips, taking 1, 2 or 3. One keeps the long-standing
+  rule — a leg per match, legs independent. Above one, a match can contribute
+  several bets.
+- The arithmetic changes with it, and honestly: legs from one match are
+  **counted** against that match's simulated games, and only then multiplied
+  between matches. Multiplying throughout would understate a match whose legs
+  reinforce each other; counting throughout is impossible, since two matches
+  share no simulations. Live, three matches at two bets each came out at 17.0%
+  counted against 16.1% multiplied.
+- Legs are taken round-robin — the best from each match, then the second best —
+  so four legs across three matches is 2-1-1, never 3-1. Loading a line onto
+  one fixture would concentrate it where correlation is strongest.
+- A line where no match ends up doubled is still reported as an ordinary
+  multi-game line, and its correlation is not described as measured, because it
+  was not.
+
 **Two more markets the model could already see**
 
 - **Both teams to score**, in football and the other low-scoring sports where
