@@ -27,6 +27,20 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Added
 
+**Two more markets the model could already see**
+
+- **Both teams to score**, in football and the other low-scoring sports where
+  being kept out is a real possibility. Withheld in basketball and American
+  football, where both sides score in every simulated game and the market would
+  be a certainty dressed as a prediction. Both directions are offered — backing
+  "No" is an opinion that one side gets shut out, not the absence of one.
+- The probability is counted across paired simulations rather than multiplied,
+  so a one-sided rout and a clean sheet arriving together is priced in rather
+  than assumed away. It carries no line, so it can never push.
+- **Team totals now offer the under side.** Only the over was ever generated,
+  which meant the model could say a team would score but never that it would be
+  kept quiet — an opinion it held and had no way to express.
+
 **Slips — build a line from matches you choose**
 
 - A new page at `/slips`. Add matches with the `+` beside the watchlist star on

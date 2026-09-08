@@ -217,6 +217,7 @@ const MARKET_LABELS: Record<SelectionType, string> = {
   spread: 'Spread',
   total: 'Total',
   team_total: 'Team total',
+  both_teams_to_score: 'Both teams to score',
   player_performance: 'Player performance',
   // Motorsport. Absent until now, so every F1 prediction would have been
   // grouped under the raw key the moment one settled.

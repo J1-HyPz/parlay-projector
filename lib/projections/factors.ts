@@ -94,6 +94,16 @@ function nameOf(side: 'home' | 'away' | 'draw', sides: Sides): string | null {
 /** What a settlement rule is backing. */
 export function backingFor(rule: SettlementRule, sides: Sides): Backing {
   switch (rule.kind) {
+    /*
+     * Backs neither side, and leans high.
+     *
+     * Both teams scoring is a scoring-level bet rather than a team bet: strong
+     * attacks help it and strong defences hurt it, whichever shirt they are in.
+     * Backing it "No" leans the other way for the same reason.
+     */
+    case 'both_teams_to_score':
+      return { team: null, opponent: null, lean: rule.yes ? 'high' : 'low' };
+
     case 'winner': {
       if (rule.side === 'draw') return { team: null, opponent: null, lean: 'low' };
       return {

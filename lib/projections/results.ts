@@ -93,6 +93,8 @@ function backedSide(rule: SettlementRule): 'home' | 'away' | null {
     case 'team_total':
       return rule.side;
     case 'total':
+    // Backs neither side: both of them have to score, or one of them must not.
+    case 'both_teams_to_score':
     case 'finish_position':
     case 'head_to_head':
       // A race backs a named competitor rather than a side of the fixture.
@@ -215,6 +217,16 @@ export function missReason(record: PredictionRecordV2): string | null {
       return `${team} scored ${points(scored, record.sport)}, ${
         rule.direction === 'over' ? 'below' : 'above'
       } the ${plain(rule.line)} line.`;
+    }
+
+    case 'both_teams_to_score': {
+      const home = actual.home_score;
+      const away = actual.away_score;
+      if (rule.yes) {
+        const blank = home === 0 && away === 0 ? 'Neither side' : 'One side';
+        return `${blank} scored: it finished ${home}-${away}.`;
+      }
+      return `Both sides scored: it finished ${home}-${away}.`;
     }
 
     case 'finish_position': {

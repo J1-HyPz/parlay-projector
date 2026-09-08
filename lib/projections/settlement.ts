@@ -78,6 +78,16 @@ export function settle(rule: SettlementRule, final: FinalScore): PredictionStatu
       return (rule.direction === 'over') === over ? 'won' : 'lost';
     }
 
+    case 'both_teams_to_score': {
+      /*
+       * No line, so no push: a side either scored or it did not. Zero is a real
+       * score here rather than a missing one — settlement is only reached with
+       * a published final result.
+       */
+      const both = final.home > 0 && final.away > 0;
+      return both === rule.yes ? 'won' : 'lost';
+    }
+
     case 'finish_position': {
       const position = classified(final, rule.entrant);
       /*

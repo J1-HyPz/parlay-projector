@@ -134,6 +134,8 @@ export type SelectionType =
   | 'spread'
   | 'total'
   | 'team_total'
+  /** Both sides to score at least once. */
+  | 'both_teams_to_score'
   | 'player_performance'
   /** Motorsport: a competitor classified inside a given position. */
   | 'finish_position'

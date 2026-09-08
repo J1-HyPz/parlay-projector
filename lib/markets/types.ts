@@ -44,6 +44,8 @@ export type MarketType =
   | 'total'
   | 'team_total'
   | 'double_chance'
+  /** Both sides to score at least once. */
+  | 'both_teams_to_score'
   /** Motorsport: a competitor finishing inside a given position. */
   | 'finish_position'
   /** Motorsport: one competitor classified ahead of another. */
@@ -96,6 +98,15 @@ export type SettlementRule =
   | { kind: 'total'; direction: Direction; line: number }
   | { kind: 'team_total'; side: 'home' | 'away'; direction: Direction; line: number }
   /**
+   * Both sides to score at least once, or not.
+   *
+   * Needs no line, which is what makes it different in shape from every other
+   * two-sided market here: the threshold is one, always, on both sides at once.
+   * `yes` false is the same market backed the other way — neither side being
+   * kept out is not the same bet as one of them being kept out.
+   */
+  | { kind: 'both_teams_to_score'; yes: boolean }
+  /**
    * A competitor classified no worse than `within`.
    *
    * One rule covers every finishing market a race has: 1 is the win, 3 the
@@ -120,6 +131,8 @@ export function marketTypeOf(rule: SettlementRule): MarketType {
       return 'total';
     case 'team_total':
       return 'team_total';
+    case 'both_teams_to_score':
+      return 'both_teams_to_score';
     case 'finish_position':
       return 'finish_position';
     case 'head_to_head':

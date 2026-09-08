@@ -132,6 +132,33 @@ A leg is only added to a same-game combination if it is still likely enough
 automatically: a selection that can never co-occur has a conditional
 probability of zero.
 
+## Both teams to score
+
+Offered only where being kept out is a real possibility — the same low-scoring
+sports a draw is a genuine outcome in. In basketball and American football both
+sides score in essentially every simulated game, so the market would be a
+certainty dressed as a prediction, and it is withheld rather than printed at
+99%.
+
+Both directions are generated. Backing "No" is an opinion that one side gets
+kept out, not the absence of an opinion, and the risk profiles decide which — if
+either — is worth a place in a line.
+
+The probability is **counted across paired simulations, never multiplied**. A
+one-sided rout and a blank sheet arrive in the same simulated game, so two
+independent "scored at least once" figures would miss that and overstate the
+market. `homeScores[i]` and `awayScores[i]` belong to the same simulated
+fixture, which is what makes the count possible.
+
+It needs no line, so unlike every other two-sided market here it **cannot
+push**: the threshold is one, on both sides, always.
+
+Expect to see it mainly at high risk. Both teams scoring is close to a coin flip
+in most fixtures — which is precisely why bookmakers offer it — so it rarely
+out-scores an 85% double chance when the optimiser picks one leg per match. It
+appears when it genuinely is the strongest thing on a fixture, and not to fill
+space.
+
 ## What is not offered, and why
 
 **No player markets.** Not points, rebounds, assists, strikeouts, passing

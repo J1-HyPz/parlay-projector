@@ -72,6 +72,9 @@ export function satisfiedBy(
       return rule.direction === 'over' ? score > rule.line : score < rule.line;
     }
 
+    case 'both_teams_to_score':
+      return (home > 0 && away > 0) === rule.yes;
+
     /*
      * Race markets are not decided by a two-sided scoreline and cannot be
      * judged here. They are evaluated against simulated finishing orders in

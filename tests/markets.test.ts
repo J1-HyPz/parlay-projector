@@ -895,3 +895,37 @@ describe('pricing a line', () => {
     assert.match(explainRisk(unpriced, 'high'), /no leg confirmed/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Both teams to score
+// ---------------------------------------------------------------------------
+
+describe('both teams to score', () => {
+  const names: FixtureNames = { homeTeam: 'Arsenal', awayTeam: 'Chelsea', sport: 'football' };
+
+  it('is named the way the market is printed', () => {
+    assert.equal(
+      selectionLabel({ kind: 'both_teams_to_score', yes: true }, names),
+      'Both teams to score',
+    );
+    assert.match(selectionLabel({ kind: 'both_teams_to_score', yes: false }, names), /No$/);
+  });
+
+  it('says plainly what has to happen, including the way people forget it loses', () => {
+    const yes = whatNeedsToHappen({ kind: 'both_teams_to_score', yes: true }, names);
+    assert.match(yes, /Both sides must score/);
+    assert.match(yes, /nil-nil loses/);
+
+    const no = whatNeedsToHappen({ kind: 'both_teams_to_score', yes: false }, names);
+    assert.match(no, /At least one side must fail to score/);
+  });
+
+  it('has a glossary entry, since it is a term a reader may not know', () => {
+    const entry = GLOSSARY[glossaryKeyForMarket('both_teams_to_score', 'football')];
+    assert.ok(entry, 'every market shown must be explainable');
+  });
+
+  it('names the market for a heading', () => {
+    assert.equal(marketLabel('both_teams_to_score', 'football'), 'Both Teams to Score');
+  });
+});

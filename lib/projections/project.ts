@@ -33,6 +33,7 @@ import {
   outcomeProbabilities,
   simulate,
   spreadProbability,
+  bothScoreProbability,
   teamTotalProbability,
   totalProbability,
 } from './model.ts';
@@ -366,6 +367,9 @@ export function probabilityFor(
     case 'team_total':
       return teamTotalProbability(distribution, rule.side, rule.direction, rule.line);
 
+    case 'both_teams_to_score':
+      return bothScoreProbability(distribution, rule.yes);
+
     /*
      * Race markets are read off simulated finishing orders in
      * `race-model.ts`, not off a two-sided distribution. Nothing in this file
@@ -392,6 +396,8 @@ function selectionTypeOf(rule: SettlementRule): SelectionType {
       return 'total';
     case 'team_total':
       return 'team_total';
+    case 'both_teams_to_score':
+      return 'both_teams_to_score';
     case 'finish_position':
       return 'finish_position';
     case 'head_to_head':
@@ -634,6 +640,38 @@ function derivedSelections(context: BuildContext, config: SportModelConfig): Sel
       direction: 'over',
       line: halfLine(quantile(scores, 0.2)),
     });
+    /*
+     * The other side of the same market.
+     *
+     * Only the over was ever generated, which meant the model could say a team
+     * would score but never that it would be kept quiet — a real opinion it
+     * holds and had no way to express. Read from the upper tail, mirroring the
+     * over's lower one.
+     */
+    add({
+      kind: 'team_total',
+      side: team,
+      direction: 'under',
+      line: halfLine(quantile(scores, 0.8)),
+    });
+  }
+
+  /*
+   * --- both teams to score -------------------------------------------------
+   *
+   * Offered only where being kept out is a real possibility. In basketball and
+   * American football both sides score in every simulation, so the market is a
+   * certainty dressed as a prediction; `hasDraw` picks out the low-scoring
+   * sports where nil is on the table, which is the same property that makes a
+   * draw a genuine outcome.
+   *
+   * Both directions, because "one of them will be kept out" is a different
+   * opinion from "both will score" rather than its absence. The risk profiles
+   * decide which, if either, is worth putting in a line.
+   */
+  if (config.hasDraw) {
+    add({ kind: 'both_teams_to_score', yes: true });
+    add({ kind: 'both_teams_to_score', yes: false });
   }
 
   /*

@@ -18,7 +18,12 @@ import {
   weightedMean,
 } from '../lib/projections/math.ts';
 import { buildRatings, dataQuality, estimateConfidence, toResults } from '../lib/projections/features.ts';
-import { expectedScores, outcomeProbabilities, simulate } from '../lib/projections/model.ts';
+import {
+  bothScoreProbability,
+  expectedScores,
+  outcomeProbabilities,
+  simulate,
+} from '../lib/projections/model.ts';
 import { candidateSelections, projectGame, selectionScore } from '../lib/projections/project.ts';
 import {
   availableDays,
@@ -428,7 +433,33 @@ describe('candidate selections', () => {
     assert.ok(types.has('double_chance'), 'football has a draw, so double chance applies');
     assert.ok(types.has('total'));
     assert.ok(types.has('team_total'));
+    assert.ok(types.has('both_teams_to_score'), 'football is where being kept out is real');
     assert.equal(types.has('spread'), false, 'a goal handicap is not modelled for football');
+  });
+
+  it('offers both sides of a team total', () => {
+    /*
+     * Only the over was ever generated, so the model could say a team would
+     * score but never that it would be kept quiet — an opinion it holds and
+     * had no way to express.
+     */
+    const teamTotals = candidates.filter((c) => c.settlement.kind === 'team_total');
+    const directions = new Set(
+      teamTotals.map((c) => (c.settlement.kind === 'team_total' ? c.settlement.direction : '')),
+    );
+    assert.deepEqual([...directions].sort(), ['over', 'under']);
+  });
+
+  it('withholds both-teams-to-score where it would be a certainty', () => {
+    /*
+     * In American football both sides score in essentially every simulated
+     * game, so the market would be a certainty dressed as a prediction.
+     */
+    const nflSet = buildRatings(toResults(syntheticSeason(60, 'nfl'), Number.POSITIVE_INFINITY), NFL);
+    const nflGame = game('nfl-btts', 'Strong', 'Weak', { sport: 'nfl', league: 'NFL' });
+    const nflOutcome = projectGame(nflGame, nflSet, NFL, { simulations: 4000, seed: 9 })!;
+    const types = new Set(candidateSelections(nflGame, nflOutcome, NFL).map((c) => c.type));
+    assert.equal(types.has('both_teams_to_score'), false);
   });
 
   it('offers a spread where the sport supports one', () => {
@@ -767,6 +798,60 @@ describe('narrowing candidates to one day', () => {
 // ---------------------------------------------------------------------------
 // Settlement
 // ---------------------------------------------------------------------------
+
+describe('both teams to score', () => {
+  const final = (home: number, away: number) => ({ home, away, status: 'finished' }) as const;
+  const yes = { kind: 'both_teams_to_score', yes: true } as const;
+  const no = { kind: 'both_teams_to_score', yes: false } as const;
+
+  it('settles on whether each side found the net, not on who won', () => {
+    assert.equal(settle(yes, final(1, 1)), 'won', 'a draw with goals comes in');
+    assert.equal(settle(yes, final(4, 3)), 'won', 'so does a rout with a reply');
+    assert.equal(settle(yes, final(3, 0)), 'lost', 'a clean sheet does not');
+    assert.equal(settle(yes, final(0, 0)), 'lost', 'and nor does nil-nil');
+  });
+
+  it('treats the other side as its own bet, not the absence of one', () => {
+    assert.equal(settle(no, final(3, 0)), 'won');
+    assert.equal(settle(no, final(0, 0)), 'won');
+    assert.equal(settle(no, final(1, 1)), 'lost');
+  });
+
+  it('never pushes, because its threshold is one on both sides', () => {
+    for (const [home, away] of [[0, 0], [1, 0], [0, 1], [1, 1], [5, 4]] as const) {
+      assert.ok(['won', 'lost'].includes(settle(yes, final(home, away))));
+    }
+  });
+
+  it('voids when the match was never played, like every other market', () => {
+    assert.equal(settle(yes, { home: 0, away: 0, status: 'cancelled' }), 'void');
+  });
+
+  it('counts the joint outcome across paired simulations', () => {
+    /*
+     * Counted rather than multiplied: a one-sided rout and a blank sheet
+     * arrive in the same simulated game, and two independent "scored at least
+     * once" figures would miss that and overstate the market.
+     */
+    const distribution = {
+      homeScores: [1, 2, 0, 3, 1],
+      awayScores: [1, 0, 0, 2, 1],
+    } as never;
+
+    assert.ok(Math.abs(bothScoreProbability(distribution, true) - 0.6) < 1e-9);
+    assert.ok(Math.abs(bothScoreProbability(distribution, false) - 0.4) < 1e-9);
+  });
+
+  it('is the complement of itself, so the two sides cannot both be backed', () => {
+    const distribution = {
+      homeScores: [1, 2, 0, 3, 1],
+      awayScores: [1, 0, 0, 2, 1],
+    } as never;
+    const both =
+      bothScoreProbability(distribution, true) + bothScoreProbability(distribution, false);
+    assert.ok(Math.abs(both - 1) < 1e-9);
+  });
+});
 
 describe('settlement', () => {
   const finished = (home: number, away: number) =>

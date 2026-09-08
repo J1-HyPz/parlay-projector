@@ -83,6 +83,12 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
       'Covers two of football’s three outcomes at once. Shorter odds, because it is harder to lose.',
     example: 'Arsenal or Draw loses only if the opponent wins.',
   },
+  both_teams_to_score: {
+    term: 'Both Teams to Score',
+    definition:
+      'Both sides must find the net at least once. It does not care who wins, or by how much — only that neither is kept out.',
+    example: 'A 1-1 draw and a 4-3 win both come in. A 3-0 win does not, and nor does nil-nil.',
+  },
   parlay: {
     term: 'Parlay',
     definition:

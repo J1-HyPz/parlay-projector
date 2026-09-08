@@ -322,6 +322,28 @@ export function teamTotalProbability(
     : share(scores, (score) => score < line);
 }
 
+/**
+ * How often both sides scored at least once.
+ *
+ * Counted across paired simulations rather than multiplied: `homeScores[i]` and
+ * `awayScores[i]` belong to the same simulated game, so a scoreline where one
+ * side ran away with it is naturally correlated with the other being kept out.
+ * Multiplying two independent "scored at least once" figures would miss that
+ * and overstate the market.
+ */
+export function bothScoreProbability(distribution: Distribution, yes: boolean): number {
+  const { homeScores, awayScores } = distribution;
+  if (homeScores.length === 0) return 0;
+
+  let both = 0;
+  for (let index = 0; index < homeScores.length; index += 1) {
+    if (homeScores[index] > 0 && awayScores[index] > 0) both += 1;
+  }
+
+  const share = both / homeScores.length;
+  return yes ? share : 1 - share;
+}
+
 /** Normalised outcome probabilities, so the reported set always sums to one. */
 export function outcomeProbabilities(
   distribution: Distribution,

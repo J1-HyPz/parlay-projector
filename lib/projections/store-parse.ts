@@ -40,6 +40,7 @@ const SELECTION_TYPE_SET: Record<SelectionType, true> = {
   spread: true,
   total: true,
   team_total: true,
+  both_teams_to_score: true,
   player_performance: true,
   finish_position: true,
   head_to_head: true,
@@ -100,6 +101,9 @@ export function isSettlementRule(value: unknown): value is SettlementRule {
         typeof rule.line === 'number' &&
         Number.isFinite(rule.line)
       );
+    case 'both_teams_to_score':
+      // No line to validate; the threshold is one on both sides, always.
+      return typeof rule.yes === 'boolean';
     case 'finish_position':
       return (
         typeof rule.entrant === 'string' &&

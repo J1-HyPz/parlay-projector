@@ -135,6 +135,8 @@ export function marketLabel(type: MarketType, sport: ConcreteSportId): string {
       return `Team Total ${vocabulary.unit === 'point' ? 'Points' : `${capitalise(vocabulary.unit)}s`}`;
     case 'double_chance':
       return 'Double Chance';
+    case 'both_teams_to_score':
+      return 'Both Teams to Score';
     case 'finish_position':
       return 'Finishing Position';
     case 'head_to_head':
@@ -190,6 +192,11 @@ export function selectionLabel(rule: SettlementRule, names: FixtureNames): strin
 
     case 'team_total':
       return `${teamFor(rule.side, names)} ${capitalise(rule.direction)} ${rule.line} ${vocabulary.unit}s`;
+
+    case 'both_teams_to_score':
+      // The market is universally printed as "BTTS Yes"/"BTTS No"; spelling it
+      // out reads better on a card than the abbreviation.
+      return rule.yes ? 'Both teams to score' : 'Both teams to score — No';
 
     case 'finish_position': {
       if (rule.within === 1) return `${rule.entrant} to win`;
@@ -304,6 +311,13 @@ export function whatNeedsToHappen(rule: SettlementRule, names: FixtureNames): st
         : `${team} must score ${plural(most, unit)} or fewer.${push}`;
     }
 
+    case 'both_teams_to_score': {
+      const other = `${plural(1, unit)}`;
+      return rule.yes
+        ? `Both sides must score at least one ${unit}. A ${other} for only one of them is not enough, and nil-nil loses.`
+        : `At least one side must fail to score. Any result where both sides find a ${unit} loses.`;
+    }
+
     case 'finish_position': {
       if (rule.within === 1) {
         return `${rule.entrant} must win the ${contest}.`;
@@ -348,6 +362,8 @@ export function probabilityLabel(type: MarketType): string {
     case 'total':
     case 'team_total':
       return 'Over/under probability';
+    case 'both_teams_to_score':
+      return 'Both-to-score probability';
     case 'finish_position':
       return 'Finish probability';
     case 'head_to_head':
@@ -362,6 +378,8 @@ export function probabilityMeaning(type: MarketType, sport: ConcreteSportId): st
   switch (type) {
     case 'moneyline':
       return `How often this side wins the ${contest} outright across the simulations.`;
+    case 'both_teams_to_score':
+      return `How often both sides scored at least once, counted across the simulated ${contest}s rather than multiplied — a one-sided rout and a blank sheet tend to arrive together.`;
     case 'double_chance':
       return 'How often this side either wins or draws across the simulations.';
     case 'spread':
