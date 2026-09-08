@@ -37,6 +37,7 @@ import {
   summarise,
 } from '@/lib/schedule/filters';
 import { WatchButton } from '@/components/watchlist/watch-button';
+import { SlipButton } from '@/components/slip/slip-button';
 import { STATUS_LABEL, statusTone } from '@/lib/schedule/status';
 import { useSchedule } from './schedule-data';
 
@@ -143,6 +144,7 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
         <span aria-hidden="true" />
       </a>
       <WatchButton game={game} className="absolute right-3 top-1/2 -translate-y-1/2" />
+      <SlipButton game={game} className="absolute right-[52px] top-1/2 -translate-y-1/2" />
     </div>
   );
 }
@@ -198,6 +200,7 @@ function MobileCard({ game, timezone }: { game: Game; timezone: string }) {
       </div>
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
+      <SlipButton game={game} className="absolute right-[52px] top-3" />
     </div>
   );
 }

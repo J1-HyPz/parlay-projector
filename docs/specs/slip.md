@@ -1,7 +1,7 @@
 # Spec — The Slip
 
-**Status: not built.** This is the specification for the feature that replaces
-the removed Builder. Everything below is a decision, not an option, unless it
+**Status: built.** Shipped as `/slips`; see [docs/slip.md](../slip.md) for what it
+does. This was the specification it was built from, kept for the record. Everything below is a decision, not an option, unless it
 says otherwise.
 
 ---

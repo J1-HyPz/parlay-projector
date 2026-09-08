@@ -303,6 +303,27 @@ export function selectionsOnDate(
   return selections.filter((selection) => gameDate(selection.start_time, timezone) === date);
 }
 
+/**
+ * Candidates from a chosen set of fixtures.
+ *
+ * The counterpart to `selectionsOnDate`: that narrows by when a game kicks
+ * off, this narrows by which games a reader picked. Both run before the
+ * optimiser, so the choice is binding rather than a preference the ranking
+ * could talk itself out of — a line built from three named fixtures contains
+ * legs from those three fixtures or it contains fewer legs.
+ *
+ * An empty choice yields nothing rather than everything. A caller that means
+ * "the whole card" does not narrow at all.
+ */
+export function selectionsForGames(
+  selections: readonly Selection[],
+  gameIds: readonly string[],
+): Selection[] {
+  const wanted = new Set(gameIds);
+  if (wanted.size === 0) return [];
+  return selections.filter((selection) => wanted.has(selection.game_id));
+}
+
 export interface DayAvailability {
   date: string;
   /** Fixtures with at least one candidate of any strength. */

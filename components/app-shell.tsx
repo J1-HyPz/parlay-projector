@@ -1,10 +1,29 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Bell, CalendarDays, House, Orbit, Radio, Sparkles, Star, Trophy } from 'lucide-react';
+import {
+  Bell,
+  CalendarDays,
+  House,
+  ListChecks,
+  Orbit,
+  Radio,
+  Sparkles,
+  Star,
+  Trophy,
+} from 'lucide-react';
 import { SIDEBAR_HUBS } from '@/lib/sports/hubs';
 import { WatchlistProvider } from '@/components/watchlist/watchlist-context';
+import { SlipProvider } from '@/components/slip/slip-context';
+import { SlipCount } from '@/components/slip/slip-count';
 
-export type PageKey = 'home' | 'schedule' | 'live' | 'parlays' | 'notifications' | 'sports';
+export type PageKey =
+  | 'home'
+  | 'schedule'
+  | 'live'
+  | 'parlays'
+  | 'slips'
+  | 'notifications'
+  | 'sports';
 
 /**
  * Which competition hub is open, if any.
@@ -25,6 +44,7 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'schedule', label: 'Schedule', href: '/schedule', icon: CalendarDays },
   { key: 'live', label: 'Live', href: '/live', icon: Radio },
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
+  { key: 'slips', label: 'Slips', href: '/slips', icon: ListChecks },
 ];
 
 /**
@@ -41,6 +61,7 @@ const mobileNavigation: typeof primaryNavigation = [
 
 export function AppShell({ active, activeHub, children }: AppShellProps) {
   return (
+    <SlipProvider>
     <WatchlistProvider>
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 flex h-16 items-center border-b border-white/8 bg-[#09080f]/92 px-4 backdrop-blur-xl md:px-6">
@@ -62,6 +83,7 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
               }`}
             >
               {item.label}
+              {item.key === 'slips' && <SlipCount />}
               {active === item.key && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-violet-500" />}
             </a>
           ))}
@@ -118,7 +140,7 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-5 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-[74px] grid-cols-6 border-t border-white/10 bg-[#09080f]/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
         {mobileNavigation.map(({ key, label, href, icon: Icon }) => (
           <a
             key={key}
@@ -127,11 +149,15 @@ export function AppShell({ active, activeHub, children }: AppShellProps) {
             className={`flex min-w-0 flex-col items-center justify-center gap-1 text-[10px] transition ${active === key ? 'text-violet-300' : 'text-white/38'}`}
           >
             <Icon className="size-[19px]" />
-            <span>{label}</span>
+            <span className="flex items-center">
+              {label}
+              {key === 'slips' && <SlipCount />}
+            </span>
           </a>
         ))}
       </nav>
     </div>
     </WatchlistProvider>
+    </SlipProvider>
   );
 }

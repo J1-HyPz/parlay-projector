@@ -27,6 +27,32 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Added
 
+**Slips — build a line from matches you choose**
+
+- A new page at `/slips`. Add matches with the `+` beside the watchlist star on
+  Home, Schedule, Live or any game page, pick a risk level, and the projection
+  engine builds the strongest line it can from exactly those. You choose the
+  matches, the model chooses what to back on each, and the risk level decides
+  what qualifies at all.
+- **Risk levels genuinely change the line, not just its label.** The same three
+  matches gave three legs at 56.6% on Low, three legs at 41.5% on Medium with
+  entirely different markets, and two legs at 42.5% on High — because one of
+  them had nothing in the high band.
+- Picks are **stored on the server**, so the slip is the same on your phone and
+  your laptop and survives a redeploy.
+- Split into **Active** and **Settled**. Only Active matches can produce a leg.
+  A settled pick is kept for the rest of the day it finished and then cleared —
+  the prediction it produced stays in the accuracy history permanently, so
+  nothing is lost.
+- **Nothing is padded and nothing is substituted.** A pick that offers nothing
+  at your risk level is left out and says so, along with the fact that a lower
+  level would include it. A pick that has kicked off is reported as no longer
+  projectable rather than silently dropped.
+- Generated lines count toward Prediction Accuracy, recorded as hand-picked so
+  a curated line can later be measured apart from one the optimiser assembled.
+- Documented in [docs/slip.md](docs/slip.md), specified in
+  [docs/specs/slip.md](docs/specs/slip.md).
+
 **Bookmaker prices, and the distinction they make possible**
 
 - Market prices are read from the sports feed the application already calls —

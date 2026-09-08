@@ -14,6 +14,7 @@ import { sidesOf } from '@/lib/home/types';
 import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import { WatchButton } from '@/components/watchlist/watch-button';
+import { SlipButton } from '@/components/slip/slip-button';
 import { formatTime, useHomeData, useSectionFailed } from './home-data';
 
 const STATUS_LABEL: Record<Game['status'], string> = {
@@ -92,6 +93,7 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
       </div>
       </a>
       <WatchButton game={game} className="absolute right-3 top-3" />
+      <SlipButton game={game} className="absolute right-[52px] top-3" />
     </div>
   );
 }
