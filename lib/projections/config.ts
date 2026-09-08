@@ -238,6 +238,64 @@ const CFL: SportModelConfig = {
 };
 
 /**
+ * NCAA Football.
+ *
+ * Ran on the NFL's parameters until settled predictions said what that cost:
+ * 14 correct from 25, against a model claiming 84%, with the projected margin
+ * out by 21 points a game. Every other competition was calibrated; this one
+ * alone dragged the headline figure down seven points.
+ *
+ * College football is not professional football played by students. Fitted
+ * against 2,021 completed games across two seasons, replayed so that no
+ * projection could see its own result:
+ *
+ *   baselineTotal   44 -> 53.6   measured. The real mean total is 53.59, so
+ *                                the NFL's baseline centred every projected
+ *                                scoreline nine points low.
+ *   homeAdvantage   1.8 -> 4     fitted. Drives the residual bias from +2.85
+ *                                to -0.28 across a season. The raw home margin
+ *                                is 9.3 points, but the ratings already carry
+ *                                most of that; 4 is what is left over, and
+ *                                setting it to the raw figure would double-count.
+ *   scoreSd         10 -> 11.6   read off the residuals rather than searched.
+ *                                A margin SD of 14.1 against a real error
+ *                                spread of 16.5 is a model that believes itself
+ *                                more than the evidence allows — which is
+ *                                precisely how a handicap it should price at
+ *                                60% goes out at 84%.
+ *
+ * After fitting, the model's stated width is 16.40 against a measured 16.17.
+ * It now knows how wrong it usually is.
+ */
+const NCAAF: SportModelConfig = {
+  ...NFL,
+  baselineTotal: 53.6,
+  homeAdvantage: 4,
+  scoreSd: 11.6,
+  /*
+   * The change that matters most, and the least obvious one.
+   *
+   * The NFL's 400 days reaches back through a whole previous season, which is
+   * reasonable where a roster mostly persists. College rosters turn over, and
+   * the model was treating last year's team as if it were this year's: at week
+   * one it reported data quality 0.85 while missing the margin by 21 points.
+   * Nothing downstream could filter that, because 0.85 clears every risk
+   * profile comfortably.
+   *
+   * At 300 days a September fixture reaches back only into the tail of the
+   * previous season, so a team with no games this year has too little history
+   * to project and the fixture is skipped — which is the honest answer, and the
+   * one this application gives everywhere else.
+   *
+   * It costs less than it looks. Replayed across the 2025 season, mid-season
+   * coverage falls from 506 games to 423 with the margin error unchanged
+   * (12.91 to 12.95), while the opening fortnight goes from 50 confident and
+   * wrong projections to none.
+   */
+  historyDays: 300,
+};
+
+/**
  * The European competitions.
  *
  * Short summer seasons — a handful of games a team — and far less history than
@@ -282,6 +340,7 @@ const CONFIGS: Partial<Record<ConcreteSportId, SportModelConfig>> = {
  * all score alike.
  */
 const LEAGUE_CONFIGS: Record<string, SportModelConfig> = {
+  ncaaf: NCAAF,
   cfl: CFL,
   afle: EURO_AMERICAN,
   efa: EURO_AMERICAN,

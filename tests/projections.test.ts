@@ -1211,6 +1211,77 @@ describe('history windows per sport', () => {
 // Sport coverage
 // ---------------------------------------------------------------------------
 
+describe('the NCAA Football model', () => {
+  /*
+   * College football ran on the NFL's parameters, and settled predictions said
+   * what that cost: 14 from 25 against a model claiming 84%, with the margin
+   * out by 21 points a game. These lock in the fit rather than the numbers -
+   * each assertion is a property that was measured, so a future change has to
+   * argue with the evidence rather than with a magic constant.
+   */
+  const ncaaf = modelConfigForLeague('ncaaf', 'nfl')!;
+  const nfl = modelConfigForLeague('nfl', 'nfl')!;
+
+  it('does not share the NFL configuration', () => {
+    assert.notEqual(ncaaf, nfl, 'the whole failure was NCAAF inheriting the NFL model');
+  });
+
+  it('centres on the total college football actually scores', () => {
+    // Measured across 2,021 completed games: 53.59.
+    assert.ok(ncaaf.baselineTotal > 50 && ncaaf.baselineTotal < 57, 'measured mean total is 53.6');
+    assert.ok(ncaaf.baselineTotal > nfl.baselineTotal + 5, 'and it is well above the NFL');
+  });
+
+  it('carries a home edge the NFL does not', () => {
+    /*
+     * Fitted by driving the residual bias to zero: +2.85 at the NFL's 1.8,
+     * -0.28 at 4. Deliberately far below the raw 9.3-point home margin, which
+     * the team ratings already account for most of.
+     */
+    assert.ok(ncaaf.homeAdvantage > nfl.homeAdvantage);
+    assert.ok(ncaaf.homeAdvantage < 9, 'the raw home margin would double-count the ratings');
+  });
+
+  it('admits how wide its own error is', () => {
+    /*
+     * The property that fixes spreads and team totals. A margin SD of
+     * scoreSd * sqrt(2) has to match the spread of real errors - measured at
+     * 16.2 - or every handicap prices as more certain than it is.
+     */
+    const modelMarginSd = ncaaf.scoreSd * Math.SQRT2;
+    assert.ok(modelMarginSd > 15.5 && modelMarginSd < 17.5, `margin SD ${modelMarginSd}`);
+    assert.ok(nfl.scoreSd * Math.SQRT2 < 15, 'which the NFL config was not');
+  });
+
+  it('does not treat last season as if it were this one', () => {
+    /*
+     * The least obvious change. At 400 days a week-one fixture is projected
+     * from last year's roster at data quality 0.85 while missing by 21 points,
+     * and nothing downstream can filter that. At 300 the fixture has too little
+     * history and is skipped, which is the answer given everywhere else.
+     */
+    assert.ok(ncaaf.historyDays < nfl.historyDays);
+    assert.ok(ncaaf.historyDays < 365, 'a full year would reach back into the previous season');
+  });
+
+  it('keeps the sport-level defaults it had no evidence to change', () => {
+    // Only what was measured or fitted moves. Everything else is inherited, so
+    // the diff says exactly what the evidence supported.
+    assert.equal(ncaaf.scoring, nfl.scoring);
+    assert.equal(ncaaf.hasDraw, nfl.hasDraw);
+    assert.equal(ncaaf.supportsSpread, nfl.supportsSpread);
+    assert.equal(ncaaf.eloK, nfl.eloK);
+    assert.equal(ncaaf.formHalfLife, nfl.formHalfLife);
+    assert.equal(ncaaf.ratingPool, nfl.ratingPool);
+  });
+
+  it('leaves the NFL itself alone', () => {
+    assert.equal(nfl.baselineTotal, 44);
+    assert.equal(nfl.homeAdvantage, 1.8);
+    assert.equal(nfl.scoreSd, 10);
+  });
+});
+
 describe('sport models', () => {
   it('configures each supported sport differently', () => {
     const nfl = modelConfigFor('nfl')!;
@@ -1247,7 +1318,14 @@ describe('sport models', () => {
   });
 
   it('falls back to the sport when a league has no override', () => {
-    assert.equal(modelConfigForLeague('ncaaf', 'nfl'), modelConfigFor('nfl'));
+    // NCAA basketball, not NCAA football: college football now carries its own
+    // model, fitted after settled predictions showed the NFL's did not fit it.
+    assert.equal(modelConfigForLeague('ncaam', 'nba'), modelConfigFor('nba'));
+  });
+
+  it('prefers a league override over the sport default', () => {
+    assert.notEqual(modelConfigForLeague('ncaaf', 'nfl'), modelConfigFor('nfl'));
+    assert.notEqual(modelConfigForLeague('cfl', 'nfl'), modelConfigFor('nfl'));
   });
 
   it('has no model for a sport with no data', () => {

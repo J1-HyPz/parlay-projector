@@ -235,6 +235,30 @@ and sport and competition filtering for parlays. 712 tests.
 
 ### Fixed
 
+- **NCAA Football was being projected with the NFL's model, and it showed.** It
+  was the only competition dragging the accuracy figure down: 14 correct from
+  25 against a model claiming 84%, with the projected margin out by 21 points a
+  game, while MLB, the Premier League, La Liga, Serie A and League One were all
+  calibrated. Fitted against 2,021 completed games across two seasons, replayed
+  so no projection could see its own result:
+  - Mean total 44 to **53.6** — measured. The NFL's baseline centred every
+    college scoreline nine points low.
+  - Home advantage 1.8 to **4** — fitted, taking the season-long bias from
+    +2.85 to −0.28. Deliberately not the raw 9.3-point home margin, which the
+    team ratings already carry most of.
+  - Score spread 10 to **11.6** — read off the real errors. The model claimed a
+    margin spread of 14.1 while missing by 16.5, which is exactly how a handicap
+    worth 60% went out at 84%. Its stated width now matches its actual error.
+  - History window 400 days to **300**. A whole previous season is reasonable
+    where a roster persists; college rosters turn over, and the model was
+    treating last year's team as this year's — reporting data quality 0.85 in
+    week one while missing by 21 points, which no risk profile could filter.
+    Season-opening fixtures now have too little history and are skipped, which
+    is the answer this application gives everywhere else. On the live card that
+    is 84 fixtures skipped rather than confidently mispredicted.
+  - The NFL's own model is untouched, and mid-season college coverage is
+    essentially unchanged.
+
 - Game-detail enrichment now uses the actual fallback provider and preserves
   source attribution. Neutral-site home/away reversals no longer attach an
   opponent's record to a team, and ESPN's inner cache no longer holds upcoming

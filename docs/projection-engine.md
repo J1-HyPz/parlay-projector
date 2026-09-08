@@ -15,6 +15,44 @@ no component calls a provider.
 
 ---
 
+## Fitting a competition's parameters
+
+Most competitions run on their sport's model. Where one does not fit, the
+parameters are **measured or fitted against completed games**, never chosen by
+judgement. NCAA Football is the worked example, and the method is the point:
+
+| Parameter | How it was decided |
+| --- | --- |
+| `baselineTotal` | **Measured.** The mean total across 2,021 games. Not a free choice |
+| `homeAdvantage` | **Fitted.** The value that drives residual bias to zero. Not the raw home margin, which the ratings already carry most of |
+| `scoreSd` | **Read off the residuals.** The model's margin SD is `scoreSd × √2`; it has to match the spread of real errors |
+| `historyDays` | **Fitted.** How far back is still informative, judged by coverage against error |
+
+Everything else is inherited. A diff that only moves what the evidence
+supported is a diff that can be argued with.
+
+### Why the width matters more than it looks
+
+A model whose stated uncertainty is narrower than its real error does not
+merely lose a little accuracy — it **misprices every threshold market**. NCAA
+Football claimed a margin SD of 14.1 while its errors spread 16.5. That is how
+a handicap the evidence puts at 60% goes out at 84%, and it is why the sport's
+spread and team-total selections were failing while its winner selections were
+fine. Direction was right; magnitude was not.
+
+### Refusing to project is a result
+
+The least obvious finding. At the NFL's 400-day window, a college fixture in
+week one is projected from last season's roster and reports data quality 0.85
+while missing the margin by 21 points. Nothing downstream can filter that,
+because 0.85 clears every risk profile.
+
+Shortening the window to 300 days means such a fixture has too little history
+and is skipped. Across the 2025 season that cost 83 mid-season projections out
+of 506 with the margin error unchanged, and removed 50 confident, wrong
+projections from the opening fortnight. On the live card it takes NCAA Football
+from 86 projected fixtures to 2, with 84 skipped.
+
 ## What the data actually supports
 
 This was checked before anything was built, and it shapes the whole design.
