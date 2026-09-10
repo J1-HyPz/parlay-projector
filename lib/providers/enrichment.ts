@@ -112,6 +112,9 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
       name: event.venue.name,
       city: enriched.venue.city ?? event.venue.city,
       country: enriched.venue.country ?? event.venue.country,
+      // The enriching provider does report this, so it is carried rather than
+      // dropped — the primary provider does not, hence the fallback.
+      indoor: enriched.venue.indoor ?? event.venue.indoor,
     };
     sources.venue = scoreboard.providerId;
   }

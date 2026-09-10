@@ -2,8 +2,9 @@
 
 **Status: in progress.** §4.1 and §4.2 have shipped in full, §4.3's archive is
 built, filled and read, §4.4 has been run for every competition with settled
-data, and §4.9 — the distributional fix §4.4 uncovered but could not make — has
-shipped. §4.5 through §4.8 are still a plan. Companion to
+data, §4.9 — the distributional fix §4.4 uncovered but could not make — has
+shipped, and §4.5 has shipped for baseball. §4.6 through §4.8 are still a plan.
+Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1101,6 +1102,9 @@ MLB projection at ten thousand simulations. Measured, not assumed.
 
 ### 4.5 Weather
 
+**Shipped for MLB, on temperature rather than wind.** Notes at the end of this
+section; the data rejected two of the three variables this phase named.
+
 **Why.** A total-runs projection for an outdoor MLB game in wind gusting
 toward the outfield is priced identically to a dome game today. The
 application has no way to know the difference, and currently doesn't try.
@@ -1136,6 +1140,62 @@ the model previously and correctly admitted it didn't know.
   `quality_reasons`.
 - A provider timeout or missing coordinates degrades to no adjustment, never
   a stale or fabricated one.
+
+**What the data said, before anything was built.**
+
+Step 1 asked whether the provider already returns venue coordinates. It does
+not — venue carries name, city, country, a `grass` flag and an `indoor` flag,
+but no latitude or longitude. Cities are geocoded through Open-Meteo instead
+and cached for a month, which is ample: a ground and its city share their
+weather, and the effect below was measured at exactly that precision.
+
+Step 3's dome flag needed no static table — the provider sends `indoor` on
+every venue. But it is a property of the **ground, not the night**: every
+retractable-roof park reports covered on every date sampled, so the provider is
+classifying grounds that *can* close rather than nights they did. Conservative
+in the right direction; such fixtures simply get no adjustment.
+
+**Two of the three proposed variables do not exist in the data.** Measured
+across 3,645 open-air fixtures:
+
+| variable | r | t | verdict |
+|---|---|---|---|
+| temperature | +0.084 | +5.08 | real |
+| wind speed | -0.022 | -1.33 | nothing |
+| precipitation | -0.023 | -1.41 | nothing |
+
+This section named wind for MLB. Wind speed alone cannot work, and on
+reflection obviously so: without a direction relative to the outfield, a gust
+blowing in cancels one blowing out. Doing it properly needs a per-ground
+outfield bearing, which this phase did not anticipate and did not build.
+Precipitation fails for a simpler reason — baseball does not play through
+meaningful rain, it waits.
+
+Temperature survived every confound that could have explained it away: +0.061
+within a month, +0.078 within a venue, +0.063 within both at once. So it is
+neither the calendar nor a park effect.
+
+**The slope is 0.045 runs per degree, not the measured 0.0596.** The
+confound-controlled relationship is about three quarters of the raw one, and
+fitting the raw slope would bank a correlation partly owned by the month. It
+also holds up better on the held-out seasons — t = -2.65 against -2.29, for a
+total MAE within a thousandth of the raw slope's.
+
+**Gate, met.** Total MAE on outdoor fixtures only, 3,638 held out: 3.5945 to
+3.5803, paired t = -2.65. Roofed fixtures identical to four decimal places on
+every metric across 2,764 of them, which is the first acceptance criterion
+proven rather than asserted. Margin MAE and accuracy unchanged, as an
+evenly-split total adjustment must leave them.
+
+**One honest gap.** The backtest used the weather that actually happened; live
+projections use a forecast. Forecasts are wrong sometimes, so the live benefit
+will be smaller than the measured one. The direction is not in doubt; the
+size is optimistic.
+
+**Not done:** NFL and football. This section proposed wind and precipitation
+for them, and the same measurement should be run before anything is built —
+the baseball result is a warning that a plausible variable can measure at
+nothing.
 
 ---
 

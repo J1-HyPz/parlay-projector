@@ -219,7 +219,7 @@ describe('fixture enrichment', () => {
     provider_status: 'NS',
     home_team: { id: '138313', name: 'Atletico Grau', logo: null },
     away_team: { id: '138323', name: 'Melgar', logo: null },
-    venue: { name: 'Estadio Municipal', city: 'Piura', country: 'Peru' },
+    venue: { name: 'Estadio Municipal', city: 'Piura', country: 'Peru', indoor: null },
     broadcast: null,
   };
 
@@ -329,7 +329,7 @@ describe('upcoming today', () => {
       provider_status: 'NS',
       home_team: { id: '1', name: 'Arsenal', logo: null },
       away_team: { id: '2', name: 'Chelsea', logo: null },
-      venue: { name: 'Emirates', city: 'London', country: 'England' },
+      venue: { name: 'Emirates', city: 'London', country: 'England', indoor: null },
       broadcast: null,
       ...overrides,
     };

@@ -72,7 +72,7 @@ function raceGame(id: string, overrides: Partial<Game> = {}): Game {
     session: 'Race',
     title: 'Italian Grand Prix',
     entrants: [],
-    venue: { name: 'Monza', city: 'Monza', country: 'Italy' },
+    venue: { name: 'Monza', city: 'Monza', country: 'Italy', indoor: null },
     broadcast: null,
     ...overrides,
   };

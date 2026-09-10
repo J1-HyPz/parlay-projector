@@ -48,6 +48,8 @@ import type { LeagueAvailability } from '../providers/espn/availability';
 import { announcedStarters, pitchersForFixture } from '../providers/espn/pitchers';
 import type { AnnouncedStarters } from '../providers/espn/pitchers';
 import { compactDate } from '../providers/espn/fixture-normalise';
+import { conditionsForGames } from '../providers/weather';
+import type { FixtureConditions } from './weather';
 import type { SquadNews } from './features';
 import type { FixturePitchers } from './pitchers';
 import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
@@ -403,6 +405,19 @@ async function computeCandidates(
     for (const list of model.upcoming.values()) allFixtures.push(...list);
   }
 
+  /*
+   * Conditions, one request per city rather than per fixture.
+   *
+   * Only for competitions whose config carries a measured weather rule, and
+   * only for fixtures the provider says are open-air — there is no point
+   * forecasting the weather for a dome.
+   */
+  const weatherable = allFixtures.filter((game) => {
+    const config = modelConfigFor(game.sport);
+    return Boolean(config?.weather) && game.venue?.indoor === false;
+  });
+  const conditions = await conditionsForGames(weatherable);
+
   const starters = await startersFor(leagues, allFixtures);
   const pitcherRates = new Map<string, FixturePitchers | null>();
   await Promise.all(
@@ -429,6 +444,7 @@ async function computeCandidates(
           simulations: projectionConfig.simulations,
           availability: squadNewsFor(availability.get(league.id) ?? null, game),
           pitchers: pitcherRates.get(game.id) ?? null,
+          conditions: conditions.get(game.id) ?? null,
           now: new Date(asOf),
         });
         // Null means insufficient data. That fixture produces nothing — it is
@@ -624,10 +640,15 @@ export async function projectionForGame(
         ? await pitchersForFixture(starters.get(game.id), kickoff)
         : null;
 
+      const conditions: FixtureConditions | null = config.weather
+        ? ((await conditionsForGames([game])).get(game.id) ?? null)
+        : null;
+
       return projectGame(game, model.ratings, config, {
         simulations: projectionConfig.simulations,
         availability: squadNewsFor(report, game),
         pitchers,
+        conditions,
         now: new Date(asOf),
       });
     },

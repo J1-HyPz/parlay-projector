@@ -64,7 +64,11 @@ export interface RawFixtureEvent {
   week?: { number?: unknown };
   status?: { type?: RawStatusType };
   competitions?: ({
-    venue?: { fullName?: unknown; address?: { city?: unknown; country?: unknown } };
+    venue?: {
+      fullName?: unknown;
+      address?: { city?: unknown; country?: unknown };
+      indoor?: unknown;
+    };
     broadcasts?: { names?: unknown[] }[];
     competitors?: {
       homeAway?: unknown;
@@ -237,6 +241,9 @@ export function normaliseFixture(raw: RawFixtureEvent, league: League): Game | n
       name: str(venue?.fullName),
       city: str(venue?.address?.city),
       country: str(venue?.address?.country),
+      // A property of the ground rather than of the night: a retractable roof
+      // reports covered whether or not it was actually shut.
+      indoor: typeof venue?.indoor === 'boolean' ? venue.indoor : null,
     },
     broadcast: broadcast ?? null,
     ...(started

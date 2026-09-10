@@ -18,6 +18,7 @@ import { buildRatings, toResults } from './features.ts';
 import { projectGame } from './project.ts';
 import type { SportModelConfig } from './config.ts';
 import type { FixturePitchers } from './pitchers.ts';
+import type { FixtureConditions } from './weather.ts';
 import type { Game } from '../home/types';
 
 export interface BacktestCase {
@@ -74,6 +75,16 @@ export interface BacktestOptions {
    * option at all, which is what makes the comparison a fair one.
    */
   pitchers?: (game: Game, kickoff: number) => FixturePitchers | null;
+  /**
+   * Conditions at a fixture, as they actually were.
+   *
+   * Injected like `pitchers`, so this module stays provider-free and the
+   * caller owns the look-ahead discipline. Weather is the one input where
+   * "what it actually was" is legitimate for a backtest and a *forecast* is
+   * what production will have — a difference worth stating, because the two
+   * are not the same and the backtest is the more favourable of them.
+   */
+  conditions?: (game: Game, kickoff: number) => FixtureConditions | null;
 }
 
 /**
@@ -147,6 +158,7 @@ export function backtest(
       simulations,
       seed: options.seed,
       pitchers: options.pitchers?.(game, kickoff) ?? null,
+      conditions: options.conditions?.(game, kickoff) ?? null,
       now: new Date(kickoff),
     });
     if (!outcome) {

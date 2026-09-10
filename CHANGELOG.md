@@ -32,7 +32,8 @@ MLB projections that account for who is pitching, and a long-run history
 archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
 uncertain it is, a baseball model that no longer claims to be more certain than
-it is, and every other sport checked the same way. 853 tests.
+it is, baseball totals that account for the temperature, and every other sport
+checked the same way. 860 tests.
 
 ### Added
 
@@ -89,6 +90,35 @@ it is, and every other sport checked the same way. 853 tests.
 - Rate-limited requests are now retried with a pause between attempts, and a
   round that still cannot be read stops the season instead of quietly reporting
   it as empty.
+
+### Added
+
+**Baseball totals now account for how warm it is**
+
+- An outdoor MLB fixture's projected total is adjusted for the temperature at
+  first pitch. Warm air is thinner and the ball carries — worth about a run
+  between a cold April night and a hot August afternoon.
+- **The plan was to use wind, and the data said no.** Across 3,645 open-air
+  fixtures, wind speed and rainfall both turned out to have no measurable
+  relationship with scoring. Wind speed alone cannot: a gust blowing in cancels
+  one blowing out, and knowing which would need each ground's orientation.
+  Baseball also does not play through real rain, it waits.
+- Temperature does hold up, and not merely because hot games fall in July: the
+  effect survives comparing games **within the same month**, **at the same
+  ground**, and **both at once**.
+- **It moves the total, never the margin.** The adjustment is split evenly
+  between the two sides, so it can change how much scoring is expected but
+  never who is favoured. It is also capped, so a bad forecast cannot produce an
+  extreme projection.
+- Where it applies, the game page says so in plain words — the temperature, and
+  how far the total moved.
+- **Covered grounds are untouched**, and provably so: across 2,764 roofed
+  fixtures the projections came out identical to four decimal places with the
+  feature on and off. A fixture whose forecast cannot be fetched is projected
+  exactly as it was before.
+- One caveat worth stating: the check used the weather that actually happened,
+  while live projections use a forecast. Forecasts are sometimes wrong, so the
+  real benefit will be smaller than the measured one.
 
 ### Changed
 

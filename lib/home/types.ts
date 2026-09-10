@@ -69,6 +69,21 @@ export interface Venue {
   name: string | null;
   city: string | null;
   country: string | null;
+  /**
+   * Whether the ground has a roof.
+   *
+   * A property of the venue, not of the fixture — checked rather than assumed.
+   * Every park with a retractable roof reports `true` on every date sampled,
+   * so the provider is classifying grounds that *can* close rather than nights
+   * they actually did. That is conservative in the direction that suits a
+   * conditions adjustment: such a fixture simply gets none, at the cost of
+   * forgoing one on nights the roof was open.
+   *
+   * Null means the provider did not say, and null is treated as covered.
+   * Adjusting a fixture that turns out to be under a roof is the error worth
+   * avoiding.
+   */
+  indoor: boolean | null;
 }
 
 export interface Game {

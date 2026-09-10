@@ -153,6 +153,8 @@ function venue(event: RawEvent): Venue {
     // rather than leaving the line blank.
     city: str(event.strCity) ?? str(event.strCountry),
     country: str(event.strCountry),
+    // Not known on this path; treated as covered, so no adjustment applies.
+    indoor: null,
   };
 }
 

@@ -207,7 +207,7 @@ export function normaliseLiveRow(row: RawLiveRow, sport: ConcreteSportId): LiveG
     },
     // The live feed carries no venue; it is filled in from today's fixtures
     // where those are already cached.
-    venue: { name: null, city: null, country: null },
+    venue: { name: null, city: null, country: null, indoor: null },
     broadcast: null,
     score,
     game_state: describeGameState(sport, providerStatus, row.strProgress),

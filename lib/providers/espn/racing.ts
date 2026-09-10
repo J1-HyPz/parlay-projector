@@ -194,6 +194,8 @@ export function normaliseSession(
       name: str(circuit?.fullName) ?? str(session.venue?.fullName),
       city: str(circuit?.address?.city) ?? str(session.venue?.address?.city),
       country: str(circuit?.address?.country) ?? str(session.venue?.address?.country),
+      // Not known on this path; treated as covered, so no adjustment applies.
+      indoor: null,
     },
     broadcast: broadcast ?? null,
   };

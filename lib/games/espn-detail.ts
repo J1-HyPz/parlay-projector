@@ -24,6 +24,7 @@ import { fixtureAvailability, probablesFromSummary } from './availability-normal
 import type { RawAvailabilitySummary } from './availability-normalise';
 import { leagueAvailability } from '../providers/espn/availability';
 import { leagueHistory } from '../history/store';
+import { venueIsRoofed } from '../providers/espn/venues';
 import { meetingsBetween, summariseMeetings } from '../history/head-to-head';
 import type { Meeting } from '../history/head-to-head';
 import type { GameDetail, RecentGame, TeamStanding } from './types';
@@ -58,7 +59,11 @@ interface RawSummary {
     }[];
   };
   gameInfo?: {
-    venue?: { fullName?: unknown; address?: { city?: unknown; country?: unknown } };
+    venue?: {
+      id?: unknown;
+      fullName?: unknown;
+      address?: { city?: unknown; country?: unknown };
+    };
   };
   broadcasts?: { media?: { shortName?: unknown } }[];
   seasonseries?: { events?: unknown[] }[];
@@ -193,6 +198,17 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
   ]);
 
   const summary = value;
+
+  /*
+   * Whether the ground has a roof.
+   *
+   * The summary does not carry it — only the scoreboard and the core venue
+   * record do — so it is resolved from the venue id. Safe to cache hard and
+   * safe to key on the venue alone, because the flag is a property of the
+   * ground rather than of the night: every retractable-roof park reports
+   * covered on every date checked.
+   */
+  const roofed = await venueIsRoofed(league, str(summary.gameInfo?.venue?.id));
   const header = summary.header;
   const competition = Array.isArray(header?.competitions) ? header.competitions[0] : undefined;
   const competitors = competition?.competitors ?? [];
@@ -266,6 +282,7 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
       name: str(venue?.fullName),
       city: str(venue?.address?.city),
       country: str(venue?.address?.country),
+      indoor: roofed,
     },
     // A scheduled fixture never shows a score.
     score: started ? { home: num(home?.score), away: num(away?.score) } : null,

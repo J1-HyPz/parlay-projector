@@ -44,7 +44,11 @@ export interface RawEspnEvent {
    * removes here at the boundary.
    */
   competitions?: ({
-    venue?: { fullName?: unknown; address?: { city?: unknown; country?: unknown } };
+    venue?: {
+      fullName?: unknown;
+      address?: { city?: unknown; country?: unknown };
+      indoor?: unknown;
+    };
     broadcasts?: { names?: unknown[] }[];
     competitors?: RawEspnCompetitor[];
   } & Record<string, unknown>)[];
@@ -96,7 +100,7 @@ export interface EspnGame {
   matchDate: string | null;
   home: EspnTeamSide | null;
   away: EspnTeamSide | null;
-  venue: { name: string | null; city: string | null; country: string | null };
+  venue: { name: string | null; city: string | null; country: string | null; indoor: boolean | null };
   broadcast: string | null;
 }
 
@@ -164,7 +168,7 @@ export function normaliseEvent(raw: RawEspnEvent, timeZone: string): EspnGame | 
   // `competition` is a plain record after stripping, so the shape is asserted
   // once here; every field read from it is still null-guarded by `str`.
   const venue = competition?.venue as
-    | { fullName?: unknown; address?: { city?: unknown; country?: unknown } }
+    | { fullName?: unknown; address?: { city?: unknown; country?: unknown }; indoor?: unknown }
     | undefined;
 
   const broadcasts = (competition?.broadcasts as { names?: unknown[] }[] | undefined) ?? [];
@@ -183,6 +187,7 @@ export function normaliseEvent(raw: RawEspnEvent, timeZone: string): EspnGame | 
       name: str(venue?.fullName),
       city: str(venue?.address?.city),
       country: str(venue?.address?.country),
+      indoor: typeof venue?.indoor === 'boolean' ? venue.indoor : null,
     },
     broadcast: broadcastName ?? null,
   };

@@ -23,7 +23,7 @@ function game(date: string, overrides: Partial<Game> = {}): Game {
     provider_status: 'Final',
     home_team: { id: '1', name: 'Home', logo: null },
     away_team: { id: '2', name: 'Away', logo: null },
-    venue: { name: null, city: null, country: null },
+    venue: { name: null, city: null, country: null, indoor: null },
     broadcast: null,
     score: { home: 24, away: 17 },
     ...overrides,

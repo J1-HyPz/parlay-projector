@@ -20,6 +20,7 @@ import {
   seedFrom,
   weightedMean,
 } from '../lib/projections/math.ts';
+import { describeAdjustment, totalAdjustment } from '../lib/projections/weather.ts';
 import { buildRatings, dataQuality, estimateConfidence, toResults } from '../lib/projections/features.ts';
 import {
   bothScoreProbability,
@@ -166,7 +167,7 @@ function game(
     provider_status: null,
     home_team: { id: '1', name: home, logo: null },
     away_team: { id: '2', name: away, logo: null },
-    venue: { name: 'Ground', city: null, country: null },
+    venue: { name: 'Ground', city: null, country: null, indoor: null },
     broadcast: null,
     ...overrides,
   };
@@ -1529,5 +1530,72 @@ describe('the baseball dispersion fit', () => {
 
     assert.ok(Math.abs(mean(plain) - mean(wide)) < 0.1, 'the centre must not move');
     assert.ok(variance(wide) > variance(plain) * 1.8, 'the spread must widen');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Conditions
+// ---------------------------------------------------------------------------
+
+describe('the weather adjustment', () => {
+  const withRule = {
+    ...modelConfigFor('mlb')!,
+    weather: { perDegreeC: 0.06, referenceC: 22.8, cap: 0.8 },
+  };
+  const warm = { temperature_c: 32, indoor: false };
+
+  it('does nothing for a competition that was never measured', () => {
+    /*
+     * Absent is "not checked", not "no effect". A config with no weather block
+     * must project exactly as it did before this existed — which is what makes
+     * the feature safe to add to an application that models six sports and
+     * measured one.
+     */
+    const unmeasured = { ...modelConfigFor('nhl')! };
+    assert.equal(totalAdjustment(unmeasured, warm), 0);
+  });
+
+  it('does nothing under a roof', () => {
+    // A dome has weather; it is just not the weather outside.
+    assert.equal(totalAdjustment(withRule, { temperature_c: 32, indoor: true }), 0);
+  });
+
+  it('does nothing when the conditions are unknown', () => {
+    // Never a stale or assumed adjustment: the fixture is projected as it
+    // would have been with no forecast at all.
+    assert.equal(totalAdjustment(withRule, null), 0);
+    assert.equal(totalAdjustment(withRule, undefined), 0);
+    assert.equal(totalAdjustment(withRule, { temperature_c: Number.NaN, indoor: false }), 0);
+  });
+
+  it('raises the total in warm air and lowers it in cold', () => {
+    // The measured direction: warm air is thinner and the ball carries.
+    assert.ok(totalAdjustment(withRule, warm) > 0);
+    assert.ok(totalAdjustment(withRule, { temperature_c: 8, indoor: false }) < 0);
+  });
+
+  it('does nothing at the reference temperature', () => {
+    // The reference is the archive's own mean, so an average night is not an
+    // adjustment in either direction.
+    assert.equal(totalAdjustment(withRule, { temperature_c: 22.8, indoor: false }), 0);
+  });
+
+  it('is capped in both directions', () => {
+    /*
+     * The cap is the point. An uncapped modifier acting on a forecast is a way
+     * to be confidently wrong about a fixture the model previously and
+     * correctly said nothing about.
+     */
+    assert.equal(totalAdjustment(withRule, { temperature_c: 60, indoor: false }), 0.8);
+    assert.equal(totalAdjustment(withRule, { temperature_c: -40, indoor: false }), -0.8);
+  });
+
+  it('describes only an adjustment that actually happened', () => {
+    // A factor for an unadjusted fixture would be stating something untrue.
+    assert.equal(describeAdjustment(0, warm, 'runs'), null);
+    assert.equal(describeAdjustment(0.4, null, 'runs'), null);
+    const text = describeAdjustment(totalAdjustment(withRule, warm), warm, 'runs');
+    assert.ok(text?.includes('warmer'));
+    assert.ok(text?.includes('runs'));
   });
 });

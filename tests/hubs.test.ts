@@ -274,7 +274,7 @@ function game(id: string, status: GameStatus, date: string | null): Game {
     provider_status: null,
     home_team: { id: '1', name: 'Home', logo: null },
     away_team: { id: '2', name: 'Away', logo: null },
-    venue: { name: null, city: null, country: null },
+    venue: { name: null, city: null, country: null, indoor: null },
     broadcast: null,
   };
 }

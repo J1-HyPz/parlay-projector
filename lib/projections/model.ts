@@ -36,6 +36,8 @@ import type { RatingSet } from './features.ts';
 import type { SportModelConfig } from './config.ts';
 import { blendedDefence } from './pitchers.ts';
 import type { FixturePitchers } from './pitchers.ts';
+import { totalAdjustment } from './weather.ts';
+import type { FixtureConditions } from './weather.ts';
 
 export interface ExpectedScores {
   home: number;
@@ -69,6 +71,8 @@ export function expectedScores(
    * exactly as it did before the substitution existed.
    */
   pitchers?: FixturePitchers | null,
+  /** Conditions at the fixture, where they are known and measured to matter. */
+  conditions?: FixtureConditions | null,
 ): ExpectedScores | null {
   const home = set.ratings.get(homeName);
   const away = set.ratings.get(awayName);
@@ -140,6 +144,20 @@ export function expectedScores(
       shortRested = 'away';
     }
   }
+
+  /*
+   * Conditions, split evenly across the two sides.
+   *
+   * Evenly because the effect is on the total, not on either team: warm air
+   * carries a ball hit by anyone. Splitting it in half preserves the margin
+   * exactly, so a temperature adjustment can never change who the model
+   * favours — only how much scoring it expects. Zero for an indoor fixture, a
+   * competition with no measured effect, or a fixture whose conditions are
+   * unknown.
+   */
+  const conditionAdjustment = totalAdjustment(config, conditions) / 2;
+  expectedHome += conditionAdjustment;
+  expectedAway += conditionAdjustment;
 
   // A negative expectation is not a scoreline. The floor is a tenth of the
   // league average, which is far below any real team and still positive.

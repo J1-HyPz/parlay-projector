@@ -25,7 +25,7 @@ function game(overrides: Partial<Game> & Record<string, unknown> = {}): Game {
     provider_status: 'FT',
     home_team: { id: '359', name: 'Arsenal', logo: null },
     away_team: { id: '363', name: 'Chelsea', logo: null },
-    venue: { name: null, city: null, country: null },
+    venue: { name: null, city: null, country: null, indoor: null },
     broadcast: null,
     score: { home: 2, away: 1 },
     ...overrides,

@@ -38,7 +38,7 @@ function game(overrides: Partial<Game> = {}): Game {
     provider_status: null,
     home_team: { id: 'h', name: 'Arsenal', logo: null },
     away_team: { id: 'a', name: 'Chelsea', logo: null },
-    venue: { name: 'Emirates Stadium', city: 'London', country: 'England' },
+    venue: { name: 'Emirates Stadium', city: 'London', country: 'England', indoor: null },
     broadcast: null,
     ...overrides,
   };
@@ -50,7 +50,7 @@ const NBA = game({
   league: 'NBA',
   home_team: { id: 'h', name: 'Boston Celtics', logo: null },
   away_team: { id: 'a', name: 'Los Angeles Lakers', logo: null },
-  venue: { name: 'TD Garden', city: 'Boston', country: 'USA' },
+  venue: { name: 'TD Garden', city: 'Boston', country: 'USA', indoor: null },
 });
 
 const RACE = game({
@@ -65,7 +65,7 @@ const RACE = game({
     { id: '1', name: 'Max Verstappen', affiliation: 'Red Bull', position: 1, logo: null },
     { id: '2', name: 'Lando Norris', affiliation: 'McLaren', position: 2, logo: null },
   ],
-  venue: { name: 'Monza', city: 'Monza', country: 'Italy' },
+  venue: { name: 'Monza', city: 'Monza', country: 'Italy', indoor: null },
 });
 
 /**
@@ -81,7 +81,7 @@ const UNTRACKED = game({
   league: 'Chile Segunda Division',
   home_team: { id: 'h', name: 'Santiago Morning', logo: null },
   away_team: { id: 'a', name: 'Deportes Recoleta', logo: null },
-  venue: { name: 'Estadio Municipal', city: 'Santiago', country: 'Chile' },
+  venue: { name: 'Estadio Municipal', city: 'Santiago', country: 'Chile', indoor: null },
 });
 
 // ---------------------------------------------------------------------------

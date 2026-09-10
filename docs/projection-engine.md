@@ -491,6 +491,55 @@ of either side. `headToHeadPattern` will only state a skew at six meetings or
 more and at a 70% lean; below that it returns null, which is the usual and
 intended answer.
 
+### Conditions (MLB only)
+
+An outdoor baseball fixture's projected total is adjusted for the temperature
+at first pitch. Nothing else in the application uses weather, and nothing else
+measured a reason to.
+
+**The spec proposed wind; the data said temperature.** Across 3,645 open-air
+fixtures, wind speed correlated with the total at -0.022 (t = -1.33) and
+precipitation at -0.023 (t = -1.41) — both indistinguishable from nothing.
+Neither is a surprise on reflection: raw wind speed says nothing without a
+direction relative to the outfield, and a gust blowing in cancels one blowing
+out; baseball does not play through meaningful rain, it waits. Temperature
+correlated at +0.084 (t = 5.08) and survived every confound — +0.061 within a
+month, +0.078 within a venue, +0.063 within both — so it is neither the
+calendar nor a park effect. Warm air is thinner and the ball carries.
+
+The slope is **0.045 runs per degree**, not the raw 0.0596. The
+confound-controlled relationship is about three quarters of the raw one, and
+fitting the raw slope would bank a correlation partly owned by the month. It
+also holds up better on the held-out seasons: t = -2.65 against -2.29, for a
+total MAE within a thousandth.
+
+Three properties hold it together, all asserted in tests:
+
+- **The adjustment is split evenly across both sides**, so it moves the total
+  and leaves the margin exactly. Temperature does not favour a team.
+- **It is capped**, at 0.8 runs. A modifier acting on a forecast with no
+  ceiling is a way to be confidently wrong about a fixture the model used to
+  say nothing about.
+- **Absent means unmeasured, not zero.** A competition whose config carries no
+  `weather` block, a covered ground, or a fixture whose conditions could not be
+  fetched all project exactly as they did before this existed.
+
+Gate, per §4.5: total MAE on outdoor fixtures only, 3,638 held out. 3.5945 to
+3.5803, paired t = -2.65. Roofed fixtures came out identical to four decimal
+places on every metric across 2,764 of them — the acceptance criterion proven
+rather than asserted.
+
+**One honest gap.** The backtest used the weather that actually happened; live
+projections use a forecast. Forecasts are wrong sometimes, so the live benefit
+will be smaller than the measured one. The direction is not in doubt; the size
+is optimistic.
+
+`Venue.indoor` comes from the provider and is a property of the **ground, not
+the night** — checked, not assumed. Every retractable-roof park reports covered
+on every date sampled, so such fixtures simply get no adjustment. That is
+conservative in the right direction, at the cost of forgoing one when the roof
+was open.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

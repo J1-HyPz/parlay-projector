@@ -26,6 +26,8 @@ import { boundProbability, clamp, seedFrom } from './math.ts';
 import { dataQuality, estimateConfidence, qualityReasons, squadCount } from './features.ts';
 import type { SquadNews } from './features.ts';
 import type { FixturePitchers } from './pitchers.ts';
+import { describeAdjustment, totalAdjustment } from './weather.ts';
+import type { FixtureConditions } from './weather.ts';
 import type { RatingSet, TeamRating } from './features.ts';
 import { backingFor, orientFactors } from './factors.ts';
 import type { ProjectionFactor } from './factors.ts';
@@ -82,6 +84,13 @@ export interface ProjectOptions {
    * pure and the backtest can hand it a point-in-time rate.
    */
   pitchers?: FixturePitchers | null;
+  /**
+   * Conditions at the fixture.
+   *
+   * Supplied by the caller rather than fetched here, so this stays pure and
+   * the backtest can hand it what the weather actually was.
+   */
+  conditions?: FixtureConditions | null;
   now?: Date;
 }
 
@@ -132,6 +141,7 @@ function buildFactors(
   distribution: Distribution,
   availability: SquadNews | null,
   pitchers: FixturePitchers | null,
+  conditions: FixtureConditions | null,
 ): ProjectionFactor[] {
   const factors: ProjectionFactor[] = [];
   const favouredHome = distribution.meanMargin >= 0;
@@ -228,6 +238,28 @@ function buildFactors(
       text: `Only ${weakest} completed games of history for the thinner side, so the estimate is provisional.`,
       subject: { kind: 'uncertainty' },
       direction: 'negative',
+    });
+  }
+
+  /*
+   * Conditions, where they moved the total.
+   *
+   * Stated for the same reason every other input is: a reader who sees a total
+   * they did not expect should be able to find out why, and an input that
+   * moves a number invisibly is the fabrication this application exists to
+   * avoid, one step removed.
+   */
+  const weatherShift = totalAdjustment(config, conditions);
+  const weatherText = describeAdjustment(
+    weatherShift,
+    conditions,
+    config.scoring === 'poisson' ? 'runs' : 'points',
+  );
+  if (weatherText) {
+    factors.push({
+      text: weatherText,
+      subject: { kind: 'scoring', lean: weatherShift > 0 ? 'high' : 'low' },
+      direction: 'positive',
     });
   }
 
@@ -352,6 +384,7 @@ export function projectGame(
     config,
     kickoff,
     options.pitchers ?? null,
+    options.conditions ?? null,
   );
   if (!expected) return null;
 
@@ -404,6 +437,7 @@ export function projectGame(
       distribution,
       extras.availability,
       options.pitchers ?? null,
+      options.conditions ?? null,
     ),
     generated_at: (options.now ?? new Date()).toISOString(),
   };

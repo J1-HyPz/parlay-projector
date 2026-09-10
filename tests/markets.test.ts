@@ -69,7 +69,7 @@ function game(id: string, home: string, away: string, overrides: Partial<Game> =
     provider_status: null,
     home_team: { id: '1', name: home, logo: null },
     away_team: { id: '2', name: away, logo: null },
-    venue: { name: 'Ground', city: null, country: null },
+    venue: { name: 'Ground', city: null, country: null, indoor: null },
     broadcast: null,
     ...overrides,
   };

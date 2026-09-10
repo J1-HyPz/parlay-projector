@@ -288,6 +288,8 @@ export function normaliseGameDetail(input: GameDetailInput): GameDetail | null {
       name: str(event.strVenue),
       city: str(event.strCity) ?? str(event.strCountry),
       country: str(event.strCountry),
+      // Not known on this path; treated as covered, so no adjustment applies.
+      indoor: null,
     },
     score: normaliseScore(event, status),
     game_state: normaliseGameState(status, providerStatus),

@@ -35,7 +35,7 @@ function game(id: string, status: GameStatus, overrides: Partial<Game> = {}): Ga
     provider_status: null,
     home_team: { id: '1', name: 'Arsenal', logo: null },
     away_team: { id: '2', name: 'Chelsea', logo: null },
-    venue: { name: 'Emirates', city: 'London', country: 'England' },
+    venue: { name: 'Emirates', city: 'London', country: 'England', indoor: null },
     broadcast: null,
     ...overrides,
   };

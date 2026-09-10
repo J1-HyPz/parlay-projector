@@ -31,6 +31,21 @@ export type ScoringModel = 'poisson' | 'normal';
 export interface SportModelConfig {
   scoring: ScoringModel;
   /**
+   * How conditions move the expected total, where they measurably do.
+   *
+   * Absent for every competition that has not been measured, and absent is not
+   * "no effect assumed" — it is "not checked", and the modifier stays inert.
+   * Indoor fixtures are unaffected whatever this says.
+   */
+  weather?: {
+    /** Change in combined score per degree Celsius above `referenceC`. */
+    perDegreeC: number;
+    /** The temperature at which no adjustment is made — the archive's mean. */
+    referenceC: number;
+    /** Largest adjustment in either direction, in the sport's own units. */
+    cap: number;
+  };
+  /**
    * How much more a score varies than a Poisson process allows.
    *
    * Poisson fixes the variance of a count at its mean, which is a genuine
@@ -294,7 +309,7 @@ const MLB: SportModelConfig = {
    * A version stamp has to say which change a stored prediction was made
    * under, and these are two unrelated changes to the same competition.
    */
-  modelVersion: 'projection-v1-mlb-sp-disp',
+  modelVersion: 'projection-v1-mlb-sp-disp-wx',
   scoring: 'poisson',
   /*
    * Baseball scores in bursts, and plain Poisson cannot represent that: the
@@ -302,6 +317,34 @@ const MLB: SportModelConfig = {
    * Fitted at 2.3 against two held-out seasons — see the note above.
    */
   scoreDispersion: 2.3,
+  /*
+   * Temperature, measured — not wind, which §4.5 proposed and the data
+   * rejected.
+   *
+   * Across 3,645 open-air fixtures, wind speed correlated with the total at
+   * -0.022 (t = -1.33) and precipitation at -0.023 (t = -1.41): both
+   * indistinguishable from nothing. On reflection neither is a surprise. Raw
+   * wind speed says nothing without a direction relative to the outfield, and
+   * a gust blowing in cancels one blowing out. Baseball does not play through
+   * meaningful rain, it waits.
+   *
+   * Temperature correlated at +0.084 (t = 5.08) and survived every confound:
+   * +0.061 within a month, +0.078 within a venue, +0.063 within both at once.
+   * So it is neither the calendar nor a park effect. Warm air is thinner and
+   * the ball carries.
+   *
+   * The raw slope is 0.0596 runs per degree. 0.045 is used instead, because
+   * the confound-controlled relationship is about three quarters of the raw
+   * one and fitting the raw slope would bank a correlation partly owned by the
+   * month. It also holds up better: on the held-out seasons it improves total
+   * error at t = -2.65 against -2.29 for the raw slope, for a total MAE within
+   * a thousandth of it.
+   *
+   * The cap matters as much as the slope. A modifier acting on a forecast with
+   * no ceiling is a way to be confidently wrong about a fixture the model used
+   * to say nothing about.
+   */
+  weather: { perDegreeC: 0.045, referenceC: 22.8, cap: 0.8 },
   hasDraw: false,
   supportsSpread: true,
   baselineTotal: 8.6,
