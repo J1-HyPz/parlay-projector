@@ -301,6 +301,16 @@ export function normaliseGameDetail(input: GameDetailInput): GameDetail | null {
       away: normaliseRecentGames(input.awayRecent, awayTeam.id),
     },
     head_to_head: [],
+    /*
+     * Null, and correct.
+     *
+     * These are the competitions this provider serves because ESPN publishes
+     * no fixtures for them — the CFL and the two Euro-American leagues. There
+     * is no availability feed behind any of them, and the provider's player
+     * endpoint carries no squad-by-fixture data worth the request. "We cannot
+     * say" is the honest answer, and null is how this contract says it.
+     */
+    availability: null,
   };
 }
 

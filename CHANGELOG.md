@@ -25,10 +25,33 @@ Categories, used consistently:
 The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
 sport and competition filtering for parlays, and a design system that makes the
 whole application readable on a phone and a tablet, a fix for CFL fixtures that
-had been silently empty, and an Accuracy page that finally shows how the model
-scores per competition. 775 tests.
+had been silently empty, an Accuracy page that finally shows how the model
+scores per competition, and injury and starting-pitcher information on the game
+page. 785 tests.
 
 ### Added
+
+**Who is playing — injuries and probable starters on the game page**
+
+- Game pages now show each side's **injury report**: who is out, who is
+  doubtful, what is wrong and when the provider expects them back. Baseball
+  fixtures also name each team's **probable starting pitcher**.
+- This costs **no extra requests**. The application already downloaded this
+  exact payload for the header, records and previous meetings — the injury
+  report was sitting in it, unread.
+- The page keeps three states apart that are easy to blur and misleading to
+  confuse. *No data published for this competition* names the competition and
+  says the gap is the source's. *Nobody reported missing* is stated as the real
+  finding it is. *Players listed* shows them, worst news first.
+- **Football has no injury data at all** — not an empty list, but nothing
+  published, checked against five competitions directly. Those fixtures say so
+  explicitly rather than showing a blank panel that reads as a failed load.
+- A player listed but **expected to play** is shown as exactly that, not as an
+  absence. In the NFL that is most of the report — 519 of 800 entries — so
+  counting them as absences would have overstated every squad's problems.
+- Nothing here changes any projection. This is information for the reader to
+  weigh; the model does not yet use it, because knowing a player is out is not
+  the same as knowing what their absence is worth.
 
 **Accuracy, per competition — a page for how the model actually scores**
 

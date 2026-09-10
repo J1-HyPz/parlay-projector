@@ -20,6 +20,8 @@ import { parseEspnGameId, statusFromEspn } from '../providers/espn/fixtures';
 import { normaliseSeasonSeries, parseForm, overallRecord } from '../providers/espn/normalise';
 import { meetingsToRecentGames, recordToStanding, standingFromForm } from '../providers/merge';
 import { findLeague } from '../leagues/registry';
+import { availabilityFromSummary } from './availability-normalise';
+import type { RawAvailabilitySummary } from './availability-normalise';
 import type { GameDetail, TeamStanding } from './types';
 
 interface RawCompetitor {
@@ -56,6 +58,12 @@ interface RawSummary {
   };
   broadcasts?: { media?: { shortName?: unknown } }[];
   seasonseries?: { events?: unknown[] }[];
+  /*
+   * The same response already carries the fixture's injury report, and for
+   * baseball the probable starting pitchers on each competitor. Typed loosely
+   * here and read by the availability normaliser, which owns their shape.
+   */
+  injuries?: unknown;
 }
 
 function str(value: unknown): string | null {
@@ -181,6 +189,18 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
     standings: { home: standingFor(home), away: standingFor(away) },
     recent_games: { home: [], away: [] },
     head_to_head: meetingsToRecentGames(meetings, homeName),
+    /*
+     * Free: parsed out of the payload above rather than fetched.
+     *
+     * Attribution is by the provider's own team ids, taken from the same
+     * competitors the header was read from, so an absence cannot land on the
+     * wrong side of the fixture.
+     */
+    availability: availabilityFromSummary(
+      summary as RawAvailabilitySummary,
+      str(home?.team?.id),
+      str(away?.team?.id),
+    ),
     _sources: { game: 'espn' },
   };
 }

@@ -344,6 +344,34 @@ enough settled history to have actually run — `ordered` defaults to true so an
 unknown cannot read downstream as a failure, which means `checked` is the gate
 on saying anything at all.
 
+### Player availability
+
+Game pages show each side's injury report and, for baseball, the probable
+starting pitchers. It is a **display feature only** — no projection, expected
+score, probability or `MODEL_VERSION` is affected by it. Knowing a player is
+out is not knowing what the absence is worth, and sizing that needs player
+statistics this application does not hold.
+
+It reads `<league>/summary?event=<id>`, which `espnGameDetail` already fetches,
+so it adds no request and inherits that call's freshness.
+
+Coverage is uneven and the contract says so rather than papering over it.
+`GameDetail.availability` is `null` where the provider publishes nothing for
+the competition — every football fixture, and every competition served by
+TheSportsDB — and an object with empty player lists where it covers the fixture
+and reports nobody. Those are different claims and the interface keeps them
+apart.
+
+Two normalisation rules are worth knowing before changing this code:
+
+- Status keys on the provider's machine enum (`type.name`), never on the free
+  text beside it, which is inconsistent between leagues — baseball sends
+  `"suspension"` where hockey sends `"Suspension"`. An unrecognised enum
+  becomes `listed` and shows the provider's own label rather than being guessed
+  into `out` or `available`.
+- `INJURY_STATUS_ACTIVE` means listed but expected to play, and is the majority
+  of the NFL's report. It is never counted as an absence.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

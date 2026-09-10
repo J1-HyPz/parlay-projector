@@ -1,7 +1,7 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1 has shipped; everything below it is still a
-plan. Companion to
+**Status: in progress.** §4.1 and §4.2.a have shipped; everything below them
+is still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -175,6 +175,9 @@ and coverage are known from having lived with the display half.
 
 #### 4.2.a Display
 
+**Shipped**, with the provider findings below changing several of the steps.
+Notes at the end of this subsection.
+
 **How.**
 
 1. **Injuries.** `fetchEspn('<sport>/<league>/teams/<teamId>/injuries')` — the
@@ -222,6 +225,64 @@ and coverage are known from having lived with the display half.
   state, not an empty section that reads as a loading failure.
 - No change to any projection's probability, expected score, or
   `MODEL_VERSION` — this half is display only.
+
+**What the provider actually publishes.**
+
+Checked live before building, and four of the five steps above changed as a
+result.
+
+| Endpoint | Result |
+|---|---|
+| `teams/<id>/injuries` (step 1's assumption) | **Dead.** Returns `{}` for NFL, MLB, NBA, NHL and football alike |
+| `<league>/injuries` (league-wide) | Works, but the NFL's is **8.9 MB** decompressed — past this application's own 8 MiB response cap |
+| `summary?event=<id>` | **Carries the fixture's injury report and, for baseball, the probable starters.** Used |
+| `teams/<id>/depthchart` | **Dead.** Returns `{}` |
+| Per-league news `categories[]` | Tags `type: "team"` with a team id and `type: "athlete"` with an athlete id — per-fixture filtering is possible |
+
+The decisive finding is the third: `espnGameDetail` **already fetches that
+summary** for the header, records and previous meetings. Availability therefore
+costs no extra request, no new cache and no new freshness policy — it inherits
+the call it rides on, whose TTL is already 60 seconds for a fixture that has
+not finished. Step 4 of the plan is satisfied by the existing code rather than
+by new code.
+
+Consequences for the plan:
+
+- **Step 2's second tier does not exist.** Depth charts return nothing, so
+  there is no "likely starter" to distinguish a confirmed one from. The
+  `confirmed: false` flag was therefore *not* built: with one possible value it
+  would imply a distinction the data cannot make. Baseball's probable pitcher
+  ships carrying the provider's own word, "probable", and nothing is presented
+  as a confirmed team sheet.
+- **Football has no availability data at all** — verified twice over, once
+  through the league-wide endpoint (zero entries for the Premier League, La
+  Liga, Serie A, the Bundesliga and the Champions League) and once through the
+  fixture summary, which omits the `injuries` key entirely. That absence is
+  carried through the contract as `availability: null` and stated on the page,
+  because "we cannot say" and "nobody is missing" are different claims. It
+  means the display half covers the American sports and not the eight football
+  competitions.
+- **The enum in step 1 was wrong in both directions.** `out`/`doubtful`/
+  `questionable`/`probable`/`day_to_day` misses the injured-list variants
+  (7-, 10-, 15- and 60-day IL, IR), suspension and bereavement, and includes
+  `probable`, which no league emits. What is emitted is a stable machine enum
+  on `type.name`; the free-text `status` beside it is inconsistent between
+  leagues — baseball sends `"suspension"`, hockey sends `"Suspension"` — so the
+  mapping keys on `type.name` and keeps the provider's wording for display only.
+- **A listed player is usually a *playing* player.** 519 of the NFL's 800
+  entries are `INJURY_STATUS_ACTIVE`: on the report, expected to play. They are
+  kept, with their own quiet status, rather than counted as absences — folding
+  them in would overstate every squad's problems.
+- **The provider's own placeholder had to be filtered.** `side` and `detail`
+  both take the literal `"Not Specified"`, which joined naively reads out as
+  "Not Specified Groin — Not Specified". Exactly that one string is dropped,
+  established by sampling every injury across the four covered leagues — and
+  `"Undisclosed"`, at eighty occurrences, is deliberately **kept**, because it
+  is the report genuinely saying the team would not disclose.
+
+**Still outstanding from this subsection.** Step 3, per-fixture news, is not
+built. The provider does tag articles by team id, so it is feasible as
+specified; it is simply a separate increment from the injury and starter work.
 
 #### 4.2.b Model input
 

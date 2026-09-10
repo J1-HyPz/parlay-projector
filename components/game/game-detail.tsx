@@ -18,6 +18,7 @@ import {
   RecentGames,
   TeamComparison,
 } from './game-sections';
+import { Availability } from './availability';
 import { GameHeader } from './game-header';
 import { useGameDetail } from './game-data';
 import { MarketExplorer } from './market-explorer';
@@ -152,6 +153,10 @@ export function GameDetail({ gameId }: { gameId: string }) {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-w-0 space-y-6">
               <GameInformation game={game} />
+              {/* Above the historical sections: who is playing is the most
+                  time-sensitive thing on this page, and the only part of it
+                  that can change between opening the page and kick-off. */}
+              <Availability game={game} />
               <TeamComparison game={game} />
               <RecentGames game={game} />
             </div>

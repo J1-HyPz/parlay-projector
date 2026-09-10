@@ -11,6 +11,7 @@
  */
 
 import type { ConcreteSportId, GameStatus, Venue } from '../home/types';
+import type { FixtureAvailability } from './availability-normalise';
 
 /** Win / draw / loss from one team's point of view. */
 export type FormResult = 'W' | 'D' | 'L';
@@ -93,6 +94,16 @@ export interface GameDetail {
    * competition is covered; empty otherwise.
    */
   head_to_head: RecentGame[];
+  /**
+   * Who is and is not playing, where the provider says so.
+   *
+   * Null carries meaning and is not the same as empty: it says the provider
+   * publishes no availability data for this competition at all — the state
+   * every football fixture is in. An object with empty player lists is the
+   * provider actively reporting that nobody is missing. The interface must
+   * keep those two apart.
+   */
+  availability: FixtureAvailability | null;
   /**
    * Which provider supplied which enriched field. Recorded for debugging and
    * provider comparison; contains no credentials.
