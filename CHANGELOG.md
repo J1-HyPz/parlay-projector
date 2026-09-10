@@ -32,10 +32,36 @@ MLB projections that account for who is pitching, and a long-run history
 archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
 uncertain it is, a baseball model that no longer claims to be more certain than
-it is, baseball totals that account for the temperature, and every other sport
-checked the same way. 860 tests.
+it is, baseball totals that account for the temperature and for the ballpark,
+and every other sport checked the same way. 871 tests.
 
 ### Added
+
+**Baseball totals now account for the ballpark**
+
+- A projected total for a game at **Coors Field** was running about 1.4 runs
+  light, and one at **T-Mobile Park** about 0.7 runs heavy, in every one of the
+  five archived seasons. Both are now corrected, along with every ground in
+  between.
+- The cause was not the ground being ignored — it was the *rating*. A club's
+  scoring rate is built from every game it plays, half of them at its own
+  ground, so a club at an extreme park carries a rate that is too low for its
+  home fixtures and too high for its away ones. Colorado's totals ran 1.39 runs
+  light at Coors and 1.23 runs heavy on the road, and across the league the two
+  errors mirror each other at r = -0.947. Correcting the home half alone would
+  have left the away half exactly as wrong.
+- So the adjustment weighs **this ground against the ground the visitor is
+  rated on**, and is split evenly between the two sides — it changes how much
+  scoring the model expects and never who it favours. Across 7,483 held-out
+  fixtures the projected margin moved on none of them.
+- When it fires, the game page **says so**, naming the ground. A total that
+  moved for a reason a reader cannot see is the same failure as an invented
+  one, a step removed.
+- **Baseball only.** Basketball and ice hockey were measured the same way and
+  came out worse, so neither is touched.
+- Nothing is adjusted at a neutral site, for a club in a temporary home (the
+  Athletics and the Rays both are), or where either club has no measured
+  ground. Those fixtures project exactly as they did before.
 
 **Head to head that goes back years, not weeks**
 

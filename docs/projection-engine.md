@@ -540,6 +540,111 @@ on every date sampled, so such fixtures simply get no adjustment. That is
 conservative in the right direction, at the cost of forgoing one when the roof
 was open.
 
+### The ground
+
+`lib/projections/parks.ts`. **MLB only**, and it is not the feature §4.7 of the
+v2 spec proposed.
+
+**What was proposed, and why it was refused.** The spec proposed blending each
+team's own `homeAttack` / `awayAttack` rates into the expected score. Measured
+across thirteen competitions and 1,443 team-seasons, a team's home/away split
+carries no signal to blend. Under the null that every club shares one
+league-wide split, the expected spread of observed splits is computable from
+per-game scoring variance and games played — and in twelve of the thirteen the
+*observed* spread sits at or below it:
+
+| | mean split | observed SD | noise SD | reliability | odd/even | season to season |
+|---|---|---|---|---|---|---|
+| NFL | 2.20 | 4.17 | 4.37 | 0 | — | -0.08 |
+| NHL | 0.24 | 0.35 | 0.36 | 0 | -0.12 | +0.09 |
+| EPL | 0.27 | 0.37 | 0.39 | 0 | -0.05 | +0.24 |
+| NCAAF | 6.34 | 6.52 | 7.21 | 0 | — | +0.14 |
+| NBA | 2.10 | 2.81 | 2.60 | 0.14 | +0.07 (t=0.90) | +0.08 (t=0.91) |
+| **MLB** | 0.03 | 0.76 | 0.59 | **0.40** | **+0.32 (t=4.13)** | **+0.32 (t=3.64)** |
+
+No direct test of persistence reaches significance outside baseball. A blended
+split would have been fitted to sampling noise.
+
+**Baseball's split is real, and it is the ballpark rather than the team.** Two
+measurements separate those. A club's home *scoring* split and its home
+*conceding* split move together (r = +0.275): a genuine home advantage would
+push them apart, since a side playing better at home should also concede less
+there, whereas a ground that helps hitters helps both sides. And the same
+ground repeats the following season (r = +0.426), which a property of a roster
+would not.
+
+**What the model was actually getting wrong was the rating, not the ground.** A
+club's scoring rate is built from every game it plays, half at its own ground
+and half spread over everyone else's, so a club at an extreme park carries a
+rate too low for its home fixtures and too high for its away ones. Across five
+archived seasons the two errors mirror each other at **r = -0.947**: Colorado's
+totals ran 1.39 runs light at Coors and 1.23 heavy on the road, Seattle's the
+same in reverse. A bonus applied at Coors alone would have corrected one half
+and left the other untouched.
+
+So the adjustment is a **difference** — this ground's factor against the factor
+the visitor's own rating carries in:
+
+```
+adjustment = clamp((factor[home] - factor[away]) * weight, -cap, cap)
+```
+
+Fitted as two free weights, the two terms came out very nearly equal and
+opposite (+0.20 and -0.25), which is the signature a mirrored error must have.
+
+A factor is measured as **the host's total runs at this ground minus the same
+host's total away from it**. Subtracting a club from itself cancels its own
+quality, which a raw average at the ground would absorb whole — Coors would
+look inflated by however good the Rockies happened to be that year.
+
+Properties, all asserted in tests:
+
+- **Split evenly across both sides**, so the margin is preserved exactly. This
+  is the same measurement that identified the effect: a park helps both sets of
+  hitters, so it can move how much scoring the model expects but never who it
+  favours. Verified on the analytic expectation across 7,483 held-out fixtures
+  — the margin moved on **zero** of them.
+- **The venue is checked, not assumed.** A fixture away from the home club's
+  own ground — a neutral site, a relocation, a renamed park — gets no
+  adjustment. Both clubs must carry a factor or none is applied, because
+  applying one term without the other moves the total by a whole park factor
+  where the evidence supports a fraction of the gap.
+- **Capped**, at 1 run. It binds on exactly one pairing in either direction:
+  Coors against T-Mobile, a 4.18-run gap that weights to 1.045.
+- **Absent means measured-and-rejected, not unexamined.** Basketball and ice
+  hockey went through the identical forward-chained test and both came out
+  *worse* — paired t of +0.47 and +0.94, error moving the wrong way.
+
+**Gate**, forward-chained so every fixture is corrected using only seasons
+before its own, over 7,483 held-out fixtures in 2023-2025:
+
+| | before | after | |
+|---|---|---|---|
+| total MAE | 3.5793 | **3.5681** | paired t **-3.09** at the shipped weight |
+| per-ground bias, RMS over 32 grounds | 0.3773 | **0.2943** | |
+| Coors Field bias | -1.406 | **-0.678** | |
+| T-Mobile Park bias | +0.710 | **+0.386** | |
+| margin MAE | 3.4675 | 3.4680 | unchanged, as it must be |
+| Brier | 0.2457 | 0.2457 | |
+
+The weight is **0.25**, not the 0.30 that minimises error. Error is flat from
+0.25 to 0.35, and 0.25 gives the same figure to three ten-thousandths of a run,
+a slightly better per-ground bias, and a materially firmer result (t = -3.09
+against -2.67). Where a curve is flat, the better-established point on it is
+the one to stand on. Above 0.4 the correction overshoots and the gain
+collapses, which is independent evidence that the ratings already carry most of
+the park.
+
+**A note on how this was measured.** The harness scores
+`projection.expected_total`, which is the *mean of the simulated draws* and so
+carries sampling noise of about 4.4/sqrt(simulations) runs — roughly 0.09 at the
+default 2,500, the same order as the adjustment being tested. That does not bias
+the comparison but it costs power, and it made an early run of this gate read
+t = -1.93. `projectGame` returns the analytic `expected` beside the
+distribution, and scoring that is the noise-free limit of the same measurement;
+re-running the simulated path at 12,000 draws agreed with it (t = -2.82 against
+-2.71 at weight 0.30).
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the
@@ -716,9 +821,10 @@ the model's own probability expressed as a decimal, labelled as such.
   competitions share one average, so a mid-table Serie A side and a mid-table
   League One side start from the same baseline. Elo separates them over time
   through European ties, but the scoring rates do not.
-- **Home/away splits are computed but only lightly used** — they feed data
-  quality rather than the expected score, because four home games is not enough
-  to justify a separate rate.
+- **Home/away splits are computed but deliberately not used** — they feed data
+  quality rather than the expected score, and that is a measurement rather than
+  a shortcut — thirteen competitions were checked and twelve show no signal to
+  use. See "The ground" above.
 - **Parameters are calibrated assumptions, not learned.** The home advantages
   and baseline totals come from published long-run averages for each
   competition. Once enough settled predictions exist, the calibration buckets

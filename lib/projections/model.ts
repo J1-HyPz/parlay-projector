@@ -37,6 +37,7 @@ import type { SportModelConfig } from './config.ts';
 import { blendedDefence } from './pitchers.ts';
 import type { FixturePitchers } from './pitchers.ts';
 import { totalAdjustment } from './weather.ts';
+import { parkTotalAdjustment } from './parks.ts';
 import type { FixtureConditions } from './weather.ts';
 
 export interface ExpectedScores {
@@ -73,6 +74,14 @@ export function expectedScores(
   pitchers?: FixturePitchers | null,
   /** Conditions at the fixture, where they are known and measured to matter. */
   conditions?: FixtureConditions | null,
+  /**
+   * The ground, by the provider's name for it.
+   *
+   * Used to confirm a fixture really is at the home club's own park before any
+   * park factor is applied. Absent means no park adjustment, which is the same
+   * answer a neutral site gets.
+   */
+  venue?: string | null,
 ): ExpectedScores | null {
   const home = set.ratings.get(homeName);
   const away = set.ratings.get(awayName);
@@ -158,6 +167,22 @@ export function expectedScores(
   const conditionAdjustment = totalAdjustment(config, conditions) / 2;
   expectedHome += conditionAdjustment;
   expectedAway += conditionAdjustment;
+
+  /*
+   * The ground, split evenly for the same reason and with one more behind it.
+   *
+   * Evenly because a park that helps hitters helps both sets of them: the
+   * measurement that identified this effect is precisely that a club's home
+   * scoring and home conceding move *together*, which is what separates a
+   * ballpark from a home advantage. Splitting in half preserves the margin
+   * exactly, so this can never change who the model favours.
+   *
+   * Zero for every competition but baseball, for a fixture away from the home
+   * club's own ground, and for either club missing a factor.
+   */
+  const parkAdjustment = parkTotalAdjustment(config, homeName, awayName, venue) / 2;
+  expectedHome += parkAdjustment;
+  expectedAway += parkAdjustment;
 
   // A negative expectation is not a scoreline. The floor is a tenth of the
   // league average, which is far below any real team and still positive.

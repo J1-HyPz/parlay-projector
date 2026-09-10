@@ -4,7 +4,9 @@
 built, filled and read, §4.4 has been run for every competition with settled
 data, §4.9 — the distributional fix §4.4 uncovered but could not make — has
 shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
-blocked at the provider. §4.7 and §4.8 are still a plan. Companion to
+blocked at the provider, and §4.7 has shipped as something other than what it
+proposed — the split it named was measured and refused, and the venue effect
+underneath it shipped instead. §4.8 is still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1265,6 +1267,12 @@ check.
 
 ### 4.7 Home/away splits into the expected score
 
+**Refused as proposed, and shipped as the effect underneath it.** The blend
+this section specifies was measured across thirteen competitions before being
+built, and there is nothing there to blend. Baseball's split turned out to be
+real and to belong to the ballpark rather than the team, and that is what
+shipped. Evidence at the end of the section.
+
 **Why.** `TeamRating.homeAttack` / `awayAttack` are computed today but, per
 the model's own documentation, only feed `data_quality`. The venue effect the
 model actually prices is one flat `homeAdvantage` constant, identical for
@@ -1296,6 +1304,119 @@ refits the same constant.
   in the same change.
 - A team below the (stricter) split-trust minimum behaves identically to
   today — the split contributes nothing until it has enough to say something.
+
+**The measurement, run 2026-09-10, and what it refused.**
+
+The premise was tested before the blend was written. Under the null that every
+club in a competition shares one league-wide split, the spread of observed team
+splits is entirely sampling error — and that error is computable from per-game
+scoring variance and games played. Anything beyond it is real between-team
+variance, and the ratio is the reliability, which *is* the `splitTrust` this
+section asks for. Measured over 1,443 team-seasons:
+
+| | mean split | observed SD | noise SD | reliability | odd/even | season to season |
+|---|---|---|---|---|---|---|
+| NFL | 2.20 | 4.17 | 4.37 | 0 | — | -0.08 |
+| NHL | 0.24 | 0.35 | 0.36 | 0 | -0.12 (t=-1.48) | +0.09 (t=1.03) |
+| EPL | 0.27 | 0.37 | 0.39 | 0 | -0.05 (t=-0.42) | +0.24 (t=1.97) |
+| NCAAF | 6.34 | 6.52 | 7.21 | 0 | — | +0.14 (t=0.90) |
+| WNBA | 2.62 | 5.04 | 5.13 | 0 | — | +0.17 (t=0.80) |
+| La Liga | 0.36 | 0.359 | 0.356 | 0.02 | +0.08 (t=0.65) | +0.08 (t=0.65) |
+| Bundesliga | 0.36 | 0.44 | 0.43 | 0.06 | -0.08 (t=-0.50) | +0.08 (t=0.62) |
+| Serie A | 0.18 | 0.37 | 0.36 | 0.06 | -0.03 (t=-0.27) | -0.14 (t=-1.10) |
+| League One | 0.27 | 0.354 | 0.333 | 0.12 | +0.03 (t=0.33) | +0.06 (t=0.49) |
+| NBA | 2.10 | 2.81 | 2.60 | 0.14 | +0.07 (t=0.90) | +0.08 (t=0.91) |
+| Championship | 0.29 | 0.360 | 0.326 | 0.18 | +0.14 (t=1.48) | +0.08 (t=0.67) |
+| **MLB** | 0.03 | 0.76 | 0.59 | **0.40** | **+0.32 (t=4.13)** | **+0.32 (t=3.64)** |
+
+In twelve of the thirteen the observed spread sits at or below what noise alone
+produces, and **not one direct test of persistence reaches significance outside
+baseball**. There is no split to blend, and a `splitTrust` curve — however
+strict — would have been weighting sampling error.
+
+**Baseball's split is the ballpark, not the team.** Two measurements separate
+those, and they agree. A club's home *scoring* split and its home *conceding*
+split move together at r = +0.275: a genuine home advantage would push them
+apart, since a side playing better at home should also concede less there,
+whereas a ground that helps hitters helps both sides equally. And the same
+ground repeats the following season at r = +0.426, which a property of a roster
+would not. The ordering the archive produced is baseball's known one — Coors
+Field two runs clear at the top, T-Mobile Park at the bottom — which is a check
+on the measurement rather than a claim made for it.
+
+**And the model was not missing a venue effect — it was mis-carrying a rating.**
+This is the part that changed what got built. A club's scoring rate is built
+from every game it plays, half at its own ground, so a club at an extreme park
+carries a rate too low for its home fixtures and too high for its away ones.
+The two errors mirror each other at **r = -0.947**: Colorado ran 1.39 runs
+light at Coors and 1.23 heavy on the road, Seattle the same in reverse, and
+each pair sums to roughly zero. A `venueAttack` term applied to the home side —
+which is what this section specifies — would have corrected one half and left
+the other untouched, *and* would have moved the margin, when the measurement
+says the effect is on the total and falls on both sides equally.
+
+So what shipped is a difference between two carried biases, split evenly:
+`clamp((factor[home] - factor[away]) * weight, -cap, cap)`. Fitted as two free
+weights the terms came out nearly equal and opposite (+0.20 and -0.25), the
+signature a mirrored error must have.
+
+**Gate, met.** Forward-chained — every fixture corrected using only seasons
+before its own — over 7,483 held-out fixtures across 2023-2025:
+
+| | before | after |
+|---|---|---|
+| total MAE | 3.5793 | **3.5681** (paired t **-3.09**) |
+| per-ground bias, RMS over 32 grounds | 0.3773 | **0.2943** |
+| Coors Field bias | -1.406 | **-0.678** |
+| T-Mobile Park bias | +0.710 | **+0.386** |
+| margin MAE | 3.4675 | 3.4680 |
+| Brier | 0.2457 | 0.2457 |
+
+**This section's stated double-counting risk did not arise, and no
+`homeAdvantage` refit was needed.** The acceptance criterion above requires one
+because the proposed blend would have competed with the flat constant for the
+same effect. What shipped does not: it is a *total* adjustment that preserves
+the margin exactly — verified analytically, the margin moved on zero of 7,483
+fixtures — while `homeAdvantage` is a *margin* constant that leaves the total
+untouched. The two are orthogonal by construction, which is why the criterion
+is recorded as inapplicable rather than quietly skipped.
+
+**Baseball only.** Basketball and ice hockey went through the identical
+forward-chained test and both came out *worse* — paired t of +0.47 and +0.94,
+error moving the wrong way, and their free-weight fits incoherent for a park
+mechanism (both terms the same sign for the NHL). Neither carries a `parks`
+block.
+
+**Two methodological notes, in the spirit of §4.4's.**
+
+- **Leave-one-season-out lends a later season to an earlier one.** A first pass
+  fitted each season's factors from the other four and reported t = -3.64. Park
+  factors are stable across years so the leakage is mild, but it is leakage.
+  Forward-chaining — factors from strictly earlier seasons only — is what a
+  live projection actually has, and it reported t = -2.55 at the same weight.
+  The stricter number is the one this shipped on.
+- **The harness scores a *simulated* mean, and that costs power.**
+  `projection.expected_total` is the mean of the simulated draws, carrying
+  sampling noise of about 4.4/sqrt(simulations) runs — roughly 0.09 at the
+  default 2,500, which is the same order as the adjustment being measured. It
+  does not bias the comparison, but it inflates the paired variance, and an
+  early run of this gate read t = -1.93 for that reason alone. `projectGame`
+  returns the analytic `expected` beside the distribution; scoring that is the
+  noise-free limit of the same measurement, and re-running the simulated path
+  at 12,000 draws agreed with it.
+
+**One choice worth stating.** The weight ships at **0.25**, not the 0.30 that
+minimises error. The curve is flat from 0.25 to 0.35; 0.25 gives the same error
+to three ten-thousandths of a run, a slightly better per-ground bias, and a
+materially firmer result (t = -3.09 against -2.67). Where a curve is flat, the
+better-established point on it is the one to stand on.
+
+**Not done: a park-neutral rating.** This corrects the *symptom* — the model's
+expected total — while the ratings themselves still carry the blend. Neutralising
+each result by its ground before the rates are built would fix the cause, and
+would also improve the team rates that feed everything else rather than the
+total alone. It is a larger change than this phase warranted and it is not
+assumed to be an improvement; it would need its own measurement.
 
 ---
 
@@ -1389,9 +1510,17 @@ different objects.
    class is a caution factor, not a blended rating across divisions. Tennis
    ratings carry a surface-specific component alongside the overall rating,
    since hard, clay and grass performance genuinely differ — closer in shape
-   to the home/away split idea in §4.7 than to anything else already built,
-   and gated the same way: backtested before it earns weight relative to the
-   overall rating.
+   to the home/away split idea in §4.7 than to anything else already built.
+   **Which is now a warning rather than a precedent.** That split was measured
+   before it was built and carried no signal in twelve of thirteen
+   competitions: the spread of observed team splits sat at or below what
+   sampling noise alone produces. "Hard, clay and grass performance genuinely
+   differ" is exactly the kind of claim that sounds obviously true and has to
+   be measured anyway, and the reliability calculation §4.7 used — observed
+   spread against the spread sampling error alone would produce — is the test
+   to run on a surface split before a line of it is written. A
+   surface-specific component ships only if that test says there is something
+   to weight, and then only if a backtest agrees.
 
 **Gate.** Nothing in this subsection ships on its own — it is the shared
 scaffolding §4.8.b and §4.8.c are built on. The first thing that ships is
@@ -1556,7 +1685,7 @@ failure in a place that happens not to touch a number.
 | 4 | §4.4 Recalibration | The harness already exists and is proven; best chance of finding another real problem; benefits directly from §4.3 landing first |
 | 5 | §4.5 Weather | Free, keyless source; a bounded, well-precedented integration point |
 | 6 | §4.6 F1 reliability | Contingent — costs one API check to find out whether it's even possible |
-| 7 | §4.7 Home/away splits | Highest double-counting risk on this list; wants §4.4 already landed for the sports it touches |
+| 7 | §4.7 Home/away splits | Highest double-counting risk on this list; wants §4.4 already landed for the sports it touches. **Outcome:** the risk never arose, because the proposed blend was measured and refused — what shipped is a total-only venue correction, orthogonal to `homeAdvantage` by construction |
 | 8 | §4.8 New sports | Largest and riskiest single addition — new model families, new type-system surface, coverage entirely unverified. Wants §4.3's archive already proven, and the existing recalibration methodology already validated across more sports, before extending it to three structurally different ones |
 
 ## 8. Acceptance criteria for v2 as a whole

@@ -27,6 +27,7 @@ import { dataQuality, estimateConfidence, qualityReasons, squadCount } from './f
 import type { SquadNews } from './features.ts';
 import type { FixturePitchers } from './pitchers.ts';
 import { describeAdjustment, totalAdjustment } from './weather.ts';
+import { describeParkAdjustment, parkTotalAdjustment } from './parks.ts';
 import type { FixtureConditions } from './weather.ts';
 import type { RatingSet, TeamRating } from './features.ts';
 import { backingFor, orientFactors } from './factors.ts';
@@ -142,8 +143,27 @@ function buildFactors(
   availability: SquadNews | null,
   pitchers: FixturePitchers | null,
   conditions: FixtureConditions | null,
+  venue: string | null,
 ): ProjectionFactor[] {
   const factors: ProjectionFactor[] = [];
+  /*
+   * Inputs that moved the projection, kept apart from the ones that describe
+   * it.
+   *
+   * Everything in `factors` is a statement about the sides — their rates, their
+   * form, the rating gap. True, and identical in shape for every fixture in the
+   * competition. The three below are different in kind: each one reports a
+   * number this projection was actually shifted by, for a reason specific to
+   * this fixture.
+   *
+   * They are returned first because the game page shows the leading few, and a
+   * reader who sees a total they did not expect is looking for exactly these.
+   * Ordered the other way round, a 0.74-run park adjustment sits below four
+   * lines of league-average boilerplate and never appears — which is the
+   * invisible input this file's own comments say the application exists to
+   * avoid.
+   */
+  const adjustments: ProjectionFactor[] = [];
   const favouredHome = distribution.meanMargin >= 0;
   const favourite = favouredHome ? home : away;
 
@@ -256,9 +276,32 @@ function buildFactors(
     config.scoring === 'poisson' ? 'runs' : 'points',
   );
   if (weatherText) {
-    factors.push({
+    adjustments.push({
       text: weatherText,
       subject: { kind: 'scoring', lean: weatherShift > 0 ? 'high' : 'low' },
+      direction: 'positive',
+    });
+  }
+
+  /*
+   * The ground, where it moved the total.
+   *
+   * Stated for the same reason, and it needs stating more than most: this
+   * adjustment fires on a fixture where nothing about either side has changed,
+   * so a reader comparing two Rockies games has no other way to account for
+   * the difference between them.
+   */
+  const parkShift = parkTotalAdjustment(config, home.team, away.team, venue);
+  const parkText = describeParkAdjustment(
+    config,
+    parkShift,
+    home.team,
+    config.scoring === 'poisson' ? 'runs' : 'points',
+  );
+  if (parkText) {
+    adjustments.push({
+      text: parkText,
+      subject: { kind: 'scoring', lean: parkShift > 0 ? 'high' : 'low' },
       direction: 'positive',
     });
   }
@@ -280,7 +323,7 @@ function buildFactors(
       if (!rate) continue;
       const sharper = rate.runs_per_nine < team.adjustedDefence;
 
-      factors.push({
+      adjustments.push({
         text: `${rate.name ?? 'The announced starter'} starts for ${team.team}, allowing ${round(
           rate.runs_per_nine,
         )} runs per nine over ${rate.starts} starts, against a team rate of ${round(
@@ -328,7 +371,7 @@ function buildFactors(
     }
   }
 
-  return factors;
+  return [...adjustments, ...factors];
 }
 
 // ---------------------------------------------------------------------------
@@ -385,6 +428,7 @@ export function projectGame(
     kickoff,
     options.pitchers ?? null,
     options.conditions ?? null,
+    game.venue?.name ?? null,
   );
   if (!expected) return null;
 
@@ -438,6 +482,7 @@ export function projectGame(
       extras.availability,
       options.pitchers ?? null,
       options.conditions ?? null,
+      game.venue?.name ?? null,
     ),
     generated_at: (options.now ?? new Date()).toISOString(),
   };

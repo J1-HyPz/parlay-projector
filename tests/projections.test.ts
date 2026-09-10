@@ -21,6 +21,11 @@ import {
   weightedMean,
 } from '../lib/projections/math.ts';
 import { describeAdjustment, totalAdjustment } from '../lib/projections/weather.ts';
+import {
+  MLB_PARK_FACTORS,
+  describeParkAdjustment,
+  parkTotalAdjustment,
+} from '../lib/projections/parks.ts';
 import { buildRatings, dataQuality, estimateConfidence, toResults } from '../lib/projections/features.ts';
 import {
   bothScoreProbability,
@@ -1597,5 +1602,147 @@ describe('the weather adjustment', () => {
     const text = describeAdjustment(totalAdjustment(withRule, warm), warm, 'runs');
     assert.ok(text?.includes('warmer'));
     assert.ok(text?.includes('runs'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The ground
+// ---------------------------------------------------------------------------
+
+describe('the park adjustment', () => {
+  const config = modelConfigFor('mlb')!;
+  const factors = {
+    Thin: { venue: 'Altitude Park', factor: 2.4 },
+    Heavy: { venue: 'Sea Level Field', factor: -1.2 },
+    Middling: { venue: 'Ordinary Ground', factor: 0 },
+  };
+  const withParks = { ...config, parks: { weight: 0.3, cap: 1, factors } };
+
+  it('does nothing for a competition that was never measured', () => {
+    /*
+     * Basketball and ice hockey were measured and came out worse, so absence
+     * here is a finding rather than an omission. Either way a config with no
+     * `parks` block must project exactly as it did before this existed.
+     */
+    const unmeasured = { ...modelConfigFor('nhl')! };
+    assert.equal(parkTotalAdjustment(unmeasured, 'Thin', 'Heavy', 'Altitude Park'), 0);
+  });
+
+  it('does nothing away from the home club’s own ground', () => {
+    /*
+     * A neutral site, a relocation, or a provider naming the venue differently.
+     * The factor on file was measured somewhere this fixture is not being
+     * played, so it says nothing about it.
+     */
+    assert.equal(parkTotalAdjustment(withParks, 'Thin', 'Heavy', 'London Stadium'), 0);
+    assert.equal(parkTotalAdjustment(withParks, 'Thin', 'Heavy', null), 0);
+  });
+
+  it('does nothing when either club has no factor', () => {
+    /*
+     * Both terms or neither. The adjustment is the difference between two
+     * carried biases, so applying one alone would move the total by a whole
+     * park factor where the evidence supports a fraction of the gap — worse
+     * than making no adjustment.
+     */
+    assert.equal(parkTotalAdjustment(withParks, 'Thin', 'Unknown', 'Altitude Park'), 0);
+    assert.equal(parkTotalAdjustment(withParks, 'Unknown', 'Heavy', 'Altitude Park'), 0);
+  });
+
+  it('raises the total at a high ground and lowers it at a low one', () => {
+    assert.ok(parkTotalAdjustment(withParks, 'Thin', 'Middling', 'Altitude Park') > 0);
+    assert.ok(parkTotalAdjustment(withParks, 'Heavy', 'Middling', 'Sea Level Field') < 0);
+  });
+
+  it('measures the ground against what the visitor’s rating carries in', () => {
+    /*
+     * The whole mechanism. A club from a high-scoring ground arrives already
+     * rated high, so the same ground needs less of a lift against it than
+     * against a club from a low-scoring one.
+     */
+    const versusThin = parkTotalAdjustment(withParks, 'Thin', 'Thin', 'Altitude Park');
+    const versusHeavy = parkTotalAdjustment(withParks, 'Thin', 'Heavy', 'Altitude Park');
+    assert.equal(versusThin, 0);
+    assert.ok(versusHeavy > versusThin);
+  });
+
+  it('is capped in both directions', () => {
+    const wide = { ...config, parks: { weight: 1, cap: 1, factors } };
+    assert.equal(parkTotalAdjustment(wide, 'Thin', 'Heavy', 'Altitude Park'), 1);
+    assert.equal(parkTotalAdjustment(wide, 'Heavy', 'Thin', 'Sea Level Field'), -1);
+  });
+
+  it('leaves the margin exactly where it was', () => {
+    /*
+     * The invariant that makes this safe: a ground that helps hitters helps
+     * both sets of them, which is the very measurement that identified the
+     * effect as a ballpark rather than a home advantage. Split evenly, it can
+     * move how much scoring the model expects but never who it favours.
+     *
+     * Asserted on the analytic expectation rather than through the simulator,
+     * whose sampled mean margin carries noise of its own.
+     */
+    const set = buildRatings(toResults(syntheticSeason(60), Number.POSITIVE_INFINITY), config);
+    const named = {
+      ...config,
+      parks: {
+        weight: 0.3,
+        cap: 1,
+        factors: {
+          Strong: { venue: 'Altitude Park', factor: 2.4 },
+          Weak: { venue: 'Sea Level Field', factor: -1.2 },
+        },
+      },
+    };
+    const kickoff = Date.now();
+    const plain = expectedScores('Strong', 'Weak', set, config, kickoff, null, null, 'Altitude Park')!;
+    const parked = expectedScores('Strong', 'Weak', set, named, kickoff, null, null, 'Altitude Park')!;
+
+    const shift = parked.home + parked.away - (plain.home + plain.away);
+    assert.ok(shift > 0, `expected the total to rise, got ${shift}`);
+    assert.ok(
+      Math.abs(parked.home - parked.away - (plain.home - plain.away)) < 1e-9,
+      'the margin must not move',
+    );
+  });
+
+  it('describes only an adjustment that actually happened', () => {
+    // A factor for an unadjusted fixture would state something untrue.
+    assert.equal(describeParkAdjustment(withParks, 0, 'Thin', 'runs'), null);
+    const shift = parkTotalAdjustment(withParks, 'Thin', 'Heavy', 'Altitude Park');
+    const text = describeParkAdjustment(withParks, shift, 'Thin', 'runs');
+    // The ground is named, because that is the thing a reader can go and check.
+    assert.ok(text?.includes('Altitude Park'));
+    assert.ok(text?.includes('runs'));
+  });
+});
+
+describe('the committed MLB park table', () => {
+  it('never disagrees with itself about where a club plays', () => {
+    // Two clubs sharing a ground would mean one of them has the wrong venue,
+    // and the venue is the guard that keeps a neutral site unadjusted.
+    const venues = Object.values(MLB_PARK_FACTORS).map((entry) => entry.venue);
+    assert.equal(new Set(venues).size, venues.length);
+  });
+
+  it('reproduces the ordering baseball is known for', () => {
+    /*
+     * Not a decoration. These factors were measured, not typed in, and the
+     * check that the measurement is sound is that it independently recovers
+     * the ordering the sport already knows: altitude at the top, and the
+     * ranking spread across a plausible range rather than a degenerate one.
+     */
+    const sorted = Object.entries(MLB_PARK_FACTORS).sort((a, b) => b[1].factor - a[1].factor);
+    assert.equal(sorted[0][1].venue, 'Coors Field');
+    assert.equal(sorted[sorted.length - 1][1].venue, 'T-Mobile Park');
+    assert.ok(sorted[0][1].factor > 2);
+    assert.ok(sorted[sorted.length - 1][1].factor < -1);
+  });
+
+  it('carries no club whose ground it cannot name', () => {
+    for (const [club, entry] of Object.entries(MLB_PARK_FACTORS)) {
+      assert.ok(entry.venue.length > 0, `${club} has no ground`);
+      assert.ok(Number.isFinite(entry.factor), `${club} has no factor`);
+    }
   });
 });

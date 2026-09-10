@@ -16,6 +16,8 @@
  * docs/projection-engine.md.
  */
 
+import { MLB_PARK_FACTORS } from './parks.ts';
+import type { ParkFactor } from './parks.ts';
 import type { ConcreteSportId } from '../home/types';
 
 /**
@@ -44,6 +46,28 @@ export interface SportModelConfig {
     referenceC: number;
     /** Largest adjustment in either direction, in the sport's own units. */
     cap: number;
+  };
+  /**
+   * The grounds this competition plays at, and how much scoring each adds.
+   *
+   * Corrects a bias in the ratings rather than a property of the fixture. A
+   * club's scoring rate is built from every game it plays, half at its own
+   * ground, so a club at an extreme park carries a rate too low for its home
+   * fixtures and too high for its away ones — mirrored at r = -0.947 across
+   * five archived MLB seasons. `weight` is the share of the gap the ratings
+   * fail to price, fitted rather than assumed.
+   *
+   * Absent for every competition but baseball, and absent means inert: it was
+   * measured for basketball and ice hockey and made both *worse*. §4.7 in
+   * `docs/specs/projection-v2.md` has the numbers.
+   */
+  parks?: {
+    /** Share of the park gap the ratings do not already carry. */
+    weight: number;
+    /** Largest adjustment in either direction, in the sport's own units. */
+    cap: number;
+    /** Home ground and factor per club. See `lib/projections/parks.ts`. */
+    factors: Readonly<Record<string, ParkFactor>>;
   };
   /**
    * How much more a score varies than a Poisson process allows.
@@ -309,7 +333,7 @@ const MLB: SportModelConfig = {
    * A version stamp has to say which change a stored prediction was made
    * under, and these are two unrelated changes to the same competition.
    */
-  modelVersion: 'projection-v1-mlb-sp-disp-wx',
+  modelVersion: 'projection-v1-mlb-sp-disp-wx-park',
   scoring: 'poisson',
   /*
    * Baseball scores in bursts, and plain Poisson cannot represent that: the
@@ -345,6 +369,28 @@ const MLB: SportModelConfig = {
    * to say nothing about.
    */
   weather: { perDegreeC: 0.045, referenceC: 22.8, cap: 0.8 },
+  /*
+   * The ballpark, as the ratings fail to price it.
+   *
+   * `weight` was swept forward-chained — every fixture corrected using only
+   * seasons before its own — over 7,483 held-out fixtures. Error is flat
+   * across 0.25 to 0.35 and 0.3 is its nominal floor, but 0.25 is the value
+   * that ships: it gives the same error to three ten-thousandths of a run
+   * (-0.0109 against -0.0112), a slightly *better* per-ground bias, and a
+   * materially firmer result (paired t -3.09 against -2.67). Where a curve is
+   * flat, the better-established point on it is the one to stand on.
+   *
+   * Above 0.4 the correction overshoots and the gain collapses; at 1.0 error
+   * gets worse outright. That is the direct evidence that the ratings already
+   * carry most of the park and only a fraction of it is left to add — the same
+   * conclusion the residual slope reached from the other direction.
+   *
+   * The cap binds on exactly one pairing, in either direction: Coors against
+   * T-Mobile is a 4.18-run gap, which weights to 1.045 and is truncated to 1.
+   * It was in place for the backtest that gated this, so the measured result is
+   * the capped behaviour rather than an uncapped one bounded afterwards.
+   */
+  parks: { weight: 0.25, cap: 1, factors: MLB_PARK_FACTORS },
   hasDraw: false,
   supportsSpread: true,
   baselineTotal: 8.6,

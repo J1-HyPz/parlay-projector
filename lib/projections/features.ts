@@ -93,7 +93,23 @@ export interface TeamRating {
   adjustedDefence: number;
   /** Volatility of this team's scoring, for the confidence estimate. */
   scoreVariability: number | null;
-  /** Home and away splits, null until a team has played enough of each. */
+  /**
+   * Home and away scoring rates, null until a team has played enough of each.
+   *
+   * **These deliberately do not feed the expected score, and the reason is a
+   * measurement rather than an oversight.** §4.7 of the v2 spec proposed
+   * blending them in. Across thirteen competitions and 1,443 team-seasons a
+   * team's home/away split has no reliability worth the name: the spread of
+   * observed splits sits at or below what sampling noise alone produces in
+   * twelve of them, and no direct test of persistence — odd/even halves within
+   * a season, or season to season — reaches significance outside baseball.
+   * Baseball's split is real and turned out to be the ballpark rather than the
+   * team, which is handled in `parks.ts` and belongs to the ground, not here.
+   *
+   * What they are still good for is what they are still used for: knowing a
+   * team has played a real sample of both is evidence about how much the
+   * projection knows, which is `dataQuality`'s job and not the model's.
+   */
   homeAttack: number | null;
   awayAttack: number | null;
   /** Most recent kick-off, for the rest calculation. */
@@ -251,7 +267,14 @@ export function buildRatings(
 
     const homeGames = list.filter((a) => a.home);
     const awayGames = list.filter((a) => !a.home);
-    // A split needs its own sample; three home games says nothing.
+    /*
+     * A split needs its own sample; three home games says nothing.
+     *
+     * Four is enough for the data-quality signal these feed, and would be far
+     * too few for a scoring rate — which is moot, because the splits were
+     * measured and carry no predictive signal at any sample size. See the
+     * field documentation on `TeamRating`.
+     */
     const SPLIT_MINIMUM = 4;
 
     ratings.set(team, {
