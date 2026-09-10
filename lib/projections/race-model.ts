@@ -25,6 +25,26 @@
  *   is a real limitation and it is stated rather than papered over with an
  *   invented failure rate.
  *
+ *   Checked rather than assumed, 2026-09-10, because this claim is the reason
+ *   an entire planned phase does not proceed. Three avenues, all dead:
+ *
+ *     The scoreboard's competitor carries `id`, `uid`, `type`, `order`,
+ *     `winner`, `athlete` and `statistics` — and `statistics` is an empty
+ *     array on every session, the race included.
+ *
+ *     Absence from the classified order does not stand in for it. Across seven
+ *     2025 races the race field matched the qualifying field in six; a sport
+ *     that retires two or three cars in a typical Grand Prix would differ far
+ *     more often, so the classified list plainly includes the retirements.
+ *
+ *     The core API has no competitors resource for a race competition at all
+ *     (404). Its `/statistics` is a category descriptor carrying no per-driver
+ *     values, and its `/status` is the session's clock and period rather than
+ *     any driver's classification.
+ *
+ *   So the field is absent rather than merely unread, and modelling
+ *   reliability would mean inventing the one number it needs.
+ *
  *   Pace, tyres, pit stops, weather, circuit characteristics. None are
  *   published on this feed. Circuit-specific ratings would need years of
  *   per-track history the provider does not expose, and inventing them would be

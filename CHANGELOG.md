@@ -122,6 +122,19 @@ checked the same way. 860 tests.
 
 ### Changed
 
+**Formula 1 reliability was investigated and cannot be modelled**
+
+- Retirements are the biggest thing a Formula 1 projection does not account
+  for, so the planned work started by checking whether the data provider says
+  who retired. It does not — verified three separate ways, not assumed.
+- The driver records carry a finishing order and nothing else: no retirement
+  marker, no lap count, no status. Working it out from who is missing does not
+  work either, because retired drivers are still listed, just at the back.
+- So a retirement is indistinguishable from a slow race, and the projections
+  continue to say so plainly rather than inventing a breakdown rate. The
+  finding is now recorded with its date and evidence, so the same check is not
+  repeated from scratch later.
+
 **NBA projections no longer claim to be more uncertain than they are**
 
 - Basketball's model stated a margin spread of about 17 points while its own

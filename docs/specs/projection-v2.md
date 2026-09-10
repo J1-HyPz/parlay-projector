@@ -3,8 +3,8 @@
 **Status: in progress.** §4.1 and §4.2 have shipped in full, §4.3's archive is
 built, filled and read, §4.4 has been run for every competition with settled
 data, §4.9 — the distributional fix §4.4 uncovered but could not make — has
-shipped, and §4.5 has shipped for baseball. §4.6 through §4.8 are still a plan.
-Companion to
+shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
+blocked at the provider. §4.7 and §4.8 are still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1201,6 +1201,10 @@ nothing.
 
 ### 4.6 F1 reliability
 
+**Checked, and blocked.** The contingent step below was run on 2026-09-10 and
+the field is genuinely absent, so this phase stops exactly where it says it
+should. Evidence at the end of the section.
+
 **Contingent phase.** Before any modeling work: pull one live race payload
 and check whether the provider carries a status, classified, or retired field
 the normaliser currently discards. `race-model.ts` states plainly today that
@@ -1226,6 +1230,36 @@ place.
   case built for the test.
 - `RACE_MODEL_VERSION` bumps independently of the main `MODEL_VERSION`, the
   same separation the race model already keeps.
+
+**The check, run 2026-09-10. Three avenues, all dead.**
+
+- **The scoreboard's competitor object** carries `id`, `uid`, `type`, `order`,
+  `winner`, `athlete` and `statistics` — and `statistics` is an empty array on
+  every session, the race included. There is no status, classified or retired
+  field to have been discarded.
+- **Absence from the classified order does not stand in for one.** This looked
+  briefly promising: the 2025 Spanish Grand Prix lists twenty cars in
+  qualifying and nineteen in the race. But across seven races that season, six
+  had identical qualifying and race fields — and a sport that retires two or
+  three cars in a typical Grand Prix would differ far more often than one race
+  in seven. The classified list plainly includes the retirements, ordered at
+  the back with nothing to mark them.
+- **The core API has no competitors resource for a race competition at all**
+  (404). Its `/statistics` is a category descriptor carrying no per-driver
+  values, and its `/status` is the session's clock and period rather than any
+  driver's classification.
+
+So the field is absent rather than merely unread — which is what this section
+required the check to establish, and the answer it named a stop for. Nothing is
+modelled and no failure rate is invented. `race-model.ts` already stated this
+limitation; it now states it as verified, with the date and the three avenues,
+so the next person does not re-run the same check blind.
+
+**What would unblock it.** A provider that publishes a per-driver race status,
+or lap counts from which a retirement can be inferred. Neither is available on
+the feed this application uses, and no substitute source is assumed in its
+place — the same rule §4.8 applies to a new sport that fails its discovery
+check.
 
 ---
 
