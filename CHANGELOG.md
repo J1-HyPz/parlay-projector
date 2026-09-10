@@ -30,7 +30,8 @@ scores per competition, and injury and starting-pitcher information on the game
 page, projections that now say who is missing instead of claiming nobody knows,
 MLB projections that account for who is pitching, and a long-run history
 archive that survives redeploys and finally makes head-to-head go back further
-than the current season. 826 tests.
+than the current season, and a basketball model that no longer overstates how
+uncertain it is. 840 tests.
 
 ### Added
 
@@ -89,6 +90,32 @@ than the current season. 826 tests.
   it as empty.
 
 ### Changed
+
+**NBA projections no longer claim to be more uncertain than they are**
+
+- Basketball's model stated a margin spread of about 17 points while its own
+  errors measured about 14.5 — **seventeen per cent too wide**, in both seasons
+  checked. A model that overstates its uncertainty prices every handicap and
+  total as closer to a coin flip than it really is.
+- This is the NCAA Football problem in mirror image. That one was too
+  *narrow*, and pricing was too confident; this one was too wide, and pricing
+  was not confident enough. Both misprice, in opposite directions.
+- Fitted on 2022-2024 and checked on **2025 and 2026 held out** — 2,660
+  fixtures. The stated width now lands within a fifth of a point of the
+  measured error in both, and both Brier score and log loss improve in both.
+- Only basketball changed. NBA predictions are stamped
+  `projection-v1-nba-width`; every other sport keeps its own version, so the
+  accuracy breakdown stays a truthful record of what actually moved.
+
+**The NFL was checked the same way and left alone**
+
+- Five seasons, 2021-2025, held out on two. `baselineTotal` measured 44.79
+  against the configured 44 — and changing it moved **nothing at all**, because
+  for this sport it is only a prior that team ratings overwhelm. The stated
+  width already matches the real error to within a point. Home advantage's bias
+  changes sign between seasons, so fitting it to one pair made the next worse.
+- "Measured, and correct as it stands" is a result worth recording, and it is
+  now written into the config so nobody re-runs the same check blind.
 
 **MLB projections account for the announced starting pitcher**
 

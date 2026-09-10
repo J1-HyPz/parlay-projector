@@ -5,9 +5,10 @@
  * `DATA_DIR/history/<league>/<season>.json`.
  *
  * **This is not a longer rating window, and the distinction is the whole
- * point.** `historyDays` feeds `buildRatings` — a team's *current* attack and
- * defence rate — and extending it is the mistake NCAA Football's config
- * already made and this project already fixed: a window reaching into a prior
+ * point.** `historyDays` bounds the fixtures fetched for `buildRatings` — a
+ * team's *current* attack and defence rate — and extending it is the mistake
+ * NCAA Football's config already made and this project already fixed: a window
+ * reaching into a prior
  * season lets a team with no games yet this year borrow last year's roster at
  * a data quality high enough to clear every risk profile. Nothing in this
  * module is wired into `buildRatings`, and nothing read from here may be.

@@ -111,14 +111,47 @@ export interface SportModelConfig {
   shortRestPenalty: number;
 }
 
+/*
+ * Checked against five archived seasons, 2021-2025, and left alone.
+ *
+ * Fitted on 2021-2023 and reported on 2024 and 2025 held out. Every candidate
+ * was scored on the fixtures every candidate projected, because changing
+ * `historyDays` changes which teams clear `minGames` and so which fixtures are
+ * projectable at all — comparing error rates across different fixture sets is
+ * a statement about which games a variant skipped.
+ *
+ *   baselineTotal  measured 44.79 against 44, and moving it changed nothing at
+ *                  all: identical bias, error, Brier and accuracy in both
+ *                  held-out seasons. For a normal-scoring sport this is only
+ *                  the prior a thin rating regresses toward, and the ratings
+ *                  dominate it long before a fixture is projectable.
+ *   homeAdvantage  held-out bias is already +0.47 and -1.61 in the two
+ *                  seasons — it changes sign. Fitting the constant to zero the
+ *                  bias on the fitting seasons pushed it to 3.6 and made
+ *                  held-out bias worse, from 0.45 to 2.19. The edge is not
+ *                  stable enough at this sample size to fit against.
+ *   scoreSd        10 implies a margin SD of 14.14 (each side is sampled
+ *                  independently, so the margin carries a factor of sqrt 2).
+ *                  Measured margin SD is 14.07. Essentially exact.
+ *   historyDays    anything below 300 costs a third of the season: 65%
+ *                  coverage against 99.7%, and worse margin error on what it
+ *                  does project. The comment below was right.
+ *
+ * Recorded so the next person does not re-run the same check blind. The method
+ * is in docs/projection-engine.md; the harness is scripts/calibrate.
+ */
 const NFL: SportModelConfig = {
   scoring: 'normal',
   hasDraw: false,
   supportsSpread: true,
+  // Measured 44.79 across 2021-2025. Left at 44: the difference is inside a
+  // point and provably changes no projection.
   baselineTotal: 44,
   // Long the largest home edge in the major American leagues, though it has
-  // shrunk in recent seasons.
+  // shrunk in recent seasons. Confirmed measured, not assumed: see above.
   homeAdvantage: 1.8,
+  // Per-team, so the implied margin SD is 10 * sqrt2 = 14.14 against a
+  // measured 14.07.
   scoreSd: 10,
   eloK: 20,
   marginPerHundredElo: 2.8,
@@ -130,20 +163,47 @@ const NFL: SportModelConfig = {
   minGames: 4,
   targetGames: 12,
   // A full previous season plus the current one. Anything shorter leaves every
-  // team below the minimum until October.
+  // team below the minimum until October -- measured at 65% coverage against
+  // 99.7%, for worse error on the fixtures it still managed.
   historyDays: 400,
   ratingPool: null,
   shortRestDays: 5,
   shortRestPenalty: 1.0,
 };
 
+/*
+ * Fitted against five archived seasons, 2022-2026, held out on 2025 and 2026.
+ *
+ * One change, and it is the NCAA Football finding in mirror image. NCAAF's
+ * stated width was too *narrow*; basketball's was too *wide*, and both
+ * misprice every threshold market — one by pricing handicaps as more certain
+ * than the model is, the other as less.
+ *
+ * Everything else measured as already correct: `baselineTotal` came out at
+ * 225.61 against 226 and moving it changed nothing at all, and `historyDays`
+ * below 250 costs coverage (88.5% against 99.7%) for worse error on what it
+ * still projects. Recorded so the check is not re-run blind.
+ */
 const NBA: SportModelConfig = {
+  // Bumped when scoreSd was refitted: an NBA projection made after it is not
+  // comparable with one made before, and only NBA's changed.
+  modelVersion: 'projection-v1-nba-width',
   scoring: 'normal',
   hasDraw: false,
   supportsSpread: true,
+  // Measured 225.61. Left at 226 — provably changes no projection.
   baselineTotal: 226,
   homeAdvantage: 2.2,
-  scoreSd: 12,
+  /*
+   * Was 12, which implied a margin SD of 16.97 against a measured error spread
+   * of 14.5 — seventeen per cent too wide, in both held-out seasons.
+   *
+   * Per-team, so the margin the model implies carries a factor of sqrt 2.
+   * At 10.3 the implied width is 14.57 against measured 14.36 and 14.68: the
+   * gap closes from +2.61 and +2.29 to +0.21 and -0.11. Brier and log loss
+   * improve in both seasons over 2,660 fixtures.
+   */
+  scoreSd: 10.3,
   eloK: 20,
   marginPerHundredElo: 3.5,
   eloWeight: 0.4,

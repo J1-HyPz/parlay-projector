@@ -503,6 +503,59 @@ re-derives sample cases from the pre-game slice and asserts the probabilities
 match exactly — if a result were leaking into its own prediction, they would
 not.
 
+**The rating window is bounded at both ends.** The upper bound is the
+look-ahead rule above. The lower bound is `historyDays`, and it was missing:
+live, `leagueGames` fetches only `today - historyDays`, so `buildRatings` never
+sees a game older than that, while the harness was handing it every prior game
+in the list. That measured a model with an unbounded window — not the one that
+ships — and it also made `historyDays` unfittable, since sweeping a value
+nothing read would report "no improvement" at every setting and look like a
+finding.
+
+### Calibrating a competition
+
+`lib/history/calibrate.ts` plus the archive is what replaces an `assumed`
+constant with a measured one. Three rules, each of which produced a wrong
+answer first:
+
+- **Exclude pre-season.** The archive holds every fixture a competition played
+  because they happened; the NFL's 335 a season include about 50 exhibitions.
+  A constant fitted over them is fitted partly on games of backups.
+- **Score every candidate on the fixtures every candidate projected.** Changing
+  `historyDays` changes which teams clear `minGames`, so it changes which
+  fixtures are projectable — 372 under a 120-day window against 570 under 300.
+  Comparing their error rates directly says only which games a variant skipped.
+- **Report coverage beside error.** The rule above fixes one bias and creates
+  another: judged only on what it managed, a short window looks competitive. On
+  the whole season it projects 65% of fixtures against 99.7%. "Coverage against
+  error" is both words.
+
+`scoreSd` is a **per-team** score SD — `model.ts` samples each side
+independently — so the margin the model implies has SD `scoreSd * sqrt(2)`.
+Comparing the constant against a measured margin spread directly makes a
+well-calibrated model look 40% too narrow.
+
+**NBA: `scoreSd` 12 -> 10.3.** The NCAAF finding in mirror image — a stated
+width seventeen per cent *too wide* rather than too narrow, which misprices
+every handicap in the opposite direction. Implied margin SD 16.97 against a
+measured error spread of 14.36 and 14.68 in the two held-out seasons; at 10.3
+the gap closes to +0.21 and -0.11, and Brier and log loss improve in both
+seasons over 2,660 fixtures. Stored under `projection-v1-nba-width`. Nothing
+else moved: `baselineTotal` measured 225.61 against 226 and changed no
+projection, and `historyDays` below 250 costs coverage for worse error.
+
+**NFL: measured, no change warranted.** Five seasons, fitted on 2021-2023 and
+reported on 2024 and 2025 held out. `baselineTotal` measured 44.79 against 44
+and moving it changed nothing at all. `scoreSd` 10 implies a 14.14 margin SD
+against a measured 14.07. `homeAdvantage` bias changes sign between the two
+held-out seasons, and fitting it made held-out bias worse — 0.45 to 2.19.
+`historyDays` below 300 costs a third of the season. Its width was checked the
+same way basketball's was and does not survive it: the gap does close, from
++1.12 to -0.27, but Brier and log loss get marginally *worse* in one held-out
+season and are flat in the other, and a pooled sweep and a per-season check
+disagreed — which is what a noise-sized effect looks like. The findings are
+recorded in the config's own comments so the check is not re-run blind.
+
 ---
 
 ## Cost

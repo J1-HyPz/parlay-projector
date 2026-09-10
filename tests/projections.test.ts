@@ -1282,6 +1282,58 @@ describe('the NCAA Football model', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The basketball fit
+// ---------------------------------------------------------------------------
+
+describe('the NBA fit', () => {
+  const nba = modelConfigFor('nba')!;
+  const nfl = modelConfigFor('nfl')!;
+
+  it('states a width that matches its own error', () => {
+    /*
+     * The NCAA Football finding in mirror image, and the reason this is a
+     * property rather than a constant: what matters is that the stated width
+     * tracks the measured one, not that it equals 10.3. A refit that moved
+     * both should not have to rewrite this test to land.
+     *
+     * Measured error spread across the held-out 2025 and 2026 seasons was
+     * 14.36 and 14.68. The config was 12, implying 16.97 — seventeen per cent
+     * wide, which prices every handicap as less certain than the model is.
+     */
+    const impliedMarginSd = nba.scoreSd * Math.SQRT2;
+    assert.ok(
+      impliedMarginSd > 13.8 && impliedMarginSd < 15.3,
+      `implied margin SD ${impliedMarginSd.toFixed(2)} should sit near the measured 14.4-14.7`,
+    );
+  });
+
+  it('is no longer the widest config in the application', () => {
+    // It was: 12 against the NFL's 10, for a sport whose margins are not
+    // proportionally more volatile once the scale is accounted for.
+    assert.ok(nba.scoreSd < 12, 'the pre-fit value');
+  });
+
+  it('records the fit under its own model version', () => {
+    /*
+     * A projection made before the refit is not comparable with one made
+     * after, and only basketball changed — so the accuracy breakdown by model
+     * version must not relabel every other sport as though it had.
+     */
+    assert.ok(nba.modelVersion, 'the fit is attributable');
+    assert.notEqual(nba.modelVersion, nfl.modelVersion);
+  });
+
+  it('keeps every constant the fit found no reason to move', () => {
+    // Only what was measured moves. baselineTotal came out at 225.61 against
+    // 226 and provably changed no projection; historyDays below 250 cost
+    // coverage for worse error.
+    assert.equal(nba.baselineTotal, 226);
+    assert.equal(nba.homeAdvantage, 2.2);
+    assert.ok(nba.historyDays >= 250, 'a shorter window loses a tenth of the season');
+  });
+});
+
 describe('sport models', () => {
   it('configures each supported sport differently', () => {
     const nfl = modelConfigFor('nfl')!;

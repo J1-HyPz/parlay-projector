@@ -1,8 +1,8 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1 and §4.2 have shipped in full, and §4.3's archive
-(points 1 and 5) is built and filled; everything else is still a plan.
-Companion to
+**Status: in progress.** §4.1 and §4.2 have shipped in full, §4.3's archive is
+built, filled and read, and §4.4 has been run for the NFL and NBA. §4.5 onward
+is still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -874,6 +874,10 @@ it was always described as.
 
 ### 4.4 Recalibration — fit the other seven configs
 
+**Run for the NFL and NBA**, the two the order below names first. One change
+shipped, one competition confirmed correct as it stands. Notes at the end of
+this section; the remaining five are not done.
+
 **Why.** Every configuration but NCAA Football's is currently marked
 `assumed` in `config.ts` — a published long-run average, not anything measured
 against this application's own results. The tool that fixed NCAA Football,
@@ -932,6 +936,63 @@ confirmed seasons the archive now uses.
   zero, width matching error, window shorter than a season where turnover
   applies — not the old constants, the same pattern the NCAAF test suite
   already sets.
+
+---
+
+**Results, run 2026-09-10 against five archived seasons each.**
+
+| Competition | Constant | Verdict |
+|---|---|---|
+| NBA | `scoreSd` 12 -> 10.3 | **Shipped.** Stated width was 17% too wide |
+| NBA | `baselineTotal`, `homeAdvantage`, `historyDays` | Measured, correct as they stand |
+| NFL | all four | **Measured, no change warranted** |
+
+**The NBA finding is NCAAF's in mirror image.** NCAAF's stated width was too
+*narrow*, so every handicap priced as more certain than the model was.
+Basketball's was too *wide* — an implied margin SD of 16.97 against a measured
+error spread of 14.36 and 14.68 across the two held-out seasons. At 10.3 the
+gap closes to +0.21 and -0.11, with Brier and log loss improving in both
+seasons over 2,660 fixtures. Stored under `projection-v1-nba-width`, using the
+per-competition version §4.2.b added.
+
+**The NFL is genuinely well calibrated**, which is worth stating because every
+value in it was marked `assumed`. `baselineTotal` measured 44.79 against 44,
+and moving it changed *nothing at all* — identical bias, error, Brier and
+accuracy in both held-out seasons, because for a normal-scoring sport it is
+only the prior a thin rating regresses toward. `scoreSd` implies 14.14 against
+a measured 14.07. `historyDays` below 300 costs a third of the season.
+
+**Three methodological errors, each of which produced a confident wrong answer
+before it was caught.** They are recorded because the same traps apply to the
+five competitions still to do:
+
+- **The harness was not measuring the shipped model.** `historyDays` bounds the
+  fixtures fetched for `buildRatings` live, but `backtest.ts` handed it every
+  prior game in the list. So it measured a model with an unbounded rating
+  window, and — worse — made `historyDays` unfittable, because sweeping a value
+  nothing read reports "no improvement" at every setting and looks like a
+  finding. Fixed before any constant was fitted.
+- **`scoreSd` is a per-team SD, not a margin SD.** Each side is sampled
+  independently, so the implied margin carries a factor of sqrt 2. Compared
+  directly against a measured margin spread, a well-calibrated model looks 40%
+  too narrow — the first NFL run duly "found" exactly the NCAAF failure and it
+  was an arithmetic error.
+- **Coverage and error have to be read together, and fixing one bias created
+  the other.** Candidates were first compared on whatever each could project,
+  which rewarded short windows for skipping hard fixtures. Restricting every
+  candidate to a common fixture set fixed that and hid the opposite problem: a
+  120-day NFL window looked competitive on what it managed while projecting
+  65% of the season against 99.7%. Judged on the whole season it is worse on
+  both counts. §4.4's own wording — "coverage against error" — is both words.
+
+**A fourth trap avoided rather than hit.** Fitting `homeAdvantage` to zero the
+residual bias on the fitting seasons pushed the NFL's from 1.8 to 3.6 and made
+held-out bias *worse*, 0.45 to 2.19. The bias changes sign between seasons, so
+there was nothing stable to fit. This is exactly what §4.4 warns against when
+it says not to fit to the raw home margin, one step further on.
+
+**Still to do.** MLB, NHL, the football pool, and the CFL, in that order of
+settled sample. AFLE and EFA do not proceed, as this section already states.
 
 ---
 

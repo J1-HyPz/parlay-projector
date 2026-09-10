@@ -109,9 +109,29 @@ export function backtest(
       continue;
     }
 
-    // The cut-off. Strictly before kick-off, so this game and every later one
-    // are invisible to the ratings.
-    const history = played.filter((result) => result.date < kickoff);
+    /*
+     * The window, at both ends.
+     *
+     * The upper bound is the look-ahead rule: strictly before kick-off, so this
+     * game and every later one are invisible to the ratings.
+     *
+     * The lower bound is fidelity, and it was missing. Live, `leagueGames`
+     * fetches only `today - historyDays`, so `buildRatings` never sees a game
+     * older than that. This harness was handing it every prior game in the
+     * list, which meant it measured a model with an unbounded rating window —
+     * not the one that ships. With three archived seasons that is the
+     * difference between rating an NFL team on 400 days and on three years,
+     * and it moves exactly the things a calibration fits: bias, margin error
+     * and the spread of the residuals.
+     *
+     * It also made `historyDays` unfittable. Sweeping it changed nothing,
+     * because nothing here read it — a sweep would have reported "no
+     * improvement" for every value and looked like a finding.
+     */
+    const windowStart = kickoff - config.historyDays * 86_400_000;
+    const history = played.filter(
+      (result) => result.date < kickoff && result.date >= windowStart,
+    );
     if (history.length < minHistory) {
       skipped += 1;
       continue;
