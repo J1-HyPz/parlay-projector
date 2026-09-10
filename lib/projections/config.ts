@@ -347,11 +347,18 @@ const NHL: SportModelConfig = {
  *
  * `baselineTotal` measured 2.74 against 2.7. The raw home margin measured
  * 0.312 against a configured 0.3, and residual bias on the held-out seasons is
- * -0.021 against -0.115 at 0.2 and -0.208 at 0.1 — the configured value is the
- * closest to zero of those measured. The Poisson family fits
+ * -0.021 — the closest to zero across the whole sweep, against -0.115 at 0.2,
+ * -0.208 at 0.1, +0.074 at 0.4 and +0.179 at 0.5. The Poisson family fits
  * well: variance-to-mean between 1.01 and 1.15 across the member competitions,
  * and an implied width within 2% of the model's own measured error, which is
  * the closest match in the application.
+ *
+ * `historyDays` was the one candidate here and is declined. At 500 the pool
+ * covers 91.4% of held-out fixtures against 400's 90.6%, at identical margin
+ * error and a Brier difference of 0.0002 — inside noise, and bought by
+ * reaching further into a previous season than any other config does. Squads
+ * turn over between football seasons, which is the risk decision 5 of the v2
+ * spec exists to guard, and 0.8 points of coverage is not a reason to take it.
  */
 const FOOTBALL: SportModelConfig = {
   scoring: 'poisson',
