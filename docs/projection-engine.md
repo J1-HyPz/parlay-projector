@@ -535,6 +535,33 @@ independently — so the margin the model implies has SD `scoreSd * sqrt(2)`.
 Comparing the constant against a measured margin spread directly makes a
 well-calibrated model look 40% too narrow.
 
+**Is the sport actually Poisson?** Worth asking before fitting anything for a
+Poisson competition, because it asks something no constant can answer. A
+Poisson process fixes the variance of a score at its mean; `measureDispersion`
+reports the observed ratio. Measured across five archived seasons:
+
+| Competition | variance / mean | margin SD | Poisson can produce |
+|---|---|---|---|
+| NHL | 0.99 | 2.62 | 2.49 |
+| La Liga | 1.06 | 1.63 | 1.61 |
+| Serie A | 1.04 | 1.71 | 1.61 |
+| Premier League | 1.10 | 1.90 | 1.71 |
+| Bundesliga | 1.15 | 2.02 | 1.78 |
+| **MLB** | **2.27** | **4.48** | **3.01** |
+
+Ice hockey and football are Poisson to within a few per cent, which is a real
+validation of the model family. **Baseball is not.** Its scores vary more than
+twice as much as the distribution allows, and on held-out seasons the model's
+implied width came out 34% narrower than its own error — so every total, run
+line and team total prices as more certain than the model is. No constant fixes
+it, because a Poisson draw takes its variance from its mean. The fix is a model
+family that admits dispersion, which is larger than recalibration and is
+recorded in the v2 spec rather than attempted.
+
+Note also that `scoreSd` is **inert for a Poisson sport** — `model.ts` reads it
+in the normal branch alone. MLB, NHL and football carry values that change
+nothing, kept only so a config has one shape.
+
 **NBA: `scoreSd` 12 -> 10.3.** The NCAAF finding in mirror image — a stated
 width seventeen per cent *too wide* rather than too narrow, which misprices
 every handicap in the opposite direction. Implied margin SD 16.97 against a
@@ -555,6 +582,16 @@ same way basketball's was and does not survive it: the gap does close, from
 season and are flat in the other, and a pooled sweep and a per-season check
 disagreed — which is what a noise-sized effect looks like. The findings are
 recorded in the config's own comments so the check is not re-run blind.
+
+**MLB and NHL: measured, no change warranted.** Ice hockey is the best-fitting
+config in the application on every axis checked — `baselineTotal` 6.28 against
+6.2, raw home margin 0.257 against 0.25, held-out bias +0.054, and a width
+within 5% of its own error. Baseball's constants also measure close; its
+problem is the distribution above. Its `homeAdvantage` is the one number worth
+a second look — the raw home margin is 0.046 runs against a configured 0.2,
+because a home side leading after eight and a half innings does not bat again —
+but bias favours 0.1 while Brier and log loss favour 0.3, across a total Brier
+range of 0.0013. Nothing is identified well enough to move.
 
 ---
 

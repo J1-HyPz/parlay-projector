@@ -874,9 +874,9 @@ it was always described as.
 
 ### 4.4 Recalibration — fit the other seven configs
 
-**Run for the NFL and NBA**, the two the order below names first. One change
-shipped, one competition confirmed correct as it stands. Notes at the end of
-this section; the remaining five are not done.
+**Run for every competition with settled data.** One constant changed, five
+competitions confirmed correct as they stand, and one finding that
+recalibration cannot address at all. Notes at the end of this section.
 
 **Why.** Every configuration but NCAA Football's is currently marked
 `assumed` in `config.ts` — a published long-run average, not anything measured
@@ -941,11 +941,15 @@ confirmed seasons the archive now uses.
 
 **Results, run 2026-09-10 against five archived seasons each.**
 
-| Competition | Constant | Verdict |
-|---|---|---|
-| NBA | `scoreSd` 12 -> 10.3 | **Shipped.** Stated width was 17% too wide |
-| NBA | `baselineTotal`, `homeAdvantage`, `historyDays` | Measured, correct as they stand |
-| NFL | all four | **Measured, no change warranted** |
+| Competition | Verdict |
+|---|---|
+| NBA | **`scoreSd` 12 -> 10.3 shipped.** Stated width was 17% too wide. Everything else correct |
+| NFL | Measured, no change warranted |
+| NHL | Measured, no change warranted — the best-fitting config in the application |
+| Football pool | Measured, no change warranted — stated width within 2% of real error |
+| MLB | Constants correct; **the distribution is not.** See below |
+| CFL | Deferred: only two seasons recovered, 2024 and 2025 |
+| AFLE, EFA | Do not proceed, as this section already states |
 
 **The NBA finding is NCAAF's in mirror image.** NCAAF's stated width was too
 *narrow*, so every handicap priced as more certain than the model was.
@@ -961,6 +965,49 @@ and moving it changed *nothing at all* — identical bias, error, Brier and
 accuracy in both held-out seasons, because for a normal-scoring sport it is
 only the prior a thin rating regresses toward. `scoreSd` implies 14.14 against
 a measured 14.07. `historyDays` below 300 costs a third of the season.
+
+**The finding recalibration cannot fix: baseball is not Poisson.**
+
+Asked before fitting anything for a Poisson competition, because it asks
+something no constant can answer. A Poisson process fixes the variance of a
+score at its mean. Measured across five archived seasons:
+
+| Competition | variance / mean | margin SD | Poisson can produce |
+|---|---|---|---|
+| NHL | 0.99 | 2.62 | 2.49 |
+| La Liga | 1.06 | 1.63 | 1.61 |
+| Serie A | 1.04 | 1.71 | 1.61 |
+| Premier League | 1.10 | 1.90 | 1.71 |
+| Bundesliga | 1.15 | 2.02 | 1.78 |
+| **MLB** | **2.27** | **4.48** | **3.01** |
+
+Ice hockey and football are Poisson to within a few per cent — a real
+validation of v1's model family, and worth recording as such. **Baseball is
+not.** Its scores vary more than twice as much as the distribution allows, and
+on the held-out seasons the model's implied width came out 34% narrower than
+its own error. Every MLB total, run line and team total therefore prices as
+more certain than the model is.
+
+This is the NCAAF failure mode again, reached by a third route — but unlike
+NCAAF's it is not a constant that is wrong, so §4.4's method cannot reach it. A
+Poisson draw takes its variance from its mean; the width is pinned by the
+distribution rather than chosen. **Follow-on work, not attempted here:** a
+model family that admits dispersion for baseball only — negative binomial, or
+Poisson-Gamma — gated on the same backtest standard as everything else. It is
+larger than a recalibration and deserves its own phase.
+
+Related and smaller: **`scoreSd` is inert for a Poisson sport.** `model.ts`
+reads it in the normal branch alone, so MLB, NHL and football carry values that
+change nothing. Documented in place rather than removed, so a config keeps one
+shape across scoring families.
+
+**MLB's `homeAdvantage` was the one constant worth a second look**, and it
+still did not move. The raw home margin is 0.046 runs against a configured 0.2
+— a home side leading after eight and a half innings does not bat again, so
+baseball wins at home without scoring more. But bias favours 0.1 while Brier
+and log loss favour 0.3, across a total Brier range of 0.0013. Nothing is
+identified well enough to move, and tuning it against a Brier already distorted
+by the dispersion problem would be fitting a symptom.
 
 **Three methodological errors, each of which produced a confident wrong answer
 before it was caught.** They are recorded because the same traps apply to the
@@ -991,8 +1038,19 @@ held-out bias *worse*, 0.45 to 2.19. The bias changes sign between seasons, so
 there was nothing stable to fit. This is exactly what §4.4 warns against when
 it says not to fit to the raw home margin, one step further on.
 
-**Still to do.** MLB, NHL, the football pool, and the CFL, in that order of
-settled sample. AFLE and EFA do not proceed, as this section already states.
+**A fourth correction, to this document's own earlier claim.** The NFL notes
+first recorded that `baselineTotal` "changed nothing at all" as though that
+were evidence the value was right. It is not: `baselineTotal` never enters
+`expectedScores`. `leagueAverage` is the *measured* average of the games in the
+window, and the constant is only its fallback when there are none — what it
+actually reaches is the confidence estimate and the wording of two factors. So
+a backtest measuring bias, error and Brier cannot see it, and the measurement
+is the evidence rather than the unchanged metrics. Corrected in the configs and
+in `docs/projection-engine.md`.
+
+**Still to do.** Only the CFL, once its archive is deeper — two seasons are
+recovered, 2024 and 2025, and the rest are still returning empty against the
+provider's rate limit rather than being genuinely absent.
 
 ---
 

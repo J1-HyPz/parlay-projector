@@ -221,3 +221,62 @@ export const EXPECTED_REGULAR_SEASON: Record<string, number> = {
   'league-one': 552,
   cfl: 81, // 9 teams, 18 games
 };
+
+// ---------------------------------------------------------------------------
+// Distributional fit
+// ---------------------------------------------------------------------------
+
+export interface DispersionMeasurement {
+  scores: number;
+  mean_score: number;
+  score_variance: number;
+  /**
+   * Variance divided by mean. A Poisson process gives exactly 1.
+   *
+   * Above 1 the sport scores in bursts a Poisson draw cannot produce, and no
+   * value of any constant will widen the simulation to match: the variance is
+   * pinned to the mean by the distribution itself.
+   */
+  variance_ratio: number;
+  /** Observed SD of the home margin. */
+  margin_sd: number;
+  /** The margin SD a Poisson model can produce: sqrt(2 * mean score). */
+  poisson_margin_sd: number;
+}
+
+/**
+ * Whether a competition's scoring is actually Poisson.
+ *
+ * Worth measuring before fitting anything for a Poisson sport, because it asks
+ * a question no constant can answer. Checked across five archived seasons, the
+ * NHL came out at 0.99 and the football competitions between 1.01 and 1.15 —
+ * the model family is well chosen for them. Baseball came out at 2.27, with a
+ * margin spread half again as wide as Poisson allows, which is a statement
+ * about the distribution rather than about any value in its config.
+ */
+export function measureDispersion(games: readonly Game[]): DispersionMeasurement | null {
+  const scores: number[] = [];
+  const margins: number[] = [];
+
+  for (const game of games) {
+    const home = game.score?.home;
+    const away = game.score?.away;
+    if (typeof home !== 'number' || typeof away !== 'number') continue;
+    scores.push(home, away);
+    margins.push(home - away);
+  }
+
+  if (scores.length < 2) return null;
+
+  const meanScore = mean(scores);
+  const variance = standardDeviation(scores) ** 2;
+
+  return {
+    scores: scores.length,
+    mean_score: meanScore,
+    score_variance: variance,
+    variance_ratio: meanScore > 0 ? variance / meanScore : 0,
+    margin_sd: standardDeviation(margins),
+    poisson_margin_sd: Math.sqrt(2 * meanScore),
+  };
+}

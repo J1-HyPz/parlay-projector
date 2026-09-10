@@ -5,6 +5,7 @@ import {
   EXPECTED_REGULAR_SEASON,
   bySeason,
   competitiveGames,
+  measureDispersion,
   measureScoring,
 } from '../lib/history/calibrate.ts';
 import type { Game } from '../lib/home/types';
@@ -148,5 +149,54 @@ describe('the expected-season table', () => {
     assert.equal(EXPECTED_REGULAR_SEASON.epl, 20 * 19);
     assert.equal(EXPECTED_REGULAR_SEASON.bundesliga, 18 * 17);
     assert.equal(EXPECTED_REGULAR_SEASON.cfl, 9 * 18 / 2);
+  });
+});
+
+describe('whether scoring is actually Poisson', () => {
+  /** n fixtures scoring exactly `value` each side: zero variance. */
+  const flat = (n: number, value: number) =>
+    Array.from({ length: n }, (_, i) =>
+      game(`2025-05-${String((i % 28) + 1).padStart(2, '0')}`, {
+        sport: 'mlb',
+        score: { home: value, away: value },
+      }),
+    );
+
+  it('reports the variance-to-mean ratio a Poisson process fixes at one', () => {
+    // Every score identical, so the variance is zero and the ratio is zero —
+    // far below Poisson, which is the opposite failure to baseball's.
+    const measured = measureDispersion(flat(20, 4));
+    assert.ok(measured);
+    assert.equal(measured.mean_score, 4);
+    assert.equal(measured.variance_ratio, 0);
+  });
+
+  it('detects scoring too bursty for the distribution to produce', () => {
+    /*
+     * The MLB finding in miniature. Half the fixtures are shut-outs and half
+     * are blow-outs, so the mean is ordinary and the variance is not — which
+     * is exactly the shape no value of any constant can widen a Poisson
+     * simulation to match.
+     */
+    const bursty = [...flat(20, 0), ...flat(20, 10)];
+    const measured = measureDispersion(bursty);
+    assert.ok(measured);
+    assert.ok(measured.variance_ratio > 1.5, `ratio ${measured.variance_ratio}`);
+    // Both sides score alike here, so every margin is zero while Poisson would
+    // still spread them — the two figures are reported side by side precisely
+    // so a gap like that is visible rather than inferred.
+    assert.equal(measured.margin_sd, 0);
+    assert.ok(measured.poisson_margin_sd > 0);
+  });
+
+  it('states the margin spread Poisson can produce, for comparison', () => {
+    // sqrt(2 * mean score) — the SD of the difference of two Poisson draws.
+    const measured = measureDispersion(flat(10, 4.5));
+    assert.ok(measured);
+    assert.ok(Math.abs(measured.poisson_margin_sd - Math.sqrt(9)) < 1e-9);
+  });
+
+  it('reports nothing rather than a ratio from one fixture', () => {
+    assert.equal(measureDispersion([]), null);
   });
 });

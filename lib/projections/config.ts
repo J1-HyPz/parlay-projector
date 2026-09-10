@@ -120,11 +120,16 @@ export interface SportModelConfig {
  * projectable at all — comparing error rates across different fixture sets is
  * a statement about which games a variant skipped.
  *
- *   baselineTotal  measured 44.79 against 44, and moving it changed nothing at
- *                  all: identical bias, error, Brier and accuracy in both
- *                  held-out seasons. For a normal-scoring sport this is only
- *                  the prior a thin rating regresses toward, and the ratings
- *                  dominate it long before a fixture is projectable.
+ *   baselineTotal  measured 44.79 against 44. Moving it changed nothing at
+ *                  all -- identical bias, error, Brier and accuracy in both
+ *                  held-out seasons -- and the reason is that a backtest
+ *                  cannot see this constant. It never enters expectedScores:
+ *                  `leagueAverage` is the *measured* average of the games in
+ *                  the window, and baselineTotal is only its fallback when
+ *                  there are no games at all. What it does reach is the
+ *                  confidence estimate and the wording of two factors. So the
+ *                  measurement above is the evidence it is right, and the
+ *                  unchanged backtest is not.
  *   homeAdvantage  held-out bias is already +0.47 and -1.61 in the two
  *                  seasons — it changes sign. Fitting the constant to zero the
  *                  bias on the fitting seasons pushed it to 3.6 and made
@@ -144,8 +149,9 @@ const NFL: SportModelConfig = {
   scoring: 'normal',
   hasDraw: false,
   supportsSpread: true,
-  // Measured 44.79 across 2021-2025. Left at 44: the difference is inside a
-  // point and provably changes no projection.
+  // Measured 44.79 across 2021-2025. Left at 44: within a point, and this
+  // constant reaches only the confidence estimate and two factor sentences --
+  // never the expected score. See the note above.
   baselineTotal: 44,
   // Long the largest home edge in the major American leagues, though it has
   // shrunk in recent seasons. Confirmed measured, not assumed: see above.
@@ -180,9 +186,10 @@ const NFL: SportModelConfig = {
  * than the model is, the other as less.
  *
  * Everything else measured as already correct: `baselineTotal` came out at
- * 225.61 against 226 and moving it changed nothing at all, and `historyDays`
- * below 250 costs coverage (88.5% against 99.7%) for worse error on what it
- * still projects. Recorded so the check is not re-run blind.
+ * 225.61 against 226 -- a backtest cannot see that constant at all, so the
+ * measurement is the evidence rather than the unchanged metrics -- and
+ * `historyDays` below 250 costs coverage (88.5% against 99.7%) for worse error
+ * on what it still projects. Recorded so the check is not re-run blind.
  */
 const NBA: SportModelConfig = {
   // Bumped when scoreSd was refitted: an NBA projection made after it is not
@@ -191,7 +198,8 @@ const NBA: SportModelConfig = {
   scoring: 'normal',
   hasDraw: false,
   supportsSpread: true,
-  // Measured 225.61. Left at 226 — provably changes no projection.
+  // Measured 225.61. Left at 226: within half a point, and this constant
+  // reaches only confidence and factor wording, never the expected score.
   baselineTotal: 226,
   homeAdvantage: 2.2,
   /*
@@ -218,6 +226,38 @@ const NBA: SportModelConfig = {
   shortRestPenalty: 1.5,
 };
 
+/*
+ * Checked against five archived seasons, 2021-2025, held out on 2024 and 2025.
+ * No constant changed. The finding that matters is not a constant.
+ *
+ * **Baseball is the one sport here that is not Poisson.** Measured across
+ * 12,259 fixtures, the variance of a team's score is 2.27 times its mean,
+ * where a Poisson process fixes that ratio at exactly 1. The observed margin
+ * spread is 4.48 against the 3.01 a Poisson model can produce, and on the
+ * held-out seasons the model's implied width came out 34% narrower than its
+ * own error. Every total, run line and team total therefore prices as more
+ * certain than the model actually is.
+ *
+ * No value of any constant fixes this: a Poisson draw takes its variance from
+ * its mean, so the width is pinned by the distribution rather than chosen.
+ * The fix is a model family that admits dispersion — negative binomial, or
+ * Poisson-Gamma — which is a larger change than recalibration and is recorded
+ * in the v2 spec as follow-on work rather than attempted here.
+ *
+ * For contrast the same measurement puts ice hockey at 0.99 and the football
+ * competitions between 1.01 and 1.15, so the family is well chosen for them.
+ *
+ * The constants themselves measured close and were left alone. `baselineTotal`
+ * came out at 8.97 against 8.6 — and a backtest cannot see that constant, so
+ * the measurement is the evidence rather than the metrics. `homeAdvantage` is
+ * the interesting one: the raw home margin is only 0.046 runs, a quarter of
+ * the configured 0.2, because a home side leading after eight and a half
+ * innings does not bat again. But bias, Brier and log loss disagree about
+ * where the optimum sits — bias favours 0.1, Brier and log loss favour 0.3 —
+ * across a total Brier range of 0.0013. Nothing is identified well enough to
+ * move, and tuning it against a Brier already distorted by the dispersion
+ * problem above would be fitting a symptom.
+ */
 const MLB: SportModelConfig = {
   /*
    * Bumped when the starting-pitcher substitution landed: an MLB projection
@@ -233,6 +273,13 @@ const MLB: SportModelConfig = {
   // single games carry little signal, which the model reflects rather than
   // hides.
   homeAdvantage: 0.2,
+  /*
+   * Inert for this sport, and kept only so the shape of a config does not
+   * differ between scoring families. A Poisson draw takes its variance from
+   * its mean, so the simulator never reads this — `model.ts` uses it in the
+   * normal branch alone. Changing it changes nothing, which is worth knowing
+   * before anyone tries to fit it.
+   */
   scoreSd: 3,
   eloK: 6,
   marginPerHundredElo: 0.5,
@@ -247,12 +294,34 @@ const MLB: SportModelConfig = {
   shortRestPenalty: 0,
 };
 
+/*
+ * Checked against five archived seasons, 2022-2026, held out on 2025 and 2026.
+ * Measured, and correct as it stands.
+ *
+ * The best-fitting config in the application, on every axis checked.
+ * `baselineTotal` measured 6.28 against 6.2. The raw home margin measured
+ * 0.257 against a configured 0.25. Residual bias on the held-out seasons is
+ * +0.054, essentially zero. And the Poisson family genuinely fits: the
+ * variance-to-mean ratio of a team's score is 0.99 where the distribution
+ * assumes 1, and the model's implied width is within 5% of its own measured
+ * error — against baseball's 34% gap.
+ *
+ * `historyDays` below 250 costs coverage (85.5% against 98.9%) for no gain in
+ * error. Recorded so the check is not re-run blind.
+ */
 const NHL: SportModelConfig = {
   scoring: 'poisson',
   hasDraw: false,
   supportsSpread: true,
   baselineTotal: 6.2,
   homeAdvantage: 0.25,
+  /*
+   * Inert for this sport, and kept only so the shape of a config does not
+   * differ between scoring families. A Poisson draw takes its variance from
+   * its mean, so the simulator never reads this — `model.ts` uses it in the
+   * normal branch alone. Changing it changes nothing, which is worth knowing
+   * before anyone tries to fit it.
+   */
   scoreSd: 2,
   eloK: 8,
   marginPerHundredElo: 0.45,
@@ -267,6 +336,23 @@ const NHL: SportModelConfig = {
   shortRestPenalty: 0.15,
 };
 
+/*
+ * Checked against five archived seasons of the whole rating pool, 2021-2025,
+ * held out on 2024 and 2025 — 5,600 fixtures. Measured, and correct as it
+ * stands.
+ *
+ * Calibrated across every competition in the pool rather than one of them,
+ * because that is what `buildRatings` sees: rating Arsenal from their league
+ * fixtures alone would measure a model this application does not run.
+ *
+ * `baselineTotal` measured 2.74 against 2.7. The raw home margin measured
+ * 0.312 against a configured 0.3, and residual bias on the held-out seasons is
+ * -0.021 against -0.115 at 0.2 and -0.208 at 0.1 — the configured value is the
+ * closest to zero of those measured. The Poisson family fits
+ * well: variance-to-mean between 1.01 and 1.15 across the member competitions,
+ * and an implied width within 2% of the model's own measured error, which is
+ * the closest match in the application.
+ */
 const FOOTBALL: SportModelConfig = {
   scoring: 'poisson',
   hasDraw: true,
@@ -276,6 +362,13 @@ const FOOTBALL: SportModelConfig = {
   supportsSpread: false,
   baselineTotal: 2.7,
   homeAdvantage: 0.3,
+  /*
+   * Inert for this sport, and kept only so the shape of a config does not
+   * differ between scoring families. A Poisson draw takes its variance from
+   * its mean, so the simulator never reads this — `model.ts` uses it in the
+   * normal branch alone. Changing it changes nothing, which is worth knowing
+   * before anyone tries to fit it.
+   */
   scoreSd: 1.3,
   eloK: 20,
   marginPerHundredElo: 0.5,

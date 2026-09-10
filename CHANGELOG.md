@@ -31,7 +31,7 @@ page, projections that now say who is missing instead of claiming nobody knows,
 MLB projections that account for who is pitching, and a long-run history
 archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
-uncertain it is. 840 tests.
+uncertain it is, and every other sport checked the same way. 844 tests.
 
 ### Added
 
@@ -107,15 +107,40 @@ uncertain it is. 840 tests.
   `projection-v1-nba-width`; every other sport keeps its own version, so the
   accuracy breakdown stays a truthful record of what actually moved.
 
-**The NFL was checked the same way and left alone**
+**Baseball's model is more confident than it should be, and a constant cannot fix it**
+
+- Checked across 12,259 archived fixtures, baseball scores vary **more than
+  twice as much** as the model's distribution allows. Real margins spread about
+  4.5 runs where the model can only produce about 3.0 — and on two held-out
+  seasons its stated width came out **a third narrower than its own error**.
+- The practical effect: every MLB total, run line and team total is priced as
+  more certain than the model actually is.
+- **No setting fixes this.** The distribution the model uses ties how much
+  scores vary to how high they are, so the width is not something that can be
+  chosen. Fixing it means changing the distribution itself, which is a larger
+  piece of work and is now written into the v2 spec rather than rushed.
+- The same measurement is reassuring everywhere else: ice hockey came out at
+  0.99 against an ideal of 1.00, and the football competitions between 1.01 and
+  1.15. Baseball is the exception, not the rule.
+
+**The NFL, MLB, NHL and every football competition were checked and left alone**
 
 - Five seasons, 2021-2025, held out on two. `baselineTotal` measured 44.79
   against the configured 44 — and changing it moved **nothing at all**, because
   for this sport it is only a prior that team ratings overwhelm. The stated
   width already matches the real error to within a point. Home advantage's bias
   changes sign between seasons, so fitting it to one pair made the next worse.
+- Ice hockey is the best-fitting of the lot: its typical scoreline, its home
+  advantage and its stated uncertainty all measured within a few per cent of
+  what was already configured. Football's stated width is within 2% of its real
+  error across 5,600 held-out fixtures.
+- One number was worth a second look and still did not move: baseball's home
+  advantage is set at 0.2 runs while the real figure is 0.046, because a home
+  side that is ahead after eight and a half innings never bats again. But the
+  measures of what "better" means disagree about which value is best, across a
+  range too small to matter, so it stays.
 - "Measured, and correct as it stands" is a result worth recording, and it is
-  now written into the config so nobody re-runs the same check blind.
+  now written into each config so nobody re-runs the same check blind.
 
 **MLB projections account for the announced starting pitcher**
 
