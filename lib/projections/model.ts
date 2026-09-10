@@ -34,6 +34,8 @@ import {
 import { restDays } from './features.ts';
 import type { RatingSet } from './features.ts';
 import type { SportModelConfig } from './config.ts';
+import { blendedDefence } from './pitchers.ts';
+import type { FixturePitchers } from './pitchers.ts';
 
 export interface ExpectedScores {
   home: number;
@@ -59,6 +61,14 @@ export function expectedScores(
   set: RatingSet,
   config: SportModelConfig,
   kickoff: number,
+  /**
+   * Known starting pitchers, baseball only.
+   *
+   * Absent everywhere else, and absent for a baseball fixture whose starter is
+   * unannounced or too new to rate — in which case this function behaves
+   * exactly as it did before the substitution existed.
+   */
+  pitchers?: FixturePitchers | null,
 ): ExpectedScores | null {
   const home = set.ratings.get(homeName);
   const away = set.ratings.get(awayName);
@@ -66,10 +76,25 @@ export function expectedScores(
 
   const league = Math.max(set.leagueAverage, 0.05);
 
+  /*
+   * A known starter replaces part of the side's defence rate.
+   *
+   * Crossed deliberately: the *away* side's starter is what the home side has
+   * to score against, so it is the away pitcher that shapes `expectedHome`.
+   * Getting this the wrong way round would still produce plausible scorelines,
+   * which is precisely why it is worth saying out loud.
+   */
+  const awayDefence = pitchers?.away
+    ? blendedDefence(pitchers.away, away.adjustedDefence, league)
+    : away.adjustedDefence;
+  const homeDefence = pitchers?.home
+    ? blendedDefence(pitchers.home, home.adjustedDefence, league)
+    : home.adjustedDefence;
+
   const homeAttackRatio = home.adjustedAttack / league;
-  const awayDefenceRatio = away.adjustedDefence / league;
+  const awayDefenceRatio = awayDefence / league;
   const awayAttackRatio = away.adjustedAttack / league;
-  const homeDefenceRatio = home.adjustedDefence / league;
+  const homeDefenceRatio = homeDefence / league;
 
   // Clamped: an early-season extreme would otherwise produce a scoreline no
   // fixture in the sport has ever produced.

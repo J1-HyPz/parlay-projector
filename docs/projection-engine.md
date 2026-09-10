@@ -392,6 +392,40 @@ who is missing; it does not know what they are worth, and folding a count into
 a quality score would manufacture exactly the value it lacks. `MODEL_VERSION`
 is unchanged because no probability moved.
 
+### Starting pitchers (MLB only)
+
+A baseball fixture whose starter has been announced uses that pitcher's own
+runs-allowed rate in place of part of the opposing side's team defence rate.
+This is the only individual-player input in the application, and it does not
+generalise: a starting pitcher is the one participant in any sport here who
+accounts for most of a side's defensive innings, and their rate is already in
+the same unit as the team rate it displaces.
+
+Three rules hold it together:
+
+- **The rate is always as at the kick-off.** Never the season-to-date ERA the
+  scoreboard offers for free, which for any backward-looking purpose includes
+  starts made after the fixture being judged. `rateBefore` rebuilds it from the
+  starts that finished earlier — the same discipline `toResults(games, asOf)`
+  applies to team ratings.
+- **The live path and the backtest share one definition.** Both read the same
+  per-start gamelog through the same function. A model measured on one
+  definition and shipped on another has not been measured.
+- **It is a blend, not a swap.** The starter covers their mean innings; the
+  team rate covers the rest, standing in for a bullpen rate this application
+  does not have. That approximation biases toward the unchanged model, which is
+  the right direction for it to err in.
+
+Below `MIN_STARTS`, or with no announced starter, the fixture is projected
+exactly as it was before this existed.
+
+Backtested over 1,795 fixtures of the 2026 season: margin MAE 3.591 → 3.556
+(paired t = −2.28), total MAE 3.605 → 3.575 (t = −1.43). Margin is the only
+metric that separates from noise; the effect is real and small. MLB projections
+are stamped `projection-v1-mlb-sp` via `SportModelConfig.modelVersion`, which
+overrides the global constant for one sport so the rest are not relabelled as
+though they had changed too.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

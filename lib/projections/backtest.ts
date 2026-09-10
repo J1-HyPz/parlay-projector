@@ -17,6 +17,7 @@ import { brierScore, logLoss } from './math.ts';
 import { buildRatings, toResults } from './features.ts';
 import { projectGame } from './project.ts';
 import type { SportModelConfig } from './config.ts';
+import type { FixturePitchers } from './pitchers.ts';
 import type { Game } from '../home/types';
 
 export interface BacktestCase {
@@ -30,6 +31,8 @@ export interface BacktestCase {
   log_loss: number;
   expected_margin: number;
   actual_margin: number;
+  expected_total: number;
+  actual_total: number;
 }
 
 export interface BacktestReport {
@@ -42,6 +45,15 @@ export interface BacktestReport {
   log_loss: number | null;
   /** Mean absolute error of the projected margin, in points or goals. */
   margin_error: number | null;
+  /**
+   * Mean absolute error of the projected total.
+   *
+   * Reported beside the margin because the two move independently: a change
+   * can sharpen how much scoring a fixture holds while leaving who wins
+   * untouched, and a gate written as "margin or total" cannot be judged
+   * without both.
+   */
+  total_error: number | null;
   cases: BacktestCase[];
 }
 
@@ -51,6 +63,17 @@ export interface BacktestOptions {
   simulations?: number;
   /** Fixed seed keeps a backtest reproducible run to run. */
   seed?: number;
+  /**
+   * Starting pitchers for a fixture, as at its kick-off.
+   *
+   * Injected as a function rather than fetched, so this module stays pure and
+   * provider-free. The caller owns the look-ahead discipline for whatever it
+   * returns — the cut-off is handed in precisely so the rate can honour it.
+   * Returning null is the honest answer for a fixture with no announced
+   * starter, and the projection is then identical to one made without this
+   * option at all, which is what makes the comparison a fair one.
+   */
+  pitchers?: (game: Game, kickoff: number) => FixturePitchers | null;
 }
 
 /**
@@ -103,6 +126,7 @@ export function backtest(
     const outcome = projectGame(asIfUpcoming, ratings, config, {
       simulations,
       seed: options.seed,
+      pitchers: options.pitchers?.(game, kickoff) ?? null,
       now: new Date(kickoff),
     });
     if (!outcome) {
@@ -138,6 +162,8 @@ export function backtest(
       log_loss: logLoss(probabilities.home, actual === 'home'),
       expected_margin: outcome.projection.expected_margin,
       actual_margin: home - away,
+      expected_total: outcome.projection.expected_total,
+      actual_total: home + away,
     });
   }
 
@@ -149,6 +175,7 @@ export function backtest(
       brier: null,
       log_loss: null,
       margin_error: null,
+      total_error: null,
       cases: [],
     };
   }
@@ -163,6 +190,9 @@ export function backtest(
     log_loss: Number(mean(cases.map((c) => c.log_loss)).toFixed(4)),
     margin_error: Number(
       mean(cases.map((c) => Math.abs(c.expected_margin - c.actual_margin))).toFixed(3),
+    ),
+    total_error: Number(
+      mean(cases.map((c) => Math.abs(c.expected_total - c.actual_total))).toFixed(3),
     ),
     cases,
   };

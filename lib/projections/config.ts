@@ -30,6 +30,17 @@ export type ScoringModel = 'poisson' | 'normal';
 
 export interface SportModelConfig {
   scoring: ScoringModel;
+  /**
+   * Overrides the stored model version for this sport only.
+   *
+   * The v2 spec requires a version bump *per competition*, when that
+   * competition's change lands — not one global bump that relabels every
+   * sport's stored predictions and makes it look as though all of them
+   * changed. A sport whose behaviour is untouched leaves this unset and keeps
+   * `MODEL_VERSION`, so the accuracy breakdown by model version stays a
+   * truthful record of what actually differed.
+   */
+  modelVersion?: string;
   /** Whether a drawn result is a genuine outcome that must be modelled. */
   hasDraw: boolean;
   /** Whether a points handicap is a sensible selection for this sport. */
@@ -148,6 +159,12 @@ const NBA: SportModelConfig = {
 };
 
 const MLB: SportModelConfig = {
+  /*
+   * Bumped when the starting-pitcher substitution landed: an MLB projection
+   * made after it is not comparable with one made before, and only MLB's is
+   * affected.
+   */
+  modelVersion: 'projection-v1-mlb-sp',
   scoring: 'poisson',
   hasDraw: false,
   supportsSpread: true,

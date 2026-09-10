@@ -1,7 +1,7 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1, §4.2.a and the first two points of §4.2.b have
-shipped; everything else is still a plan. Companion to
+**Status: in progress.** §4.1 and §4.2 have shipped in full; everything else is
+still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -286,9 +286,8 @@ specified; it is simply a separate increment from the injury and starter work.
 
 #### 4.2.b Model input
 
-**Points 1 and 2 shipped. Point 3 is not built** — its feasibility was
-established rather than assumed, and the finding is recorded at the end of this
-subsection.
+**Shipped in full.** Point 3 cleared its backtest; the measured result is
+recorded at the end of this subsection.
 
 **How.**
 
@@ -374,29 +373,58 @@ same page, the two sat inches apart disagreeing. The page now reads injuries
 from the competition-wide report as well, and the summary is kept only for
 probable starters, which appear nowhere else.
 
-**Point 3: feasible, not built.**
+**Point 3: measured, and shipped.**
 
 The blocking question was whether a pitcher's rate could be built *as at* a
 past fixture, since the ERA carried on the scoreboard is season-to-date and
-using it in a backtest would leak games played after the fixture being scored.
+would leak games played after the fixture being scored.
 
 It can. `common/v3/sports/baseball/mlb/athletes/<id>/gamelog` returns a
-pitcher's whole season a start at a time — innings, runs, earned runs, and each
-game's date — in **one request**. Filtering to starts before a kick-off gives a
-genuine point-in-time rate, and caching per pitcher keeps a season-long
-backtest to roughly the number of distinct starters rather than one request per
-start. The `$ref`-chasing core API path costs about thirty requests per pitcher
-and is not viable; this one is.
+pitcher's whole season a start at a time — innings, runs, and each game's date
+— in one request. The `$ref`-chasing core API path costs about thirty requests
+per pitcher and was rejected for it.
 
-Two things to settle before building it:
+Both concerns raised before building it were resolved by the data rather than
+by argument:
 
-- The backtest can only know the *actual* starter of a past fixture, not who
-  was *announced* beforehand. In MLB those agree the large majority of the
-  time, but not always, so the comparison is mildly optimistic and must say so.
-- The live path can use the season-to-date ERA already present on the
-  scoreboard at no request cost, while the backtest needs the gamelog. Sharing
-  one rate definition across both is what stops the shipped model differing
-  from the one that was measured.
+- **The announced starter is recoverable, and is not the actual starter.** A
+  historical scoreboard still carries `probables`, so the backtest uses the
+  starter that *was announced*, not the one the boxscore later recorded. Over
+  4,226 announced starters, the announced pitcher did start **4,220 times
+  (99.9%)** — and the six that did not are what prove the field is the genuine
+  announcement rather than the result written back over it.
+- **One rate definition serves both paths.** The live model does *not* use the
+  free season-to-date ERA. It fetches the same gamelog and calls the same
+  `rateBefore`, so the model that ships is the model that was measured.
+
+**The result.** Two runs over 2,121 fixtures of the 2026 season, identical
+seed, identical fixture list, differing only in whether the substitution was
+supplied. Scored on the 1,795 evaluated fixtures where a rate existed for at
+least one starter.
+
+| Metric | Baseline | With pitchers | Paired Δ | t |
+|---|---|---|---|---|
+| Margin MAE | 3.5908 | 3.5564 | **−0.0344** | **−2.28** |
+| Total MAE | 3.6051 | 3.5754 | −0.0297 | −1.43 |
+| Brier | 0.2537 | 0.2522 | −0.0015 | −0.74 |
+| Accuracy | 0.5331 | 0.5365 | +0.0033 | — |
+
+The gate was margin **or** total MAE improving. Margin does, and is the only
+one of the three that separates from noise — the per-fixture paired difference
+gives t = −2.28 over 1,795 fixtures, against −1.43 for total and −0.74 for
+Brier. Reported plainly rather than as four wins: the effect is real but small,
+about 1% of the margin error, and it improved the individual fixture only 915
+times out of 1,795. Testing two metrics and shipping on the better of them also
+makes a single t of −2.28 weaker evidence than it looks, which is a reason to
+treat this as a modest gain rather than a settled one.
+
+**A per-competition `MODEL_VERSION` came out of this**, as decision 3 requires
+and as the code could not previously express. `SportModelConfig.modelVersion`
+overrides the global constant for one sport, so MLB now stores
+`projection-v1-mlb-sp` while every other sport keeps `projection-v1`. A single
+global bump would have relabelled every sport's stored predictions as though
+all of them had changed, which would make the accuracy breakdown by model
+version a false record.
 
 ---
 

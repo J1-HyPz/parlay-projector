@@ -25,6 +25,7 @@
 import { boundProbability, clamp, seedFrom } from './math.ts';
 import { dataQuality, estimateConfidence, qualityReasons, squadCount } from './features.ts';
 import type { SquadNews } from './features.ts';
+import type { FixturePitchers } from './pitchers.ts';
 import type { RatingSet, TeamRating } from './features.ts';
 import { backingFor, orientFactors } from './factors.ts';
 import type { ProjectionFactor } from './factors.ts';
@@ -74,6 +75,13 @@ export interface ProjectOptions {
    * reporting both squads intact.
    */
   availability?: SquadNews | null;
+  /**
+   * Known starting pitchers. Baseball only; ignored elsewhere.
+   *
+   * Supplied by the caller rather than fetched here, so this function stays
+   * pure and the backtest can hand it a point-in-time rate.
+   */
+  pitchers?: FixturePitchers | null;
   now?: Date;
 }
 
@@ -123,6 +131,7 @@ function buildFactors(
   config: SportModelConfig,
   distribution: Distribution,
   availability: SquadNews | null,
+  pitchers: FixturePitchers | null,
 ): ProjectionFactor[] {
   const factors: ProjectionFactor[] = [];
   const favouredHome = distribution.meanMargin >= 0;
@@ -223,6 +232,40 @@ function buildFactors(
   }
 
   /*
+   * The starting pitcher, where one moved the expected score.
+   *
+   * Stated because it has to be. This is the only input in the application
+   * that lets an individual change a projected scoreline, and an input a
+   * reader cannot see is the same failure as an invented one, a step removed.
+   * The rate and the number of starts behind it are both shown, so the weight
+   * it deserves is the reader's judgement rather than this file's assertion.
+   */
+  if (pitchers) {
+    for (const [team, rate] of [
+      [home, pitchers.home],
+      [away, pitchers.away],
+    ] as const) {
+      if (!rate) continue;
+      const sharper = rate.runs_per_nine < team.adjustedDefence;
+
+      factors.push({
+        text: `${rate.name ?? 'The announced starter'} starts for ${team.team}, allowing ${round(
+          rate.runs_per_nine,
+        )} runs per nine over ${rate.starts} starts, against a team rate of ${round(
+          team.adjustedDefence,
+        )}.`,
+        subject: {
+          kind: 'team',
+          team: team.team,
+          favourable: sharper,
+          scoring: sharper ? 'low' : 'high',
+        },
+        direction: towardFavourite(team, sharper),
+      });
+    }
+  }
+
+  /*
    * Squad news, as a caution and never as a discount.
    *
    * `uncertainty` rather than `team`, because a `team` subject asserts which
@@ -302,7 +345,14 @@ export function projectGame(
   const quality = dataQuality(home, away, config, extras);
   if (quality < MIN_DATA_QUALITY) return null;
 
-  const expected = expectedScores(sides.home.name, sides.away.name, set, config, kickoff);
+  const expected = expectedScores(
+    sides.home.name,
+    sides.away.name,
+    set,
+    config,
+    kickoff,
+    options.pitchers ?? null,
+  );
   if (!expected) return null;
 
   const distribution = simulate(expected, config, {
@@ -329,7 +379,9 @@ export function projectGame(
     model_spread: modelSpread(distribution),
     confidence: round(confidence, 3),
     data_quality: round(quality, 3),
-    model_version: MODEL_VERSION,
+    // Per competition, so a sport whose behaviour did not change is not
+    // relabelled as though it had. See SportModelConfig.modelVersion.
+    model_version: config.modelVersion ?? MODEL_VERSION,
     typical_score: {
       home: Math.round(quantile(distribution.homeScores, 0.5)),
       away: Math.round(quantile(distribution.awayScores, 0.5)),
@@ -343,7 +395,16 @@ export function projectGame(
       Math.round(quantile(distribution.awayScores, 0.75)),
     ],
     quality_reasons: qualityReasons(home, away, config, extras),
-    factors: buildFactors(home, away, expected, set, config, distribution, extras.availability),
+    factors: buildFactors(
+      home,
+      away,
+      expected,
+      set,
+      config,
+      distribution,
+      extras.availability,
+      options.pitchers ?? null,
+    ),
     generated_at: (options.now ?? new Date()).toISOString(),
   };
 

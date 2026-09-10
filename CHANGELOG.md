@@ -27,8 +27,38 @@ sport and competition filtering for parlays, and a design system that makes the
 whole application readable on a phone and a tablet, a fix for CFL fixtures that
 had been silently empty, an Accuracy page that finally shows how the model
 scores per competition, and injury and starting-pitcher information on the game
-page, and projections that now say who is missing instead of claiming nobody
-knows. 788 tests.
+page, projections that now say who is missing instead of claiming nobody knows,
+and MLB projections that account for who is pitching. 799 tests.
+
+### Changed
+
+**MLB projections account for the announced starting pitcher**
+
+- A baseball fixture's projected score now uses the **announced starter's own
+  runs-allowed rate** in place of part of that side's team defence rate. It is
+  the only place in this application where one player changes a projected
+  scoreline, and it is deliberately confined to the one sport where a single
+  participant pitches most of a side's innings.
+- It is a blend, not a swap. A starter covering six of nine innings carries two
+  thirds of the weight and the team rate covers the rest, because this
+  application has no bullpen rate and will not invent one.
+- **Measured before shipping, on 1,795 fixtures across the 2026 season**: the
+  same games, the same seed, differing only in whether the pitcher was
+  supplied. Margin error fell from 3.591 to 3.556 and total error from 3.605 to
+  3.575. The margin improvement is the one that separates from noise; the
+  others move the right way but could be chance, and that is stated in the spec
+  rather than rounded up into four wins.
+- The effect is **small** — about 1% of the margin error, improving the
+  individual fixture 915 times out of 1,795. It is not a transformation and is
+  not described as one.
+- Nothing is hidden. Where a starter moves the projection, the projection says
+  so by name, with the pitcher's rate and how many starts stand behind it.
+- A fixture with **no announced starter**, or one with fewer than five starts
+  on record, is projected exactly as before — the substitution is a
+  substitution, never a new default.
+- MLB predictions are now stamped `projection-v1-mlb-sp`; every other sport
+  keeps `projection-v1`, so the accuracy breakdown by model version stays a
+  truthful record of what actually changed.
 
 ### Fixed
 

@@ -45,7 +45,11 @@ import type { ProjectionOutcome } from './project';
 import { marketsForLeagues } from '../odds/service';
 import { leagueAvailability } from '../providers/espn/availability';
 import type { LeagueAvailability } from '../providers/espn/availability';
+import { announcedStarters, pitchersForFixture } from '../providers/espn/pitchers';
+import type { AnnouncedStarters } from '../providers/espn/pitchers';
+import { compactDate } from '../providers/espn/fixture-normalise';
 import type { SquadNews } from './features';
+import type { FixturePitchers } from './pitchers';
 import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
 import { gridFrom, projectRace, raceSelections } from './race-selections';
 import type { GameMarkets } from '../markets/types';
@@ -289,6 +293,34 @@ function squadNewsFor(report: LeagueAvailability, game: Game): SquadNews | null 
   };
 }
 
+/**
+ * Announced starters for the fixtures about to be projected.
+ *
+ * Baseball only, and empty for every other competition — the substitution
+ * exists for the one sport where a single participant accounts for most of a
+ * side's defensive innings, and no other sport here publishes a starter ahead
+ * of the fixture anyway.
+ *
+ * Keyed by the dates the fixtures fall on rather than by fixture, so a whole
+ * slate costs one request per date instead of one per game.
+ */
+async function startersFor(
+  leagues: readonly League[],
+  games: readonly Game[],
+): Promise<Map<string, AnnouncedStarters>> {
+  if (!leagues.some((league) => league.id === 'mlb')) return new Map();
+
+  const dates = new Set<string>();
+  for (const game of games) {
+    if (game.sport !== 'mlb') continue;
+    const day = game.start_time?.slice(0, 10);
+    if (day) dates.add(compactDate(day));
+  }
+  if (dates.size === 0) return new Map();
+
+  return announcedStarters([...dates]);
+}
+
 async function computeCandidates(
   filter: CandidateFilter,
   asOf: number,
@@ -357,6 +389,31 @@ async function computeCandidates(
     }),
   );
 
+  /*
+   * Starting pitchers, resolved once per fixture before the projection loop.
+   *
+   * Done here rather than inside the loop so that loop stays synchronous and
+   * so the gamelog for a pitcher starting on two different days is fetched
+   * once. Everything is cached behind these calls, so a warm slate costs
+   * nothing.
+   */
+  const allFixtures: Game[] = [];
+  for (const { model } of models) {
+    if (!model) continue;
+    for (const list of model.upcoming.values()) allFixtures.push(...list);
+  }
+
+  const starters = await startersFor(leagues, allFixtures);
+  const pitcherRates = new Map<string, FixturePitchers | null>();
+  await Promise.all(
+    allFixtures.map(async (game) => {
+      if (game.sport !== 'mlb' || !game.start_time) return;
+      const kickoff = Date.parse(game.start_time);
+      if (!Number.isFinite(kickoff)) return;
+      pitcherRates.set(game.id, await pitchersForFixture(starters.get(game.id), kickoff));
+    }),
+  );
+
   for (const { model } of models) {
     if (!model) continue;
 
@@ -371,6 +428,7 @@ async function computeCandidates(
         const outcome = projectGame(game, model.ratings, config, {
           simulations: projectionConfig.simulations,
           availability: squadNewsFor(availability.get(league.id) ?? null, game),
+          pitchers: pitcherRates.get(game.id) ?? null,
           now: new Date(asOf),
         });
         // Null means insufficient data. That fixture produces nothing — it is
@@ -554,14 +612,22 @@ export async function projectionForGame(
     `projection:game:${game.id}:${projectionConfig.modelVersion}`,
     projectionTtlFor(game.start_time, asOf),
     async () => {
-      const [model, report] = await Promise.all([
+      const kickoff = Date.parse(game.start_time ?? '');
+      const [model, report, starters] = await Promise.all([
         buildPoolModel(league, asOf),
         leagueAvailability(league),
+        startersFor([league], [game]),
       ]);
       if (!model) return null;
+
+      const pitchers = Number.isFinite(kickoff)
+        ? await pitchersForFixture(starters.get(game.id), kickoff)
+        : null;
+
       return projectGame(game, model.ratings, config, {
         simulations: projectionConfig.simulations,
         availability: squadNewsFor(report, game),
+        pitchers,
         now: new Date(asOf),
       });
     },
