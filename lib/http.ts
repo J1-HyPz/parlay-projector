@@ -6,7 +6,7 @@
  * callers can back off rather than hammer a provider.
  */
 
-import { logger, redactUrl } from './logger';
+import { logger, redactUrl } from './logger.ts';
 
 /** 8 MiB. Guards against a provider streaming something unbounded at us. */
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;

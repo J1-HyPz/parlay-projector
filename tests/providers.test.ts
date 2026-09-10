@@ -16,6 +16,7 @@ import type { RawEspnEvent } from '../lib/providers/espn/normalise.ts';
 import { espnPathFor } from '../lib/providers/espn/paths.ts';
 import { meetingsToRecentGames, recordToStanding } from '../lib/providers/merge.ts';
 import type { TeamStanding } from '../lib/games/types';
+import { seasonsForRange, usesRoundFetch } from '../lib/providers/thesportsdb/fixtures.ts';
 
 const LONDON = 'Europe/London';
 
@@ -369,5 +370,37 @@ describe('record parsing and merge', () => {
 
   it('returns nothing when the team is unknown', () => {
     assert.deepEqual(meetingsToRecentGames([], null), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TheSportsDB — CFL's bulk season call is broken, not the data
+// ---------------------------------------------------------------------------
+
+/*
+ * `eventsseason.php` returns five preseason fixtures for the CFL regardless
+ * of which season is asked for, while the same provider's `eventsround.php`
+ * returns the real season when queried a round at a time. `usesRoundFetch`
+ * is the one decision this fix makes that is pure enough to test without a
+ * network — everything past it is an HTTP call.
+ */
+describe('TheSportsDB fixtures', () => {
+  it('routes the CFL through the round-by-round fetch', () => {
+    assert.equal(usesRoundFetch('cfl'), true);
+  });
+
+  it('leaves every other competition on the ordinary season call', () => {
+    assert.equal(usesRoundFetch('afle'), false);
+    assert.equal(usesRoundFetch('efa'), false);
+    assert.equal(usesRoundFetch('nfl'), false);
+  });
+
+  it('splits a range into one season label per calendar year touched', () => {
+    assert.deepEqual(seasonsForRange('2023-08-01', '2023-11-30'), ['2023']);
+    assert.deepEqual(seasonsForRange('2023-11-15', '2024-02-15'), ['2023', '2024']);
+  });
+
+  it('never asks for a century of seasons from a malformed range', () => {
+    assert.equal(seasonsForRange('2000-01-01', '2099-01-01').length, 6);
   });
 });

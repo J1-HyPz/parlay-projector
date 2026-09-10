@@ -15,13 +15,15 @@
  * ESPN's `dates=` parameter. A whole season is fetched and filtered locally,
  * which is cheap because a season is one request and settled seasons never
  * change.
+ *
+ * One league is the exception to "one request": see `ROUND_FETCH_LEAGUES`.
  */
 
-import { cached } from '../../cache';
-import { sportsConfig } from '../../config';
-import { logger } from '../../logger';
-import { getJson } from '../../http';
-import { normaliseEvent } from '../../home/sports/normalise';
+import { cached } from '../../cache.ts';
+import { sportsConfig } from '../../config.ts';
+import { logger } from '../../logger.ts';
+import { getJson } from '../../http.ts';
+import { normaliseEvent } from '../../home/sports/normalise.ts';
 import type { RawEvent, RawEventsResponse } from '../../home/sports/normalise';
 import type { League } from '../../leagues/registry';
 import type { Game } from '../../home/types';
@@ -57,30 +59,155 @@ function seasonUrl(leagueId: string, season: string): string {
   );
 }
 
-async function fetchSeason(league: League, season: string, ttlMs: number): Promise<Game[]> {
-  const leagueId = league.sportsdbLeagueId;
-  if (!leagueId) return [];
+function roundUrl(leagueId: string, season: string, round: number): string {
+  const base = sportsConfig.baseUrl.replace(/\/+$/, '');
+  return (
+    `${base}/${sportsConfig.apiKey}/eventsround.php` +
+    `?id=${encodeURIComponent(leagueId)}&r=${round}&s=${encodeURIComponent(season)}`
+  );
+}
 
-  const { value } = await cached(
-    `sportsdb:season:${league.id}:${season}`,
-    ttlMs,
-    async () => {
-      const payload = await getJson<RawEventsResponse>(seasonUrl(leagueId, season), {
+function toGames(events: RawEvent[] | null | undefined, league: League): Game[] {
+  const games: Game[] = [];
+  for (const event of events ?? []) {
+    // The catalogue label, not the provider's wording, so chips and badges
+    // match the rest of the application.
+    const game = normaliseEvent(event, league.sport, league.label);
+    if (game) games.push(game);
+  }
+  return games;
+}
+
+async function fetchSeason(league: League, season: string, leagueId: string): Promise<Game[]> {
+  const payload = await getJson<RawEventsResponse>(seasonUrl(leagueId, season), {
+    timeoutMs: sportsConfig.timeoutMs,
+    redactSecret: sportsConfig.apiKey,
+  });
+  return toGames(payload?.events, league);
+}
+
+/**
+ * Competitions whose bulk `eventsseason.php` call cannot be trusted.
+ *
+ * The CFL's is checked and confirmed broken, not merely thin: every season
+ * from 2021 to 2026 returned exactly five events, every one tagged as a
+ * preseason fixture (`intRound: "500"`) from a single week in May, months
+ * before the real June-to-November season. The league id is right — a real
+ * CFL club looks itself up under it — and the season label is right too, an
+ * individual event returned by a *different* endpoint carries the identical
+ * season string this call had already been sent and had failed to return.
+ * The season-level query is simply not finding what is otherwise there.
+ *
+ * `eventsround.php`, queried a round at a time, returns the real season —
+ * confirmed for 2022 through 2025 with real teams, real scores, correct
+ * in-season dates. 2021 alone still returns nothing by this method either;
+ * that season is on record as pandemic-shortened and delayed, which may use
+ * a round numbering this sweep does not reach, and was not chased further —
+ * four seasons already clears what this application asks history for.
+ *
+ * Scoped to the CFL specifically because AFLE and EFA's season-level calls
+ * are not broken; they are simply new competitions with one real season on
+ * record, which is a fact about the competitions, not the endpoint. Applying
+ * this workaround to them would cost extra requests to relearn the same
+ * single season the cheap call already reports correctly.
+ */
+const ROUND_FETCH_LEAGUES: ReadonlySet<string> = new Set(['cfl']);
+
+/** Whether a competition's fixtures must be assembled round by round. Pure, and the one decision in this file worth testing without a network. */
+export function usesRoundFetch(leagueId: string): boolean {
+  return ROUND_FETCH_LEAGUES.has(leagueId);
+}
+
+/**
+ * Highest round worth asking for.
+ *
+ * The CFL's regular season ran through round 21 in the seasons checked
+ * (an 18-game schedule spread across more rounds than games, once bye weeks
+ * are accounted for), with rounds beyond that empty. Postseason games were
+ * not found under any round number tried and may use a separate scheme this
+ * sweep does not know about — stated as a real, accepted gap rather than
+ * assumed covered.
+ */
+const MAX_ROUND = 25;
+
+/** Stop after this many consecutive empty rounds; real data is contiguous from round 1. */
+const EMPTY_ROUND_STREAK_LIMIT = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * A season assembled from its rounds, for the one competition whose bulk
+ * season call cannot be trusted.
+ *
+ * Costs roughly twenty small requests instead of one. Sequential rather than
+ * parallel, with a pause between them: TheSportsDB's shared test key is
+ * documented elsewhere in this codebase as reliably rate-limiting above four
+ * *concurrent* requests, and a tight burst of sequential ones is the same
+ * risk from a different direction. A single round failing — including a 429
+ * — is logged and skipped rather than allowed to abort the whole season, the
+ * same tolerance `fixturesForSportsdbLeague` already gives a whole season
+ * failing.
+ */
+async function fetchSeasonByRound(
+  league: League,
+  season: string,
+  leagueId: string,
+): Promise<Game[]> {
+  const games: Game[] = [];
+  let emptyStreak = 0;
+
+  for (let round = 1; round <= MAX_ROUND; round += 1) {
+    let events: RawEvent[] = [];
+    try {
+      const payload = await getJson<RawEventsResponse>(roundUrl(leagueId, season, round), {
         timeoutMs: sportsConfig.timeoutMs,
         redactSecret: sportsConfig.apiKey,
       });
+      events = Array.isArray(payload?.events) ? payload.events : [];
+    } catch (error) {
+      logger.warn('sportsdb_round_failed', {
+        league: league.id,
+        season,
+        round,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+      // Treat a failed round like an empty one for the stop condition, rather
+      // than letting a single dropped request cut the season short.
+    }
 
-      const events: RawEvent[] = Array.isArray(payload?.events) ? payload.events : [];
+    if (events.length === 0) {
+      emptyStreak += 1;
+      if (emptyStreak >= EMPTY_ROUND_STREAK_LIMIT) break;
+    } else {
+      emptyStreak = 0;
+      games.push(...toGames(events, league));
+    }
 
-      const games: Game[] = [];
-      for (const event of events) {
-        // The catalogue label, not the provider's wording, so chips and badges
-        // match the rest of the application.
-        const game = normaliseEvent(event, league.sport, league.label);
-        if (game) games.push(game);
-      }
-      return games;
-    },
+    if (round < MAX_ROUND) await sleep(200);
+  }
+
+  return games;
+}
+
+/**
+ * One competition's fixtures for one season, cached under a key that reflects
+ * which strategy actually produced them — so a fix or a regression in either
+ * path invalidates only itself, not the other.
+ */
+async function fetchLeagueSeason(league: League, season: string, ttlMs: number): Promise<Game[]> {
+  const leagueId = league.sportsdbLeagueId;
+  if (!leagueId) return [];
+
+  const byRound = usesRoundFetch(league.id);
+  const { value } = await cached(
+    `sportsdb:${byRound ? 'season-by-round' : 'season'}:${league.id}:${season}`,
+    ttlMs,
+    () =>
+      byRound
+        ? fetchSeasonByRound(league, season, leagueId)
+        : fetchSeason(league, season, leagueId),
   );
 
   return value;
@@ -105,7 +232,7 @@ export async function fixturesForSportsdbLeague(
   const results = await Promise.all(
     seasons.map(async (season) => {
       try {
-        return await fetchSeason(league, season, ttlMs);
+        return await fetchLeagueSeason(league, season, ttlMs);
       } catch (error) {
         // One season failing must not discard the others.
         logger.warn('sportsdb_season_failed', {

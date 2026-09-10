@@ -24,7 +24,8 @@ Categories, used consistently:
 
 The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
 sport and competition filtering for parlays, and a design system that makes the
-whole application readable on a phone and a tablet. 764 tests.
+whole application readable on a phone and a tablet, and a fix for CFL
+fixtures that had been silently empty. 768 tests.
 
 ### Added
 
@@ -249,6 +250,27 @@ whole application readable on a phone and a tablet. 764 tests.
   it yet — rather than being absent from a page it belongs on.
 
 ### Fixed
+
+**The CFL had no fixtures — the schedule, the hub, and every prediction
+downstream saw an empty season**
+
+- Found while checking whether the projection engine's next round of work
+  could lean on several years of history: the request the application makes
+  for CFL fixtures returned the same five games for every season from 2021
+  to 2026, all of them preseason, all from a single week in May — months
+  before the CFL's real June-to-November season. The league id and the
+  season label were both right; the provider's bulk season endpoint simply
+  was not returning what was otherwise there for this competition.
+- Confirmed the data was real and reachable: a different call on the same
+  provider, asked one round at a time rather than one season at a time,
+  returned the actual season — real teams, real scores, correct dates —
+  for every year checked back to 2022.
+- CFL fixtures are now assembled round by round rather than trusted to the
+  broken bulk call. Every other competition on this provider is unaffected;
+  their season-level calls were never the problem.
+- 2021 is not recovered by this fix and is not claimed to be — that season
+  is on record as delayed and shortened, and may use a round numbering this
+  fix does not reach.
 
 **The Schedule lost every fixture's status on a tablet**
 
