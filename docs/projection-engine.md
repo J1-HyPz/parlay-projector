@@ -426,6 +426,48 @@ are stamped `projection-v1-mlb-sp` via `SportModelConfig.modelVersion`, which
 overrides the global constant for one sport so the rest are not relabelled as
 though they had changed too.
 
+### The long-run history archive
+
+`DATA_DIR/history/<league>/<season>.json` — one file per competition per
+completed season, filled by `pnpm history:backfill`.
+
+**It is not a longer rating window, and that distinction is the whole point.**
+`historyDays` feeds `buildRatings`, a team's *current* attack and defence rate,
+and extending it is the mistake NCAA Football's config already made: a window
+reaching into a prior season lets a team with no games yet this year borrow
+last year's roster at a data quality high enough to clear every risk profile.
+Nothing in `lib/history/` is wired into `buildRatings`, and nothing read from it
+may be. It exists to calibrate league constants and to answer questions about
+seasons, not about form. The archive changes no projection today.
+
+Why files rather than the in-memory cache: a completed season never changes,
+and the process-local cache would re-fetch several years of fixtures on every
+redeploy. Why one file per season rather than one archive: a calculation only
+ever needs one competition at a time, and adding a finished season writes a
+small new file instead of rewriting a large one.
+
+Three rules the fill obeys, each learned rather than assumed:
+
+- **Only completed seasons are written.** An in-progress season can still gain
+  results, and a file claiming a whole season while missing its last month
+  would move any constant fitted from it with nothing able to tell.
+- **An empty season is never written.** This was the other way round first, on
+  the reasoning that a competition younger than the window genuinely has no
+  fixtures. Then the CFL came back empty because the provider rate-limited the
+  fetch, and the archive wrote a file asserting a season that was played
+  contained no games. The two are indistinguishable from outside and only one
+  is safe to be wrong about, so neither is persisted.
+- **A season boundary is a fact about a competition, not its sport.** The CFL
+  is `sport: 'nfl'` and plays June to November; inheriting the NFL's
+  August-to-February window clipped it to 27 games where the league plays 81.
+  `LEAGUE_BOUNDS` in `lib/history/season.ts` overrides the sport default for
+  the CFL, AFLE and EFA, which all play summer schedules.
+
+Nothing errored in either of the last two cases — the files were written
+faithfully from a wrong question, which is precisely why file validation could
+never have caught them and why the counts were checked against what each
+competition actually plays.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

@@ -28,7 +28,50 @@ whole application readable on a phone and a tablet, a fix for CFL fixtures that
 had been silently empty, an Accuracy page that finally shows how the model
 scores per competition, and injury and starting-pitcher information on the game
 page, projections that now say who is missing instead of claiming nobody knows,
-and MLB projections that account for who is pitching. 799 tests.
+MLB projections that account for who is pitching, and a long-run history
+archive that survives redeploys. 815 tests.
+
+### Added
+
+**A long-run history archive — several years per competition, kept on disk**
+
+- `pnpm history:backfill` walks each competition back through its recent
+  completed seasons and stores them under
+  `DATA_DIR/history/<league>/<season>.json`. It survives redeploys, which the
+  existing in-memory cache does not, so several years of fixtures are fetched
+  once rather than on every restart.
+- **It changes no projection.** It is deliberately not wired into team ratings
+  and must not be: a rating window long enough to reach into last season lets a
+  team with no games yet borrow last year's roster, which is the exact mistake
+  NCAA Football's config already made. This is for calibrating league constants
+  and answering questions about seasons, not about current form.
+- **An empty season is never written.** The first version recorded them, on the
+  reasoning that a competition younger than the window really has no fixtures.
+  Then the CFL came back empty because the provider rate-limited the request,
+  and the archive stored a file asserting that a season which was actually
+  played contained no games. Those two cases look identical from outside and
+  only one is safe to be wrong about, so neither is stored now.
+
+### Fixed
+
+**The CFL's history was being cut in half by the NFL's calendar**
+
+- Season boundaries were taken from the sport, and the CFL is filed under
+  American football — so it inherited an August-to-February window and lost its
+  June and July fixtures. A season the league plays 81 games of archived as 27.
+- Nothing errored. The file was written faithfully from the wrong question,
+  which is why it was caught by the count looking wrong rather than by any
+  check. The CFL, and the two European competitions that also play summer
+  schedules, now have their own windows.
+
+**A rate-limited request could empty a competition's schedule**
+
+- When the provider returned "too many requests" while fetching the CFL round
+  by round, each refused round was counted as a round with no games — so a
+  temporary limit produced what looked like a competition that played nothing.
+- Rate-limited requests are now retried with a pause between attempts, and a
+  round that still cannot be read stops the season instead of quietly reporting
+  it as empty.
 
 ### Changed
 

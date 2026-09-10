@@ -13,16 +13,16 @@
  * has no runtime imports so it can be unit-tested directly.
  */
 
-import { cached } from '../../cache';
-import { espnConfig } from '../../config';
-import { logger } from '../../logger';
+import { cached } from '../../cache.ts';
+import { espnConfig } from '../../config.ts';
+import { logger } from '../../logger.ts';
 import type { Game } from '../../home/types';
 import type { League } from '../../leagues/registry';
-import { ProviderError } from '../../http';
-import { fetchEspn } from './client';
-import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixture-normalise';
+import { ProviderError } from '../../http.ts';
+import { fetchEspn } from './client.ts';
+import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixture-normalise.ts';
 import type { RawFixtureResponse } from './fixture-normalise';
-import { normaliseRaceFixtures } from './racing';
+import { normaliseRaceFixtures } from './racing.ts';
 import type { RawRaceResponse } from './racing';
 
 /**
@@ -52,12 +52,12 @@ export {
   normaliseFixtures,
   parseEspnGameId,
   statusFromEspn,
-} from './fixture-normalise';
+} from './fixture-normalise.ts';
 export type {
   ParsedEspnGameId,
   RawFixtureEvent,
   RawFixtureResponse,
-} from './fixture-normalise';
+} from './fixture-normalise.ts';
 
 /**
  * Every fixture for a league between two dates, inclusive.

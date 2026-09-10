@@ -11,8 +11,8 @@
  * treat an out-of-season competition as empty rather than as a failure.
  */
 
-import { fixturesForLeague as espnFixtures, fixturesForRange as espnRange } from './espn/fixtures';
-import { fixturesForSportsdbLeague } from './thesportsdb/fixtures';
+import { fixturesForLeague as espnFixtures, fixturesForRange as espnRange } from './espn/fixtures.ts';
+import { fixturesForSportsdbLeague } from './thesportsdb/fixtures.ts';
 import type { League } from '../leagues/registry';
 import type { Game } from '../home/types';
 

@@ -1,7 +1,8 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1 and §4.2 have shipped in full; everything else is
-still a plan. Companion to
+**Status: in progress.** §4.1 and §4.2 have shipped in full, and §4.3's archive
+(points 1 and 5) is built and filled; everything else is still a plan.
+Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -430,6 +431,10 @@ version a false record.
 
 ### 4.3 Long-run history — three to five years, kept separate from the rating window
 
+**Points 1 and 5 shipped** — the archive exists, is filled, and is inert.
+Points 2 and 3 (calibration, deep head-to-head) and point 4 (the regression
+anchor) are not built. Notes at the end of this section.
+
 **Why.** More seasons behind a competition means a more stable measurement of
 everything that doesn't change week to week — how much a league actually
 scores on average, how large a real home edge is, how wide the model's errors
@@ -777,6 +782,75 @@ range, and needed a different probe entirely.
   finding — Confirmed, Scoped down, or Excluded, each with its reason — not
   "Not yet run," before this phase is considered complete for that
   competition.
+
+---
+
+**What shipped, and what it cost to get right.**
+
+`lib/history/` holds four modules — season boundaries, file store, validation,
+and the fill — plus `pnpm history:backfill`. Layout is exactly as point 5
+specifies: `DATA_DIR/history/<league>/<season>.json`. The archive is **inert**,
+as acceptance criterion 5 requires: nothing reads it, and it is deliberately
+not wired into `buildRatings`.
+
+Verified by counting what each competition actually plays, not by trusting that
+the fetch succeeded — which is what caught both bugs below:
+
+| Competition | Season | Archived | Expected |
+|---|---|---|---|
+| Premier League | 2023, 2024, 2025 | 380 each | 380 (20 teams, double round robin) |
+| NFL | 2023, 2024, 2025 | 334-335 each | ~335 with preseason and play-offs |
+| CFL | 2025 | 81 | 81 (9 teams, 18 games) |
+
+Zero duplicate fixture ids across season files, which is the check that the
+window clamping works — TheSportsDB returns whole calendar years, so a football
+season spanning two of them would otherwise be counted twice.
+
+The full fill: **21 competitions, 3 seasons each, 31,627 games, 18 MB** — so
+the five-season target lands near 30 MB, comfortably inside §10's estimate.
+It also reproduces, independently, a fact this document recorded separately:
+the Champions League archives 125 games for 2023 and 189 for 2024 and 2025,
+which is exactly the 32-team group stage giving way to the 36-team league phase
+at 2024-25. Bundesliga 306 (18 teams), Championship and League One 557 (24
+teams plus play-offs), La Liga and Serie A 380 — every count matches what the
+competition actually plays.
+
+**One thing §4.4 must know before calibrating from this.** The windows are
+generous by design, so they include pre-season: MLB archives ~2,979 games where
+the regular season is 2,430, and the NFL ~335 against 272. Those are real
+fixtures and belong in the archive, but a `baselineTotal` or `homeAdvantage`
+fitted without filtering them would be fitted partly on exhibition games.
+Filtering is the calibration's job, not the archive's — but it is not optional.
+
+**Two bugs found, both by a number looking wrong rather than by anything
+failing.**
+
+- **A season boundary is a fact about a competition, not its sport.** The CFL
+  carries `sport: 'nfl'` and so inherited an August-to-February window, which
+  clipped its June-to-November season to 27 games where the league plays 81.
+  `LEAGUE_BOUNDS` now overrides the sport default for the CFL, AFLE and EFA,
+  all of which play summer schedules.
+- **An empty result is ambiguous, so it is no longer persisted.** The first
+  version wrote empty seasons, reasoning that a competition younger than the
+  window genuinely has none — the AFLE and EFA. Then the CFL came back empty
+  because the provider rate-limited the fetch, and the archive wrote a file
+  asserting a season that was played contained no games. Indistinguishable from
+  outside, and only one is safe to be wrong about.
+
+Neither errored. Both files were written faithfully from a wrong question,
+which is exactly why the file validation could not have caught them — it can
+detect a *damaged* file, never a truthful record of the wrong thing.
+
+**A provider fix fell out of this.** The CFL's round-by-round fetch treated a
+rate-limited round as an empty round, so a temporary 429 produced a season with
+no games at all. Rate-limited rounds are now retried with backoff, and a round
+that still cannot be read raises rather than counting as empty.
+
+**Still outstanding in this phase.** Point 2 (league-constant calibration) is
+really §4.4's work and now has an archive to draw on. Point 3 (deep
+head-to-head) is unbuilt and is the obvious next increment — it needs no new
+provider call, only a filter over files that now exist. Point 4 (the long-run
+regression anchor) remains the stretch goal it was always described as.
 
 ---
 

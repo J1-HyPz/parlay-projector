@@ -20,8 +20,8 @@
  * request helper is still used for its timeout, size cap and 429 detection.
  */
 
-import { espnConfig } from '../../config';
-import { getJson } from '../../http';
+import { espnConfig } from '../../config.ts';
+import { getJson } from '../../http.ts';
 
 export type EspnApi = 'site' | 'v2' | 'core';
 

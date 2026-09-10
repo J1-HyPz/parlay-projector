@@ -22,7 +22,7 @@
 import { cached } from '../../cache.ts';
 import { sportsConfig } from '../../config.ts';
 import { logger } from '../../logger.ts';
-import { getJson } from '../../http.ts';
+import { getJson, ProviderError } from '../../http.ts';
 import { normaliseEvent } from '../../home/sports/normalise.ts';
 import type { RawEvent, RawEventsResponse } from '../../home/sports/normalise';
 import type { League } from '../../leagues/registry';
@@ -133,6 +133,17 @@ const MAX_ROUND = 25;
 /** Stop after this many consecutive empty rounds; real data is contiguous from round 1. */
 const EMPTY_ROUND_STREAK_LIMIT = 3;
 
+/**
+ * Attempts per round before giving up on it.
+ *
+ * The shared test key rate-limits on concurrency, and a sequential sweep of
+ * twenty-odd rounds is enough to trip it. Backing off and retrying recovers
+ * from that; treating the 429 as an empty round does not, and *looks* like a
+ * competition with no fixtures.
+ */
+const ROUND_ATTEMPTS = 3;
+const RATE_LIMIT_BACKOFF_MS = 1_500;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -145,10 +156,10 @@ function sleep(ms: number): Promise<void> {
  * parallel, with a pause between them: TheSportsDB's shared test key is
  * documented elsewhere in this codebase as reliably rate-limiting above four
  * *concurrent* requests, and a tight burst of sequential ones is the same
- * risk from a different direction. A single round failing — including a 429
- * — is logged and skipped rather than allowed to abort the whole season, the
- * same tolerance `fixturesForSportsdbLeague` already gives a whole season
- * failing.
+ * risk from a different direction. A rate-limited round is backed off and
+ * retried; a round that still cannot be read aborts the season rather than
+ * counting as empty, because a swallowed 429 is indistinguishable from a
+ * competition that played no games.
  */
 async function fetchSeasonByRound(
   league: League,
@@ -159,22 +170,48 @@ async function fetchSeasonByRound(
   let emptyStreak = 0;
 
   for (let round = 1; round <= MAX_ROUND; round += 1) {
-    let events: RawEvent[] = [];
-    try {
-      const payload = await getJson<RawEventsResponse>(roundUrl(leagueId, season, round), {
-        timeoutMs: sportsConfig.timeoutMs,
-        redactSecret: sportsConfig.apiKey,
-      });
-      events = Array.isArray(payload?.events) ? payload.events : [];
-    } catch (error) {
+    let events: RawEvent[] | null = null;
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= ROUND_ATTEMPTS; attempt += 1) {
+      try {
+        const payload = await getJson<RawEventsResponse>(roundUrl(leagueId, season, round), {
+          timeoutMs: sportsConfig.timeoutMs,
+          redactSecret: sportsConfig.apiKey,
+        });
+        events = Array.isArray(payload?.events) ? payload.events : [];
+        break;
+      } catch (error) {
+        lastError = error;
+        // Only a rate limit is worth waiting out; a 404 will still be a 404.
+        const limited = error instanceof ProviderError && error.rateLimited;
+        if (!limited || attempt === ROUND_ATTEMPTS) break;
+        await sleep(RATE_LIMIT_BACKOFF_MS * attempt);
+      }
+    }
+
+    /*
+     * A round that could not be read is not an empty round.
+     *
+     * This used to be swallowed, and the consequence was a season that came
+     * back with nothing at all and looked exactly like a competition with no
+     * fixtures — which the history archive then wrote to disk as fact. An
+     * unreadable round makes the whole season untrustworthy, so it is raised
+     * and the caller decides: the live path already tolerates a season
+     * failing, and the archive declines to record one it could not read.
+     */
+    if (events === null) {
       logger.warn('sportsdb_round_failed', {
         league: league.id,
         season,
         round,
-        reason: error instanceof Error ? error.message : 'unknown',
+        reason: lastError instanceof Error ? lastError.message : 'unknown',
       });
-      // Treat a failed round like an empty one for the stop condition, rather
-      // than letting a single dropped request cut the season short.
+      throw new ProviderError(
+        `round ${round} of ${season} could not be read: ${
+          lastError instanceof Error ? lastError.message : 'unknown'
+        }`,
+      );
     }
 
     if (events.length === 0) {

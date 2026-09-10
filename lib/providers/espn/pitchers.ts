@@ -16,12 +16,12 @@
  * at all.
  */
 
-import { cached } from '../../cache';
-import { espnConfig } from '../../config';
-import { logger } from '../../logger';
-import { fetchEspn } from './client';
-import { getJson } from '../../http';
-import { parseInnings, rateBefore } from '../../projections/pitchers';
+import { cached } from '../../cache.ts';
+import { espnConfig } from '../../config.ts';
+import { logger } from '../../logger.ts';
+import { fetchEspn } from './client.ts';
+import { getJson } from '../../http.ts';
+import { parseInnings, rateBefore } from '../../projections/pitchers.ts';
 import type { FixturePitchers, PitcherStart } from '../../projections/pitchers';
 
 /**

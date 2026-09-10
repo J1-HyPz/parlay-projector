@@ -26,13 +26,13 @@
  * says only that this application cannot say, which is merely conservative.
  */
 
-import { cached } from '../../cache';
-import { espnConfig } from '../../config';
-import { logger } from '../../logger';
-import { fetchEspn } from './client';
-import { playersFrom } from '../../games/availability-normalise';
+import { cached } from '../../cache.ts';
+import { espnConfig } from '../../config.ts';
+import { logger } from '../../logger.ts';
+import { fetchEspn } from './client.ts';
+import { playersFrom } from '../../games/availability-normalise.ts';
 import type { PlayerAvailability } from '../../games/availability-normalise';
-import { supportsEditorialData } from '../../leagues/registry';
+import { supportsEditorialData } from '../../leagues/registry.ts';
 import type { League } from '../../leagues/registry';
 
 /**

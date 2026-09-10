@@ -9,14 +9,14 @@
  * for "no data", so a missing match never breaks a page.
  */
 
-import { cached } from '../../cache';
-import { espnConfig } from '../../config';
-import { logger } from '../../logger';
+import { cached } from '../../cache.ts';
+import { espnConfig } from '../../config.ts';
+import { logger } from '../../logger.ts';
 import type { ConcreteSportId } from '../../home/types';
-import { fetchEspn } from './client';
-import { normaliseScoreboard, normaliseSeasonSeries } from './normalise';
+import { fetchEspn } from './client.ts';
+import { normaliseScoreboard, normaliseSeasonSeries } from './normalise.ts';
 import type { EspnGame, EspnMeeting, RawEspnScoreboard } from './normalise';
-import { espnPathFor } from './paths';
+import { espnPathFor } from './paths.ts';
 import type { ProviderDescriptor } from '../capabilities';
 
 export const ESPN_PROVIDER_ID = 'espn';
