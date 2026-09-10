@@ -431,9 +431,10 @@ version a false record.
 
 ### 4.3 Long-run history — three to five years, kept separate from the rating window
 
-**Points 1 and 5 shipped** — the archive exists, is filled, and is inert.
-Points 2 and 3 (calibration, deep head-to-head) and point 4 (the regression
-anchor) are not built. Notes at the end of this section.
+**Points 1, 3 and 5 shipped** — the archive exists, is filled, and its first
+reader is deep head-to-head. Point 2 (league-constant calibration) belongs to
+§4.4 and now has an archive to draw on; point 4 (the regression anchor) remains
+the stretch goal it was described as. Notes at the end of this section.
 
 **Why.** More seasons behind a competition means a more stable measurement of
 everything that doesn't change week to week — how much a league actually
@@ -846,11 +847,28 @@ rate-limited round as an empty round, so a temporary 429 produced a season with
 no games at all. Rate-limited rounds are now retried with backoff, and a round
 that still cannot be read raises rather than counting as empty.
 
+**Point 3 shipped, and behaved as predicted.** It needed no new provider call —
+only a filter over files that now exist. A Premier League fixture that would
+have shown at most the current season's meetings now shows six, from December
+2023 to April 2026, correctly dated, with the record tallied above them.
+
+One bug worth recording, because it is the kind that only appears when two
+sources meet: the archive stores this application's own fixture id
+(`espn-epl-740911`) while the provider's season series returns the bare event
+id (`740911`). De-duplicating on the whole string matched nothing, so every
+recent meeting rendered twice. The key is now the id's trailing segment.
+Deliberately not the date, which would have been the obvious shortcut and would
+have collapsed a baseball double-header — two real meetings on one day — into
+one.
+
+The record is reported with its sample size and span attached and is never
+scored, exactly as point 3 specifies. `headToHeadPattern` states a skew only at
+six meetings and a 70% lean, and returns null otherwise, which is the usual
+answer.
+
 **Still outstanding in this phase.** Point 2 (league-constant calibration) is
-really §4.4's work and now has an archive to draw on. Point 3 (deep
-head-to-head) is unbuilt and is the obvious next increment — it needs no new
-provider call, only a filter over files that now exist. Point 4 (the long-run
-regression anchor) remains the stretch goal it was always described as.
+§4.4's work. Point 4 (the long-run regression anchor) remains the stretch goal
+it was always described as.
 
 ---
 

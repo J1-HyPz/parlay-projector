@@ -29,9 +29,24 @@ had been silently empty, an Accuracy page that finally shows how the model
 scores per competition, and injury and starting-pitcher information on the game
 page, projections that now say who is missing instead of claiming nobody knows,
 MLB projections that account for who is pitching, and a long-run history
-archive that survives redeploys. 815 tests.
+archive that survives redeploys and finally makes head-to-head go back further
+than the current season. 826 tests.
 
 ### Added
+
+**Head to head that goes back years, not weeks**
+
+- The previous-meetings section on a game page could only ever show meetings
+  from the **current season** — one to four games, and in August usually none
+  at all. It now reaches back through every archived season.
+- Liverpool against Fulham, for example, now shows six meetings from December
+  2023 to April 2026, each correctly dated, with the record tallied above them:
+  who won how many, over how many meetings, and between which years.
+- **It is never used to price anything.** Most pairs have met a handful of
+  times even across five seasons, and a 4-1 record over five years is a fact
+  about five afternoons rather than a property of either side. The count and
+  the span always travel with the record so a reader can weigh it themselves.
+- Costs no extra request. It reads the history archive already on disk.
 
 **A long-run history archive — several years per competition, kept on disk**
 

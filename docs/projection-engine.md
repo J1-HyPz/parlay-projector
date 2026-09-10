@@ -468,6 +468,29 @@ faithfully from a wrong question, which is precisely why file validation could
 never have caught them and why the counts were checked against what each
 competition actually plays.
 
+### Deep head-to-head
+
+The archive's first reader, and it costs no provider call. ESPN's
+`seasonseries` covers meetings *within the current season only* — one to four
+games, and in August frequently none — so the game page's head-to-head section
+used to be shallow or empty for most of the year. `meetingsBetween` asks the
+same question of files already on disk and reaches as far back as the archive
+goes.
+
+The two sources are merged rather than one replacing the other, because the
+provider still knows about a meeting from this season that last month's
+backfill cannot. De-duplication is on the id's **trailing segment**: the
+archive stores `espn-epl-740911` where the provider returns the bare `740911`,
+and matching on the whole string showed every recent meeting twice. Not on the
+date — a baseball double-header is two real meetings on one day.
+
+The record is reported with its sample size and its span attached, and is never
+scored. Across five seasons most pairs have met a handful of times, and a 4-1
+record over five years is a fact about five afternoons rather than a property
+of either side. `headToHeadPattern` will only state a skew at six meetings or
+more and at a 70% lean; below that it returns null, which is the usual and
+intended answer.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

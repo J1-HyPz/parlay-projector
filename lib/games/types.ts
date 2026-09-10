@@ -12,6 +12,7 @@
 
 import type { ConcreteSportId, GameStatus, Venue } from '../home/types';
 import type { FixtureAvailability } from './availability-normalise';
+import type { HeadToHeadRecord } from '../history/head-to-head';
 
 /** Win / draw / loss from one team's point of view. */
 export type FormResult = 'W' | 'D' | 'L';
@@ -94,6 +95,15 @@ export interface GameDetail {
    * competition is covered; empty otherwise.
    */
   head_to_head: RecentGame[];
+  /**
+   * The same meetings, tallied, when the long-run archive holds any.
+   *
+   * Null where the archive has nothing for this competition — which is every
+   * competition until a backfill has run for it. Distinct from a record of
+   * zero meetings, which means the archive was read and these two have not
+   * met inside it.
+   */
+  head_to_head_record: HeadToHeadRecord | null;
   /**
    * Who is and is not playing, where the provider says so.
    *

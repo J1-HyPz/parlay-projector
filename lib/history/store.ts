@@ -35,6 +35,7 @@
 
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { cached } from '../cache.ts';
 import { DATA_DIR } from '../config.ts';
 import { logger } from '../logger.ts';
 import { parseSeasonFile } from './store-parse.ts';
@@ -142,4 +143,22 @@ export async function readLeagueHistory(leagueId: string): Promise<Game[]> {
   }
 
   return games.sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
+}
+
+/**
+ * One competition's archive, held in memory between requests.
+ *
+ * `readLeagueHistory` opens every season file each time it is called, which is
+ * fine for a backfill and wasteful on the path of a page load. The archive only
+ * changes when a backfill runs, so a long TTL costs nothing and a stale read is
+ * not possible in any way that matters — a season that appeared an hour ago
+ * appearing an hour late is not a correctness problem.
+ */
+const CACHE_TTL_MS = 30 * 60_000;
+
+export async function leagueHistory(leagueId: string): Promise<Game[]> {
+  const { value } = await cached(`history:league:${leagueId}`, CACHE_TTL_MS, () =>
+    readLeagueHistory(leagueId),
+  );
+  return value;
 }

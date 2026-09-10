@@ -23,7 +23,10 @@ import { findLeague } from '../leagues/registry';
 import { fixtureAvailability, probablesFromSummary } from './availability-normalise';
 import type { RawAvailabilitySummary } from './availability-normalise';
 import { leagueAvailability } from '../providers/espn/availability';
-import type { GameDetail, TeamStanding } from './types';
+import { leagueHistory } from '../history/store';
+import { meetingsBetween, summariseMeetings } from '../history/head-to-head';
+import type { Meeting } from '../history/head-to-head';
+import type { GameDetail, RecentGame, TeamStanding } from './types';
 
 interface RawCompetitor {
   id?: unknown;
@@ -91,6 +94,58 @@ function standingFor(raw: RawCompetitor | undefined): TeamStanding | null {
   return recordToStanding(record, null) ?? standingFromForm(form);
 }
 
+/**
+ * Identity of a meeting, across two sources that number it differently.
+ *
+ * The archive stores this application's own id — `espn-epl-740911` — while the
+ * provider's season series returns the bare event id, `740911`. They are the
+ * same fixture, and de-duplicating on the whole string silently showed every
+ * recent meeting twice. The trailing segment is the provider's event id in
+ * both forms.
+ *
+ * Deliberately not the date: two given sides cannot usually meet twice in a
+ * day, but a baseball double-header is exactly that, and collapsing one would
+ * lose a real result.
+ */
+function meetingKey(id: string): string {
+  const parts = id.split('-');
+  return parts[parts.length - 1] || id;
+}
+
+/**
+ * The provider's meetings plus the archive's, newest first.
+ *
+ * The provider's entries win a tie: they are the same fixture, and its version
+ * is the one the rest of this page was built from.
+ */
+function mergeMeetings(
+  provider: RecentGame[],
+  archivedMeetings: readonly Meeting[],
+  homeName: string | null,
+): RecentGame[] {
+  if (!homeName) return provider;
+  const byId = new Map(provider.map((game) => [meetingKey(game.id), game]));
+
+  for (const meeting of archivedMeetings) {
+    if (byId.has(meetingKey(meeting.id))) continue;
+    const atHome = meeting.home.toLowerCase() === homeName.toLowerCase();
+    const own = atHome ? meeting.home_score : meeting.away_score;
+    const other = atHome ? meeting.away_score : meeting.home_score;
+
+    byId.set(meetingKey(meeting.id), {
+      id: meeting.id,
+      date: meeting.date,
+      opponent: atHome ? meeting.away : meeting.home,
+      home: atHome,
+      team_score: own,
+      opponent_score: other,
+      result: own > other ? 'W' : own < other ? 'L' : 'D',
+    });
+  }
+
+  return [...byId.values()].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+}
+
 /** Detail for one ESPN fixture. Returns null when ESPN has no such event. */
 export async function espnGameDetail(gameId: string): Promise<GameDetail | null> {
   if (!espnConfig.enabled) return null;
@@ -130,7 +185,12 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
    * pipeline, which reads the same report — so on a warm cache this is free,
    * and on a cold one it is a single request rather than one per fixture.
    */
-  const report = await leagueAvailability(league);
+  const [report, archived] = await Promise.all([
+    leagueAvailability(league),
+    // Files already on disk; no provider call. Empty until a backfill has run
+    // for this competition.
+    leagueHistory(league.id),
+  ]);
 
   const summary = value;
   const header = summary.header;
@@ -151,6 +211,23 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
   const startTime = date ? new Date(date) : null;
 
   const meetings = normaliseSeasonSeries(summary as never);
+
+  /*
+   * Previous meetings, as deep as the archive goes.
+   *
+   * The provider's own `seasonseries` covers the *current season only* — one
+   * to four games, and in August often none at all. The archive answers the
+   * same question across every season it holds, for no provider call, because
+   * the files are already there.
+   *
+   * The two sources are merged rather than one replacing the other: the
+   * provider still knows about a meeting from this season that a backfill run
+   * last month cannot. De-duplicated on fixture id, which both sources carry.
+   */
+  const homeRef = { id: str(home?.team?.id), name: homeName ?? '' };
+  const awayRef = { id: str(away?.team?.id), name: awayName ?? '' };
+  const archivedMeetings =
+    homeRef.name && awayRef.name ? meetingsBetween(archived, homeRef, awayRef) : [];
   const venue = summary.gameInfo?.venue;
   const broadcast = (summary.broadcasts ?? [])
     .map((entry) => str(entry?.media?.shortName))
@@ -196,7 +273,11 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
     broadcast: broadcast ?? null,
     standings: { home: standingFor(home), away: standingFor(away) },
     recent_games: { home: [], away: [] },
-    head_to_head: meetingsToRecentGames(meetings, homeName),
+    head_to_head: mergeMeetings(meetingsToRecentGames(meetings, homeName), archivedMeetings, homeName),
+    head_to_head_record:
+      archivedMeetings.length > 0 || archived.length > 0
+        ? summariseMeetings(archivedMeetings, homeRef)
+        : null,
     /*
      * Injuries from the competition-wide report, starters from the payload
      * above — see `fixtureAvailability` for why they come from different

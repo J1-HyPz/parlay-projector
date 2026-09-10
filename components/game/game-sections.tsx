@@ -349,10 +349,43 @@ export function RecentGames({ game }: { game: GameDetail }) {
 // ---------------------------------------------------------------------------
 
 export function HeadToHead({ game }: { game: GameDetail }) {
+  const record = game.head_to_head_record;
+  // Only worth a line when there is something to tally. A record of one
+  // meeting says nothing a reader cannot see in the row beneath it.
+  const summary = record && record.played >= 2 ? record : null;
+
   return (
     <Section title="Head to Head" icon={Swords}>
       {game.head_to_head.length > 0 ? (
         <div>
+          {summary && (
+            /*
+              The tally, with its sample size and its age attached.
+
+              Both matter and neither is decoration: five meetings is a thin
+              record, and a record whose most recent meeting was three years
+              ago is thinner still. Stating them is what keeps this a fact
+              rather than a suggestion about who wins tonight.
+            */
+            <p className="mb-3 border-b border-line pb-3 text-xs leading-5 text-ink-subtle">
+              {/*
+                Spelled out rather than written "3-2-1", which reads as a
+                scoreline. Draws are named only where there were any, so a
+                sport without them never shows a nought.
+              */}
+              <span className="font-medium text-ink">
+                {game.home_team.name} {summary.wins}, {game.away_team.name} {summary.losses}
+                {summary.draws > 0 ? `, ${summary.draws} drawn` : ''}
+              </span>{' '}
+              over {summary.played} meeting{summary.played === 1 ? '' : 's'}
+              {summary.from && summary.to && summary.from !== summary.to
+                ? `, ${summary.from} to ${summary.to}`
+                : summary.from
+                  ? ` in ${summary.from}`
+                  : ''}
+              .
+            </p>
+          )}
           {game.head_to_head.map((meeting) => (
             <RecentGameRow key={meeting.id} game={meeting} />
           ))}

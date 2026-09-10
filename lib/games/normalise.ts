@@ -301,6 +301,9 @@ export function normaliseGameDetail(input: GameDetailInput): GameDetail | null {
       away: normaliseRecentGames(input.awayRecent, awayTeam.id),
     },
     head_to_head: [],
+    // The archive is keyed by competition and read by the caller that knows
+    // which one this is; this normaliser does not, and does not guess.
+    head_to_head_record: null,
     /*
      * Null, and correct.
      *
