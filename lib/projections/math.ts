@@ -153,6 +153,74 @@ export function samplePoisson(lambda: number, random: () => number): number {
   return k;
 }
 
+/**
+ * One Gamma draw (Marsaglia-Tsang), mean `shape * scale`.
+ *
+ * Exists to mix a Poisson rate, which is the only way to widen a count
+ * distribution without moving its mean. Uses the same seeded generator as
+ * everything else here, so a simulation stays reproducible.
+ */
+export function sampleGamma(shape: number, scale: number, random: () => number): number {
+  if (!(shape > 0) || !(scale > 0)) return 0;
+
+  // Marsaglia-Tsang is defined for shape >= 1; a smaller shape is boosted and
+  // corrected, which is the standard treatment.
+  if (shape < 1) {
+    const boosted = sampleGamma(shape + 1, scale, random);
+    return boosted * Math.pow(Math.max(random(), Number.EPSILON), 1 / shape);
+  }
+
+  const d = shape - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+
+  // Bounded like samplePoisson: the acceptance rate is above 95%, so this
+  // never runs long, but a generator behaving oddly must not spin forever.
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const x = sampleNormal(0, 1, random);
+    const v = (1 + c * x) ** 3;
+    if (v <= 0) continue;
+
+    const u = Math.max(random(), Number.EPSILON);
+    if (u < 1 - 0.0331 * x ** 4) return d * v * scale;
+    if (Math.log(u) < 0.5 * x ** 2 + d * (1 - v + Math.log(v))) return d * v * scale;
+  }
+
+  // Falls back to the mean rather than to zero: a failed draw should not
+  // silently shift the simulation downward.
+  return shape * scale;
+}
+
+/**
+ * One count draw whose variance is `dispersion` times its mean.
+ *
+ * A Poisson process fixes that ratio at one, which is what makes it wrong for
+ * a sport that scores in bursts: baseball's real ratio is above two, so a
+ * Poisson simulation cannot produce the spread its results actually have,
+ * however its constants are set.
+ *
+ * This is the Poisson-Gamma mixture — a negative binomial. The rate itself is
+ * drawn from a Gamma with mean `mean`, then a Poisson is drawn from that rate.
+ * Total variance comes to `mean + mean^2 / shape`, so a shape of
+ * `mean / (dispersion - 1)` gives exactly `dispersion * mean`, and **the mean
+ * is unchanged** — which is the property that matters. Widening a distribution
+ * must not move what it is centred on, or a width fix quietly becomes a
+ * different projection.
+ *
+ * A dispersion at or below one is Poisson, and returns exactly that rather
+ * than an approximation of it.
+ */
+export function sampleOverdispersed(
+  mean: number,
+  dispersion: number,
+  random: () => number,
+): number {
+  if (!(mean > 0)) return 0;
+  if (!(dispersion > 1)) return samplePoisson(mean, random);
+
+  const shape = mean / (dispersion - 1);
+  return samplePoisson(sampleGamma(shape, mean / shape, random), random);
+}
+
 /** One normal draw (Box-Muller). */
 export function sampleNormal(mean: number, sd: number, random: () => number): number {
   const u1 = Math.max(random(), Number.EPSILON);

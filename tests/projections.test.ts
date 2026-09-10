@@ -14,6 +14,9 @@ import {
   poissonAtLeast,
   poissonCdf,
   poissonPmf,
+  sampleGamma,
+  sampleOverdispersed,
+  samplePoisson,
   seedFrom,
   weightedMean,
 } from '../lib/projections/math.ts';
@@ -1390,5 +1393,141 @@ describe('sport models', () => {
     for (const sport of ['nfl', 'nba', 'mlb', 'nhl', 'football'] as const) {
       assert.ok(modelConfigFor(sport), `${sport} has competitions but no model`);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Overdispersed scoring
+// ---------------------------------------------------------------------------
+
+describe('a score that varies more than Poisson allows', () => {
+  /** Sample moments, from the same seeded generator the simulator uses. */
+  function moments(draw: () => number, n = 60_000) {
+    const values: number[] = [];
+    for (let i = 0; i < n; i += 1) values.push(draw());
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, x) => a + (x - mean) ** 2, 0) / (n - 1);
+    return { mean, variance, ratio: variance / mean };
+  }
+
+  it('leaves the mean alone while widening the spread', () => {
+    /*
+     * The property the whole change rests on. Widening a distribution must not
+     * move what it is centred on, or a width fix quietly becomes a different
+     * projection — a different expected score, a different favourite.
+     */
+    const random = createRandom(4242);
+    const plain = moments(() => sampleOverdispersed(4.5, 1, random));
+    const wide = moments(() => sampleOverdispersed(4.5, 2.3, random));
+
+    assert.ok(Math.abs(plain.mean - 4.5) < 0.06, `plain mean ${plain.mean}`);
+    assert.ok(Math.abs(wide.mean - 4.5) < 0.06, `wide mean ${wide.mean}`);
+    assert.ok(wide.variance > plain.variance * 1.8, 'the spread must actually widen');
+  });
+
+  it('hits the variance-to-mean ratio it is asked for', () => {
+    const random = createRandom(99);
+    for (const target of [1.5, 2.3, 3]) {
+      const { ratio } = moments(() => sampleOverdispersed(4.5, target, random));
+      assert.ok(Math.abs(ratio - target) < 0.15, `asked ${target}, measured ${ratio}`);
+    }
+  });
+
+  it('is exactly Poisson at or below one', () => {
+    // A competition that did not measure overdispersed must be bit-for-bit
+    // unchanged, so this is identity rather than approximation.
+    for (const dispersion of [1, 0.5, 0]) {
+      const a = createRandom(7);
+      const b = createRandom(7);
+      const viaDispersion = Array.from({ length: 500 }, () =>
+        sampleOverdispersed(3.2, dispersion, a),
+      );
+      const viaPoisson = Array.from({ length: 500 }, () => samplePoisson(3.2, b));
+      assert.deepEqual(viaDispersion, viaPoisson, `dispersion ${dispersion}`);
+    }
+  });
+
+  it('works across the range of means the sports here actually use', () => {
+    // Football scores about 1.4 a side, baseball about 4.5, and the guard
+    // against a zero or negative mean has to hold too.
+    const random = createRandom(31337);
+    for (const mean of [1.4, 4.5, 9]) {
+      const { ratio } = moments(() => sampleOverdispersed(mean, 2, random));
+      assert.ok(Math.abs(ratio - 2) < 0.15, `mean ${mean} gave ratio ${ratio}`);
+    }
+    assert.equal(sampleOverdispersed(0, 2, random), 0);
+    assert.equal(sampleOverdispersed(-1, 2, random), 0);
+  });
+
+  it('draws a Gamma with the mean it was given', () => {
+    const random = createRandom(5150);
+    const { mean } = moments(() => sampleGamma(3, 1.5, random), 40_000);
+    assert.ok(Math.abs(mean - 4.5) < 0.1, `mean ${mean}`);
+    // Degenerate inputs return zero rather than NaN.
+    assert.equal(sampleGamma(0, 1, random), 0);
+    assert.equal(sampleGamma(1, 0, random), 0);
+  });
+});
+
+describe('the baseball dispersion fit', () => {
+  const mlb = modelConfigFor('mlb')!;
+  const nhl = modelConfigFor('nhl')!;
+  const football = modelConfigFor('football')!;
+
+  it('admits that baseball scores in bursts', () => {
+    /*
+     * A property, not the constant. What matters is that the model is allowed
+     * to be wider than Poisson for this sport — measured variance-to-mean was
+     * 2.27 against the 1.0 a Poisson process assumes — not that the number is
+     * exactly 2.3. A refit should not have to rewrite this to land.
+     */
+    assert.ok(mlb.scoreDispersion, 'baseball must carry a dispersion');
+    assert.ok(
+      mlb.scoreDispersion! > 1.5 && mlb.scoreDispersion! < 3,
+      `dispersion ${mlb.scoreDispersion} should sit near the measured 2.27`,
+    );
+  });
+
+  it('leaves every sport that measured Poisson alone', () => {
+    // Ice hockey came out at 0.99 and football between 1.01 and 1.15, so the
+    // family already fits and adding dispersion would widen them wrongly.
+    for (const config of [nhl, football]) {
+      assert.ok(
+        config.scoreDispersion === undefined || config.scoreDispersion <= 1,
+        'a competition that measured Poisson must stay Poisson',
+      );
+    }
+  });
+
+  it('records the fit separately from the pitcher change', () => {
+    /*
+     * Two unrelated changes to the same competition, so they cannot share a
+     * version: a stored prediction has to say which one it was made under.
+     */
+    assert.ok(mlb.modelVersion);
+    assert.notEqual(mlb.modelVersion, 'projection-v1-mlb-sp');
+    assert.notEqual(mlb.modelVersion, nhl.modelVersion);
+  });
+
+  it('widens the simulation without moving what it is centred on', () => {
+    /*
+     * The property the change rests on, asserted end to end rather than only
+     * on the sampler. If dispersion moved the mean it would not be a width
+     * fix at all — it would be a different projection wearing one.
+     */
+    const random = createRandom(2024);
+    const plain: number[] = [];
+    const wide: number[] = [];
+    for (let i = 0; i < 40_000; i += 1) plain.push(sampleOverdispersed(4.5, 1, random));
+    for (let i = 0; i < 40_000; i += 1) wide.push(sampleOverdispersed(4.5, 2.3, random));
+
+    const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+    const variance = (v: number[]) => {
+      const m = mean(v);
+      return v.reduce((a, x) => a + (x - m) ** 2, 0) / (v.length - 1);
+    };
+
+    assert.ok(Math.abs(mean(plain) - mean(wide)) < 0.1, 'the centre must not move');
+    assert.ok(variance(wide) > variance(plain) * 1.8, 'the spread must widen');
   });
 });

@@ -31,7 +31,8 @@ page, projections that now say who is missing instead of claiming nobody knows,
 MLB projections that account for who is pitching, and a long-run history
 archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
-uncertain it is, and every other sport checked the same way. 844 tests.
+uncertain it is, a baseball model that no longer claims to be more certain than
+it is, and every other sport checked the same way. 853 tests.
 
 ### Added
 
@@ -107,21 +108,29 @@ uncertain it is, and every other sport checked the same way. 844 tests.
   `projection-v1-nba-width`; every other sport keeps its own version, so the
   accuracy breakdown stays a truthful record of what actually moved.
 
-**Baseball's model is more confident than it should be, and a constant cannot fix it**
+**Baseball's model claimed to be more certain than it was, and the fix was the distribution**
 
 - Checked across 12,259 archived fixtures, baseball scores vary **more than
-  twice as much** as the model's distribution allows. Real margins spread about
-  4.5 runs where the model can only produce about 3.0 — and on two held-out
-  seasons its stated width came out **a third narrower than its own error**.
-- The practical effect: every MLB total, run line and team total is priced as
-  more certain than the model actually is.
-- **No setting fixes this.** The distribution the model uses ties how much
-  scores vary to how high they are, so the width is not something that can be
-  chosen. Fixing it means changing the distribution itself, which is a larger
-  piece of work and is now written into the v2 spec rather than rushed.
-- The same measurement is reassuring everywhere else: ice hockey came out at
-  0.99 against an ideal of 1.00, and the football competitions between 1.01 and
-  1.15. Baseball is the exception, not the rule.
+  twice as much** as the model's distribution allowed. Real margins spread
+  about 4.5 runs where the model could only produce about 3.0 — so on two
+  held-out seasons its stated width came out **a third narrower than its own
+  error**, and every MLB total, run line and team total was priced as more
+  certain than the model actually was.
+- **No setting could fix this**, because the distribution in use ties how much
+  scores vary to how high they are. So the distribution changed: baseball now
+  draws its scoring rate from a spread of plausible rates rather than a single
+  one, which widens the range of scorelines **without moving the expected score
+  at all**.
+- Fitted and checked on **2024 and 2025 held out separately**, 4,956 fixtures.
+  The stated width now lands within about a tenth of a run of the real error in
+  both, and both Brier score and log loss improve in both — roughly three times
+  the size of the basketball correction.
+- The projected scoreline, the margin and the accuracy are **unchanged to three
+  decimal places**. That is the point: this makes the model honest about its
+  uncertainty, it does not change what it expects to happen.
+- Only baseball is affected. Ice hockey measured 0.99 against an ideal of 1.00
+  and the football competitions 1.01 to 1.15, so they keep the distribution
+  they had, unchanged down to the individual simulation.
 
 **The NFL, MLB, NHL and every football competition were checked and left alone**
 

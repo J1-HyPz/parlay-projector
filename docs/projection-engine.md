@@ -550,13 +550,33 @@ reports the observed ratio. Measured across five archived seasons:
 | **MLB** | **2.27** | **4.48** | **3.01** |
 
 Ice hockey and football are Poisson to within a few per cent, which is a real
-validation of the model family. **Baseball is not.** Its scores vary more than
-twice as much as the distribution allows, and on held-out seasons the model's
-implied width came out 34% narrower than its own error — so every total, run
-line and team total prices as more certain than the model is. No constant fixes
-it, because a Poisson draw takes its variance from its mean. The fix is a model
-family that admits dispersion, which is larger than recalibration and is
-recorded in the v2 spec rather than attempted.
+validation of the model family. **Baseball is not**, and it is the one sport
+here that needed its distribution changed rather than its constants.
+
+`scoreDispersion` is that change. Above 1 the rate is drawn from a Gamma before
+the count is drawn from a Poisson — a negative binomial — which gives variance
+`dispersion * mean` while leaving the mean exactly where it was. That last part
+is the point: widening a distribution must not move what it is centred on, or a
+width fix quietly becomes a different projection. At or below 1 it returns
+plain Poisson bit-for-bit, so every competition that measured Poisson is
+untouched and none of them set it.
+
+Baseball is fitted at **2.3**, by backtest rather than by taking the raw 2.27.
+The observed ratio mixes two things — the spread of a single fixture and the
+variation in expected score between fixtures — and the model already reproduces
+the second through its own varying expectations, so plugging the raw figure in
+would double-count. Held out on 2024 and 2025 separately, 4,956 fixtures:
+
+| | width gap | Brier | log loss | margin MAE | accuracy |
+|---|---|---|---|---|---|
+| 2024 before | -1.41 | 0.2499 | 0.6936 | 3.454 | 54.9% |
+| 2024 after | **+0.13** | **0.2464** | **0.6858** | 3.455 | 54.9% |
+| 2025 before | -1.56 | 0.2476 | 0.6888 | 3.482 | 55.7% |
+| 2025 after | **-0.03** | **0.2442** | **0.6813** | 3.482 | 55.8% |
+
+Margin error and accuracy are unchanged to three decimals in both seasons,
+which is the signature a width-only change should have. Had they moved, the
+"fix" would have been altering the projection itself.
 
 Note also that `scoreSd` is **inert for a Poisson sport** — `model.ts` reads it
 in the normal branch alone. MLB, NHL and football carry values that change

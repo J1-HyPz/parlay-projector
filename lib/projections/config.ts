@@ -31,6 +31,21 @@ export type ScoringModel = 'poisson' | 'normal';
 export interface SportModelConfig {
   scoring: ScoringModel;
   /**
+   * How much more a score varies than a Poisson process allows.
+   *
+   * Poisson fixes the variance of a count at its mean, which is a genuine
+   * assumption rather than a formality: a sport that scores in bursts cannot
+   * be simulated at its real spread however its other constants are set. Above
+   * 1 the rate is mixed through a Gamma before the count is drawn, widening
+   * the distribution without moving its mean.
+   *
+   * Absent, or 1, is plain Poisson, and it is the right answer for every
+   * competition here except baseball — the variance-to-mean ratio measured
+   * 0.99 for ice hockey and 1.01 to 1.15 across football. Ignored entirely by
+   * a normal-scoring sport, which has `scoreSd` for the same job.
+   */
+  scoreDispersion?: number;
+  /**
    * Overrides the stored model version for this sport only.
    *
    * The v2 spec requires a version bump *per competition*, when that
@@ -238,14 +253,24 @@ const NBA: SportModelConfig = {
  * own error. Every total, run line and team total therefore prices as more
  * certain than the model actually is.
  *
- * No value of any constant fixes this: a Poisson draw takes its variance from
- * its mean, so the width is pinned by the distribution rather than chosen.
- * The fix is a model family that admits dispersion — negative binomial, or
- * Poisson-Gamma — which is a larger change than recalibration and is recorded
- * in the v2 spec as follow-on work rather than attempted here.
+ * No constant could fix that, because a Poisson draw takes its variance from
+ * its mean — so the distribution itself was changed. `scoreDispersion` mixes
+ * the rate through a Gamma before the count is drawn, which widens the spread
+ * without moving the mean, and 2.3 was fitted by backtest rather than taken
+ * from the raw 2.27: the observed ratio mixes the spread of a single fixture
+ * with the variation between fixtures, and the model already reproduces the
+ * second through its own varying expectations.
+ *
+ * Held out on 2024 and 2025 separately, 4,956 fixtures. Implied width against
+ * measured error goes from -1.41 and -1.56 to +0.13 and -0.03. Brier falls
+ * 0.2499 to 0.2464 and 0.2476 to 0.2442; log loss 0.6936 to 0.6858 and 0.6888
+ * to 0.6813. Margin error and accuracy are unchanged to three decimals in both
+ * seasons, which is the signature a width-only change should have — if they
+ * had moved, the fix would have been quietly changing the projection itself.
  *
  * For contrast the same measurement puts ice hockey at 0.99 and the football
- * competitions between 1.01 and 1.15, so the family is well chosen for them.
+ * competitions between 1.01 and 1.15, so plain Poisson is right for them and
+ * they set no dispersion at all.
  *
  * The constants themselves measured close and were left alone. `baselineTotal`
  * came out at 8.97 against 8.6 — and a backtest cannot see that constant, so
@@ -264,8 +289,19 @@ const MLB: SportModelConfig = {
    * made after it is not comparable with one made before, and only MLB's is
    * affected.
    */
-  modelVersion: 'projection-v1-mlb-sp',
+  /*
+   * Bumped again for the dispersion fit, not reused from the pitcher change.
+   * A version stamp has to say which change a stored prediction was made
+   * under, and these are two unrelated changes to the same competition.
+   */
+  modelVersion: 'projection-v1-mlb-sp-disp',
   scoring: 'poisson',
+  /*
+   * Baseball scores in bursts, and plain Poisson cannot represent that: the
+   * measured variance-to-mean ratio is 2.27 where the distribution assumes 1.
+   * Fitted at 2.3 against two held-out seasons — see the note above.
+   */
+  scoreDispersion: 2.3,
   hasDraw: false,
   supportsSpread: true,
   baselineTotal: 8.6,

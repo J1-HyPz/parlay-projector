@@ -1,8 +1,9 @@
 # Spec — Projection v2
 
 **Status: in progress.** §4.1 and §4.2 have shipped in full, §4.3's archive is
-built, filled and read, and §4.4 has been run for the NFL and NBA. §4.5 onward
-is still a plan. Companion to
+built, filled and read, §4.4 has been run for every competition with settled
+data, and §4.9 — the distributional fix §4.4 uncovered but could not make — has
+shipped. §4.5 through §4.8 are still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -989,12 +990,8 @@ its own error. Every MLB total, run line and team total therefore prices as
 more certain than the model is.
 
 This is the NCAAF failure mode again, reached by a third route — but unlike
-NCAAF's it is not a constant that is wrong, so §4.4's method cannot reach it. A
-Poisson draw takes its variance from its mean; the width is pinned by the
-distribution rather than chosen. **Follow-on work, not attempted here:** a
-model family that admits dispersion for baseball only — negative binomial, or
-Poisson-Gamma — gated on the same backtest standard as everything else. It is
-larger than a recalibration and deserves its own phase.
+NCAAF's it is not a constant that is wrong, so §4.4's method could not reach
+it. **Now fixed, in §4.9 below.**
 
 Related and smaller: **`scoreSd` is inert for a Poisson sport.** `model.ts`
 reads it in the normal branch alone, so MLB, NHL and football carry values that
@@ -1051,6 +1048,54 @@ in `docs/projection-engine.md`.
 **Still to do.** Only the CFL, once its archive is deeper — two seasons are
 recovered, 2024 and 2025, and the rest are still returning empty against the
 provider's rate limit rather than being genuinely absent.
+
+---
+
+### 4.9 Overdispersed scoring — the fix §4.4 could not reach
+
+**Shipped.** Added as its own phase because §4.4 fits constants and this
+changes a distribution, which is a different kind of change and deserved a
+different gate.
+
+**Why.** §4.4 measured baseball at a variance-to-mean ratio of 2.27 where a
+Poisson process fixes it at 1. No constant could widen the simulation to match,
+because a Poisson draw takes its variance from its mean.
+
+**How.** `scoreDispersion` on `SportModelConfig`. Above 1 the rate is drawn
+from a Gamma before the count is drawn from a Poisson — a negative binomial —
+giving variance `dispersion * mean` while leaving the mean untouched. At or
+below 1 it returns plain Poisson bit-for-bit, so a competition that measured
+Poisson is unchanged down to the individual simulation, and none of them set
+it.
+
+**The value was fitted, not taken from the measurement.** The observed 2.27
+mixes the spread of a single fixture with the variation in expected score
+between fixtures, and the model already reproduces the second through its own
+varying expectations — so plugging the raw ratio in would double-count. Swept
+and measured instead, landing at 2.3. That it comes out near the raw figure is
+a fact about baseball, whose teams sit close together in quality, not a
+justification for having assumed it.
+
+**Result**, held out on 2024 and 2025 separately, 4,956 fixtures:
+
+| | width gap | Brier | log loss | margin MAE | accuracy |
+|---|---|---|---|---|---|
+| 2024 before | -1.41 | 0.2499 | 0.6936 | 3.454 | 54.9% |
+| 2024 after | **+0.13** | **0.2464** | **0.6858** | 3.455 | 54.9% |
+| 2025 before | -1.56 | 0.2476 | 0.6888 | 3.482 | 55.7% |
+| 2025 after | **-0.03** | **0.2442** | **0.6813** | 3.482 | 55.8% |
+
+Both seasons improve, consistently, at roughly three times the size of the NBA
+width correction. Margin error and accuracy are unchanged to three decimals in
+both — the signature a width-only change must have. Had they moved, the fix
+would have been altering the projection rather than its stated uncertainty.
+
+Stored under `projection-v1-mlb-sp-disp`, a new stamp rather than a reuse of
+the pitcher fit's: two unrelated changes to one competition cannot share a
+version, or a stored prediction cannot say which it was made under.
+
+**Cost.** About 3x the sampling time per draw, which is roughly 1ms to 3ms per
+MLB projection at ten thousand simulations. Measured, not assumed.
 
 ---
 

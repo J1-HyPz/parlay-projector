@@ -28,8 +28,8 @@ import {
   clamp,
   createRandom,
   normalise,
-  samplePoisson,
   sampleNormal,
+  sampleOverdispersed,
 } from './math.ts';
 import { restDays } from './features.ts';
 import type { RatingSet } from './features.ts';
@@ -235,8 +235,15 @@ export function simulate(
     let away: number;
 
     if (config.scoring === 'poisson') {
-      home = samplePoisson(expected.home, random);
-      away = samplePoisson(expected.away, random);
+      /*
+       * Dispersion, where a sport has any.
+       *
+       * `sampleOverdispersed` is plain Poisson at 1 or below, so a competition
+       * that did not measure overdispersed is bit-for-bit unchanged.
+       */
+      const dispersion = config.scoreDispersion ?? 1;
+      home = sampleOverdispersed(expected.home, dispersion, random);
+      away = sampleOverdispersed(expected.away, dispersion, random);
     } else {
       // Rounded: a points total is a whole number, and rounding here keeps the
       // simulated distribution on the same lattice the settlement rules use.
