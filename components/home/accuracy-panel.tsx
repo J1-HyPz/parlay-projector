@@ -9,7 +9,7 @@
  * history that does not exist.
  */
 
-import { Activity, Sparkles } from 'lucide-react';
+import { Activity, ArrowRight, Sparkles } from 'lucide-react';
 import { percent } from '@/lib/utils';
 import { MIN_REPORTABLE } from '@/lib/projections/metrics';
 import { useHomeData, useSectionFailed } from './home-data';
@@ -119,6 +119,22 @@ export function AccuracyPanel() {
                   : `Based on ${accuracy.settled} settled predictions.`}
         </span>
       </div>
+
+      {/*
+        Out to the full breakdown.
+
+        A single percentage is the figure a competition can hide inside — five
+        competitions share the American-football sport id alone. This is also
+        the only route to that page on a phone, where the bottom bar has no
+        room for a seventh tab.
+      */}
+      <a
+        href="/accuracy"
+        className="focus-ring mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-2xs text-ink-subtle transition hover:border-violet-400/20 hover:text-ink-strong"
+      >
+        <span>Accuracy by competition, sport and risk</span>
+        <ArrowRight aria-hidden="true" className="size-3.5 shrink-0" />
+      </a>
 
       {/* What the percentage above is made of. Loads on its own, so a failure
           here cannot take the accuracy figure with it. */}

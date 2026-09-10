@@ -164,6 +164,43 @@ export function byDataQuality(records: readonly PredictionRecordV2[]): GroupedAc
   return groupBy(records, (record) => band(record.data_quality));
 }
 
+/**
+ * Bucket for predictions carrying no competition id.
+ *
+ * Two different records land here, and both belong in the count rather than
+ * dropped: one written before `league_id` existed, and one written by a path
+ * that does not run through the catalogue-aware service and so never had a
+ * competition to stamp. Neither is a competition, so neither is given a
+ * competition's name — see `leagueName` in accuracy.ts.
+ */
+export const UNATTRIBUTED_LEAGUE = 'unattributed';
+
+/**
+ * Accuracy per competition — the split `by_sport` cannot give.
+ *
+ * NCAA Football, the CFL and the Euro-American leagues all report as the same
+ * sport, which is precisely how NCAA Football's miscalibration stayed hidden
+ * inside a healthy-looking number for as long as it did. Grouping on the
+ * catalogue id instead of the sport is what makes the next one visible.
+ *
+ * The id is lower-cased before grouping so a differently-cased key cannot
+ * split one competition across two rows, each with half the sample and
+ * neither reportable.
+ */
+export function byLeague(
+  records: readonly PredictionRecordV2[],
+  label: (key: string) => string = (key) => key,
+): GroupedAccuracy[] {
+  return groupBy(
+    records,
+    (record) => {
+      const id = typeof record.league_id === 'string' ? record.league_id.trim() : '';
+      return id === '' ? UNATTRIBUTED_LEAGUE : id.toLowerCase();
+    },
+    label,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Calibration
 // ---------------------------------------------------------------------------

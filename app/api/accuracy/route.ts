@@ -8,8 +8,8 @@
  * belong in the settlement job, not on the path of a page load.
  *
  * `section` narrows the response for callers that want one slice:
- *   summary | sports | markets | risk | calibration | score | parlays |
- *   trend | models | recent | recent-parlays
+ *   summary | sports | leagues | markets | risk | calibration | score |
+ *   parlays | trend | models | recent | recent-parlays
  */
 
 import { json } from '@/lib/home/api';
@@ -79,6 +79,8 @@ export async function GET(request: Request): Promise<Response> {
       });
     case 'sports':
       return json({ window, by_sport: report.by_sport, updated_at: report.updated_at });
+    case 'leagues':
+      return json({ window, by_league: report.by_league, updated_at: report.updated_at });
     case 'markets':
       return json({ window, by_market: report.by_market, updated_at: report.updated_at });
     case 'risk':

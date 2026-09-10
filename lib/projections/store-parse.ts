@@ -196,6 +196,16 @@ function withDefaults(record: Record<string, unknown>): PredictionRecordV2 {
     ...(record as unknown as PredictionRecordV2),
     final_pre_game: record.final_pre_game === true,
     parlay_id: typeof record.parlay_id === 'string' ? record.parlay_id : null,
+    /*
+     * Normalised here rather than trusted, now that accuracy groups on it.
+     *
+     * The record is spread from untrusted JSON below, so anything at all could
+     * arrive under this key. A non-string reaching the per-competition
+     * breakdown would become its own row keyed by whatever it stringifies to —
+     * so it is reduced to the one honest alternative, "absent", and counted in
+     * the unattributed bucket where a reader can see it.
+     */
+    league_id: typeof record.league_id === 'string' ? record.league_id : null,
     // Absent on anything published before results were shown on the homepage.
     // Null rather than a placeholder: the interface omits a scoreline it
     // cannot label, which is better than labelling it wrongly.

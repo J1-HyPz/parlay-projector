@@ -24,10 +24,43 @@ Categories, used consistently:
 
 The Parlays redesign, a results scroller on Home, Formula 1 as a full sport,
 sport and competition filtering for parlays, and a design system that makes the
-whole application readable on a phone and a tablet, and a fix for CFL
-fixtures that had been silently empty. 768 tests.
+whole application readable on a phone and a tablet, a fix for CFL fixtures that
+had been silently empty, and an Accuracy page that finally shows how the model
+scores per competition. 775 tests.
 
 ### Added
+
+**Accuracy, per competition — a page for how the model actually scores**
+
+- The application computed a per-sport breakdown, a market breakdown, a
+  calibration table, a risk-ordering check and a settled-accuracy trend, and
+  **displayed none of them**. Everything a reader could see about the model's
+  record was a single percentage on the homepage. All of it is now at
+  **/accuracy**.
+- The headline addition is **accuracy by competition**, which a sport-level
+  figure cannot give. Five competitions — the NFL, NCAA Football, the CFL, the
+  American Football League Europe and the European Football Alliance — all
+  report under one sport id, so all five were averaged into a single number.
+  That is precisely how NCAA Football's miscalibration hid inside a
+  healthy-looking figure until it was fitted its own model. Each competition is
+  now checkable on its own.
+- A rate is still withheld below 20 settled predictions, per competition as
+  everywhere else — the row shows its counts instead. **Brier score and the
+  probability the model claimed are shown at every sample size**, because both
+  mean something where a percentage does not: a row where "claimed" sits well
+  above "accuracy" is overconfidence, visible immediately.
+- Predictions carrying no competition id are counted under **Unattributed**
+  rather than dropped, so the totals still add up. They are not labelled
+  "legacy": as well as records written before the field existed, a prediction
+  built outside the catalogue-aware path has never carried one either, and
+  calling those historical would be untrue.
+- The **risk-ordering check** appears here for the first time. It is shown only
+  once there is enough settled history to have genuinely run — "not enough data
+  to say" and "checked, and fine" are different claims, and the page does not
+  let the second stand in for the first.
+- Reachable from the primary navigation, and from the homepage accuracy panel —
+  which is the route on a phone, where the bottom bar has no room for a seventh
+  tab.
 
 **A design system, and readable text**
 

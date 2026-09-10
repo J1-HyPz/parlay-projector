@@ -27,8 +27,10 @@ import {
 } from '../lib/projections/tracking.ts';
 import {
   MIN_REPORTABLE,
+  UNATTRIBUTED_LEAGUE,
   accuracyOf,
   byConfidence,
+  byLeague,
   calibrationTable,
   groupBy,
   multiclassBrier,
@@ -37,6 +39,7 @@ import {
   scoreAccuracyBySport,
   trend,
 } from '../lib/projections/metrics.ts';
+import { findLeague } from '../lib/leagues/registry.ts';
 import { parseParlays } from '../lib/projections/parlay-parse.ts';
 import { parsePredictions } from '../lib/projections/store-parse.ts';
 import type {
@@ -396,6 +399,107 @@ describe('grouped accuracy', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Accuracy by competition
+// ---------------------------------------------------------------------------
+
+describe('accuracy by competition', () => {
+  it('separates competitions that a sport-level figure blends together', () => {
+    /*
+     * The reason this breakdown exists.
+     *
+     * The NFL, NCAA Football, the CFL and the two Euro-American leagues all
+     * carry `sport: 'nfl'` in the catalogue, so `by_sport` reports one row for
+     * five competitions and a mispriced one is averaged into the healthier
+     * ones beside it. That is precisely how NCAA Football's own miscalibration
+     * stayed hidden inside a reassuring number.
+     */
+    const records = [
+      ...Array.from({ length: 20 }, () =>
+        record({ sport: 'nfl', league_id: 'nfl', status: 'won' }),
+      ),
+      ...Array.from({ length: 20 }, () =>
+        record({ sport: 'nfl', league_id: 'ncaaf', status: 'lost' }),
+      ),
+    ];
+
+    const bySport = groupBy(records, (r) => r.sport);
+    assert.equal(bySport.length, 1, 'one sport, which is exactly the problem');
+    assert.equal(bySport[0].accuracy, 0.5, 'a perfect record and a hopeless one, averaged away');
+
+    const byCompetition = byLeague(records);
+    assert.equal(byCompetition.length, 2);
+    assert.equal(byCompetition.find((group) => group.key === 'nfl')?.accuracy, 1);
+    assert.equal(byCompetition.find((group) => group.key === 'ncaaf')?.accuracy, 0);
+  });
+
+  it('names a competition from the catalogue rather than after its sport', () => {
+    const [group] = byLeague(
+      Array.from({ length: 20 }, () => record({ sport: 'nfl', league_id: 'ncaaf' })),
+      (key) => findLeague(key)?.label ?? key,
+    );
+    // The acceptance criterion for this phase, stated as a test: an NCAA
+    // Football prediction reports as NCAA Football, not as American Football.
+    assert.equal(group.label, 'NCAA Football');
+  });
+
+  it('keeps a competition the catalogue no longer holds', () => {
+    // It still settled real predictions. Dropping the row would quietly shrink
+    // the history behind every figure above it; renaming it would be worse.
+    const [group] = byLeague(
+      Array.from({ length: 3 }, () => record({ league_id: 'retired-league' })),
+      (key) => findLeague(key)?.label ?? key,
+    );
+    assert.equal(group.key, 'retired-league');
+    assert.equal(group.label, 'retired-league');
+  });
+
+  it('counts predictions carrying no competition id instead of discarding them', () => {
+    const groups = byLeague([
+      ...Array.from({ length: 5 }, () => record({ league_id: 'epl', status: 'won' })),
+      // Two ways this happens: written before the field existed, or written by
+      // a path that never had a competition to stamp. Both are still real
+      // settled predictions and both belong in the total.
+      ...Array.from({ length: 4 }, () => record({ league_id: null, status: 'won' })),
+      ...Array.from({ length: 3 }, () => record({ status: 'lost' })),
+    ]);
+
+    const unattributed = groups.find((group) => group.key === UNATTRIBUTED_LEAGUE);
+    assert.equal(unattributed?.settled, 7, 'an explicit null and an absent field are one case');
+    assert.equal(
+      groups.reduce((sum, group) => sum + group.settled, 0),
+      12,
+      'nothing is dropped on the way in',
+    );
+  });
+
+  it('does not split one competition across two rows on casing', () => {
+    const groups = byLeague([
+      ...Array.from({ length: 12 }, () => record({ league_id: 'epl', status: 'won' })),
+      ...Array.from({ length: 8 }, () => record({ league_id: 'EPL', status: 'lost' })),
+    ]);
+
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].key, 'epl');
+    assert.equal(groups[0].settled, 20);
+    // The point of normalising: split, each half sits below the reporting
+    // threshold and the competition publishes no rate at all.
+    assert.equal(groups[0].accuracy, 0.6);
+  });
+
+  it('shows a thin competition its count without a rate', () => {
+    const [group] = byLeague(
+      Array.from({ length: MIN_REPORTABLE - 1 }, () =>
+        record({ league_id: 'cfl', status: 'won' }),
+      ),
+    );
+
+    assert.equal(group.settled, MIN_REPORTABLE - 1);
+    assert.equal(group.accuracy, null, 'a rate from a thin sample is not a finding');
+    assert.notEqual(group.brier, null, 'the scoring rule is still informative below it');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Calibration
 // ---------------------------------------------------------------------------
 
@@ -669,6 +773,37 @@ describe('parlay tracking', () => {
 // ---------------------------------------------------------------------------
 
 describe('the prediction store', () => {
+  it('reduces a malformed competition id to absent', () => {
+    /*
+     * The stored record is spread from untrusted JSON, so anything at all can
+     * arrive under this key. Left alone, a number would reach the
+     * per-competition breakdown and become its own row named after whatever it
+     * stringifies to — a competition that does not exist, sitting beside ones
+     * that do.
+     */
+    const base = {
+      id: 'malformed',
+      game_id: 'g1',
+      sport: 'nfl',
+      league: 'NFL',
+      selection_type: 'winner',
+      selection: 'Home to win',
+      settlement: { kind: 'winner', side: 'home' },
+      model_probability: 0.7,
+      model_confidence: 0.8,
+      data_quality: 0.8,
+      model_version: 'projection-v1',
+      risk: 'low',
+      created_at: '2026-09-01T00:00:00.000Z',
+      status: 'won',
+    };
+
+    assert.equal(parsePredictions([{ ...base, league_id: 42 }])[0].league_id, null);
+    assert.equal(parsePredictions([{ ...base, league_id: { id: 'nfl' } }])[0].league_id, null);
+    // A real one is left exactly as written.
+    assert.equal(parsePredictions([{ ...base, league_id: 'ncaaf' }])[0].league_id, 'ncaaf');
+  });
+
   it('fills in fields written by an earlier version', () => {
     // A record from before tracking existed must load, and must not claim to
     // be the official pre-game prediction without evidence.

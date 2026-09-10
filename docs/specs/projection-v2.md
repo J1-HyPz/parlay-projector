@@ -1,6 +1,7 @@
 # Spec — Projection v2
 
-**Status: draft.** Nothing below has been built. Companion to
+**Status: in progress.** §4.1 has shipped; everything below it is still a
+plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -72,6 +73,9 @@ never assumed.
 
 ### 4.1 Diagnostics — accuracy by competition, risk ordering surfaced
 
+**Shipped.** Notes on what the phase actually turned out to be are at the end
+of this section.
+
 **Why.** NCAA Football, CFL and the Euro-American competitions all report as
 `nfl` in the accuracy breakdown today, because `by_sport` groups on
 `record.sport`. `league_id` has been stored on every prediction since the
@@ -104,6 +108,49 @@ the same.
 - The risk-ordering line is absent until `checked: true`.
 - `MODEL_VERSION` unchanged — this phase changes what is reported, not what is
   computed.
+
+**What it turned out to be.**
+
+Step 3 above says "the same row shape as the existing sport breakdown." There
+was no existing sport breakdown. `/api/accuracy` had been computing `by_sport`,
+`by_market`, `by_sport_market`, `by_risk`, `by_model`, `by_confidence`,
+`by_data_quality`, the calibration table, the score breakdown, the trend and
+the risk-ordering check since the service was written, and **nothing in the
+application rendered any of it** — the sole consumer of that endpoint was the
+homepage results scroller, reading `section=recent-parlays`. The whole visible
+claim about the model's record was one ring on the homepage.
+
+So the acceptance criterion "a settled NCAA Football prediction appears under
+NCAA Football" could not be met by adding a grouping. It needed a surface to
+appear on. `/accuracy` is that surface, in the primary navigation, and it
+renders the competition, sport and risk breakdowns plus the risk-ordering line.
+The remaining breakdowns the service already computes — calibration, trend,
+market, model version — are still unrendered and are a candidate for a later
+increment, not a gap in this one.
+
+Three things were decided in the building that the plan did not anticipate:
+
+- **The bucket for a missing `league_id` is "Unattributed", not "legacy".** The
+  spec assumed a missing id meant a record written before the field existed.
+  The field is also legitimately absent today on any selection built outside
+  the catalogue-aware service, as `types.ts` says in as many words. Labelling
+  those "legacy" would be a false claim about a current record, so the bucket
+  is named for what is actually known: nothing.
+- **`league_id` is now normalised in `store-parse.ts`.** It survived the store
+  round trip only because `withDefaults` spreads the raw record — it was never
+  validated. Unchecked, a non-string arriving from a hand-edited or corrupt
+  file would have become its own row in the breakdown, named after whatever it
+  stringified to. It is reduced to `null` and counted as unattributed, the same
+  treatment `home_team` and `away_team` already get.
+- **The competition id is lower-cased before grouping.** Two casings of one id
+  would otherwise split a competition across two rows, each holding half the
+  sample and neither reaching `MIN_REPORTABLE` — a competition made
+  unreportable by a formatting difference.
+
+The page also carries a **Pending** column that the plan did not call for. It
+earns its place: without it a competition with predictions running but none
+settled renders as a row of six dashes, which reads as a fault rather than as
+"no evidence has arrived here yet."
 
 ---
 

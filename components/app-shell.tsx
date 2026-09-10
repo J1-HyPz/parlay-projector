@@ -9,6 +9,7 @@ import {
   Radio,
   Sparkles,
   Star,
+  Target,
   Trophy,
 } from 'lucide-react';
 import { SIDEBAR_HUBS } from '@/lib/sports/hubs';
@@ -22,6 +23,7 @@ export type PageKey =
   | 'live'
   | 'parlays'
   | 'slips'
+  | 'accuracy'
   | 'notifications'
   | 'sports';
 
@@ -45,6 +47,10 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
   { key: 'live', label: 'Live', href: '/live', icon: Radio },
   { key: 'parlays', label: 'Parlays', href: '/parlays', icon: Sparkles },
   { key: 'slips', label: 'Slips', href: '/slips', icon: ListChecks },
+  // Last in the row, because it reports on the model rather than driving it —
+  // but in the primary navigation rather than buried, because a projection
+  // application that hides its own scorecard is asking to be taken on trust.
+  { key: 'accuracy', label: 'Accuracy', href: '/accuracy', icon: Target },
 ];
 
 /**
@@ -55,7 +61,13 @@ const primaryNavigation: { key: PageKey; label: string; href: string; icon: Luci
  * competition index instead. Desktop keeps the sidebar and does not need it.
  */
 const mobileNavigation: typeof primaryNavigation = [
-  ...primaryNavigation,
+  /*
+   * Accuracy is left out here rather than squeezed in. The bar is a fixed six
+   * columns inside a fixed height, so a seventh item wraps to a second row and
+   * breaks all seven rather than narrowing one. On a phone the page is reached
+   * from the homepage accuracy panel, which links straight to it.
+   */
+  ...primaryNavigation.filter((item) => item.key !== 'accuracy'),
   { key: 'sports', label: 'Sports', href: '/sports', icon: Trophy },
 ];
 

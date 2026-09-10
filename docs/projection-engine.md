@@ -315,6 +315,35 @@ post an impressive percentage while being badly calibrated. So:
 Settled predictions feed the existing homepage accuracy widget. There is **one**
 accuracy system, not two.
 
+#### Where it is reported
+
+`/accuracy` renders what the service computes. The headline figure lives on the
+homepage; the breakdowns live here, and the one that matters most is **by
+competition**.
+
+`by_sport` cannot stand alone, because a sport is not a competition. Five
+competitions — the NFL, NCAA Football, the CFL, the American Football League
+Europe and the European Football Alliance — all carry `sport: 'nfl'`, so a
+sport-level figure averages all five into one number. That is exactly how NCAA
+Football's miscalibration stayed hidden inside a healthy-looking NFL figure
+until it was fitted its own config. `by_league` groups on the catalogue id
+instead, so each competition is checkable on its own.
+
+Two rules travel with every row:
+
+- A rate is withheld below `MIN_REPORTABLE` and the count is shown instead.
+  Brier and mean claimed probability are shown regardless — both say something
+  at a sample size a percentage does not.
+- Predictions carrying no `league_id` are counted under **Unattributed** rather
+  than dropped. Two cases produce it: a record written before the field
+  existed, and one written by a path that never had a competition to stamp.
+  Neither is a competition, so neither is given a competition's name.
+
+The risk-ordering check is surfaced on the same page, and only once it has
+enough settled history to have actually run — `ordered` defaults to true so an
+unknown cannot read downstream as a failure, which means `checked` is the gate
+on saying anything at all.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the

@@ -12,9 +12,11 @@
 
 import { logger } from '../logger';
 import {
+  UNATTRIBUTED_LEAGUE,
   accuracyOf,
   byConfidence,
   byDataQuality,
+  byLeague,
   calibrationTable,
   groupBy,
   riskOrdering,
@@ -32,6 +34,7 @@ import type {
   TrendPoint,
 } from './metrics';
 import { sportLabel } from '../schedule/filters';
+import { findLeague } from '../leagues/registry';
 import type { SportId } from '../home/types';
 import { markFinalPreGame, sampleStrength } from './tracking';
 import type { SampleStrength } from './tracking';
@@ -166,6 +169,17 @@ export interface AccuracyReport {
   /** Every stored prediction, including candidates never shown. For research. */
   all_predictions: AccuracyBlock;
   by_sport: GroupedAccuracy[];
+  /**
+   * Accuracy per competition.
+   *
+   * `by_sport` cannot show this: NCAA Football, the CFL and the Euro-American
+   * competitions all report under one sport, so a competition being mispriced
+   * is averaged into the healthier ones beside it. This is the breakdown that makes a
+   * single competition's calibration visible on its own, and §8.3 of the v2
+   * spec requires it live before any competition is refitted — otherwise a
+   * refit's before and after cannot be read apart from its neighbours.
+   */
+  by_league: GroupedAccuracy[];
   by_market: GroupedAccuracy[];
   /**
    * Sport crossed with market type, e.g. "MLB run line".
@@ -240,6 +254,23 @@ function sportName(key: string): string {
   return sportLabel(key as SportId);
 }
 
+/**
+ * Display name for a competition.
+ *
+ * The catalogue's own label, so a row reads "NCAA Football" rather than
+ * `ncaaf`. An id the catalogue no longer holds keeps its raw key rather than
+ * being dropped or renamed: a retired competition still settled real
+ * predictions, and losing the row would quietly shrink the history behind
+ * every figure above it.
+ */
+function leagueName(key: string): string {
+  // Not a competition, so not given a competition's name. These are records
+  // with no `league_id` at all — see UNATTRIBUTED_LEAGUE for the two ways
+  // that happens.
+  if (key === UNATTRIBUTED_LEAGUE) return 'Unattributed';
+  return findLeague(key)?.label ?? key;
+}
+
 const RISK_LABELS: Record<string, string> = {
   low: 'Low risk',
   medium: 'Medium risk',
@@ -289,6 +320,7 @@ function build(
     overall: accuracyOf(headline),
     all_predictions: accuracyOf(scoped),
     by_sport: groupBy(headline, (record) => record.sport, sportName),
+    by_league: byLeague(headline, leagueName),
     by_market: groupBy(
       headline,
       (record) => record.selection_type,
