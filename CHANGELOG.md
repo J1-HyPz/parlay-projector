@@ -27,7 +27,31 @@ sport and competition filtering for parlays, and a design system that makes the
 whole application readable on a phone and a tablet, a fix for CFL fixtures that
 had been silently empty, an Accuracy page that finally shows how the model
 scores per competition, and injury and starting-pitcher information on the game
-page. 785 tests.
+page, and projections that now say who is missing instead of claiming nobody
+knows. 788 tests.
+
+### Fixed
+
+**Projections claimed no injury data existed, hours after it started existing**
+
+- Every projection carried the line *"No lineup, injury or player-availability
+  data exists for any competition here."* Shipping the injury report made that
+  **untrue** for the NFL, MLB, NBA and NHL, and a standing caveat that is
+  simply wrong is worse than no caveat.
+- A projection now says one of three things, because they are three different
+  claims: nothing is published **for this competition** (still true of
+  football), a report exists and **names nobody** (no caveat at all — inventing
+  one to fill the space is the habit this application avoids), or it lists
+  players, in which case it says how many are out on each side.
+- The same news appears as a stated factor on the projection. It changes **no
+  number**: not the probability, not the expected score, not the confidence or
+  data-quality scores. Counting absences into a quality figure would be
+  precisely the manufactured value this is meant to avoid — the model knows who
+  is missing, not what they are worth.
+- The game page and the projection also disagreed about how many players were
+  out, because the page read a **five-per-side** summary while the projection
+  read the full report — 5 against 7 and 10 on one MLB fixture, shown inches
+  apart. Both now read the same complete report.
 
 ### Added
 

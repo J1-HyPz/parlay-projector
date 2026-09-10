@@ -196,14 +196,13 @@ export function Availability({ game }: { game: GameDetail }) {
           </div>
 
           {/*
-            The list is the provider's fixture report, which is a selection
-            rather than a full squad audit. Saying so once is the difference
-            between reporting what the source said and claiming completeness
-            it never offered.
+            Two things a reader needs and the list itself cannot say: where it
+            came from, and that it is a snapshot. The same report feeds the
+            projection's caveats below, which is why the counts there match.
           */}
           <p className="mt-4 border-t border-line pt-3 text-2xs leading-5 text-ink-faint">
-            The provider&rsquo;s injury report for this fixture, most serious first. It is not a
-            complete squad list, and a status can change up to kick-off.
+            The provider&rsquo;s injury report for these squads, most serious first. A status can
+            change up to kick-off, and the projection below does not adjust for absences.
           </p>
         </>
       )}

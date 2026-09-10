@@ -20,8 +20,9 @@ import { parseEspnGameId, statusFromEspn } from '../providers/espn/fixtures';
 import { normaliseSeasonSeries, parseForm, overallRecord } from '../providers/espn/normalise';
 import { meetingsToRecentGames, recordToStanding, standingFromForm } from '../providers/merge';
 import { findLeague } from '../leagues/registry';
-import { availabilityFromSummary } from './availability-normalise';
+import { fixtureAvailability, probablesFromSummary } from './availability-normalise';
 import type { RawAvailabilitySummary } from './availability-normalise';
+import { leagueAvailability } from '../providers/espn/availability';
 import type { GameDetail, TeamStanding } from './types';
 
 interface RawCompetitor {
@@ -124,6 +125,13 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
     return null;
   }
 
+  /*
+   * Cached for fifteen minutes per competition and shared with the projection
+   * pipeline, which reads the same report — so on a warm cache this is free,
+   * and on a cold one it is a single request rather than one per fixture.
+   */
+  const report = await leagueAvailability(league);
+
   const summary = value;
   const header = summary.header;
   const competition = Array.isArray(header?.competitions) ? header.competitions[0] : undefined;
@@ -190,14 +198,15 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
     recent_games: { home: [], away: [] },
     head_to_head: meetingsToRecentGames(meetings, homeName),
     /*
-     * Free: parsed out of the payload above rather than fetched.
-     *
-     * Attribution is by the provider's own team ids, taken from the same
-     * competitors the header was read from, so an absence cannot land on the
-     * wrong side of the fixture.
+     * Injuries from the competition-wide report, starters from the payload
+     * above — see `fixtureAvailability` for why they come from different
+     * places. Attribution is by the provider's own team ids, taken from the
+     * same competitors the header was read from, so an absence cannot land on
+     * the wrong side of the fixture.
      */
-    availability: availabilityFromSummary(
-      summary as RawAvailabilitySummary,
+    availability: fixtureAvailability(
+      report,
+      probablesFromSummary(summary as RawAvailabilitySummary),
       str(home?.team?.id),
       str(away?.team?.id),
     ),

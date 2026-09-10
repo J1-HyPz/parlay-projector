@@ -23,7 +23,8 @@
  */
 
 import { boundProbability, clamp, seedFrom } from './math.ts';
-import { dataQuality, estimateConfidence, qualityReasons } from './features.ts';
+import { dataQuality, estimateConfidence, qualityReasons, squadCount } from './features.ts';
+import type { SquadNews } from './features.ts';
 import type { RatingSet, TeamRating } from './features.ts';
 import { backingFor, orientFactors } from './factors.ts';
 import type { ProjectionFactor } from './factors.ts';
@@ -65,6 +66,14 @@ export interface ProjectOptions {
   seed?: number;
   hasStandings?: boolean;
   hasHeadToHead?: boolean;
+  /**
+   * Who the provider lists as missing, where it lists anyone.
+   *
+   * Absent or null means the provider publishes nothing for this competition —
+   * deliberately distinct from an entry with two empty lists, which is it
+   * reporting both squads intact.
+   */
+  availability?: SquadNews | null;
   now?: Date;
 }
 
@@ -113,6 +122,7 @@ function buildFactors(
   set: RatingSet,
   config: SportModelConfig,
   distribution: Distribution,
+  availability: SquadNews | null,
 ): ProjectionFactor[] {
   const factors: ProjectionFactor[] = [];
   const favouredHome = distribution.meanMargin >= 0;
@@ -212,6 +222,37 @@ function buildFactors(
     });
   }
 
+  /*
+   * Squad news, as a caution and never as a discount.
+   *
+   * `uncertainty` rather than `team`, because a `team` subject asserts which
+   * side the news favours — and this application cannot establish that. Five
+   * players out is worse for a side that has none missing than for one already
+   * without its first choice, and sizing that needs player statistics no
+   * source here provides. So the factor says what is known and stops.
+   */
+  if (availability) {
+    for (const [team, players] of [
+      [home.team, availability.home],
+      [away.team, availability.away],
+    ] as const) {
+      const { out, doubt } = squadCount(players);
+      if (out === 0 && doubt === 0) continue;
+
+      const parts: string[] = [];
+      if (out > 0) parts.push(`${out} player${out === 1 ? '' : 's'} listed out`);
+      if (doubt > 0) parts.push(`${doubt} in doubt`);
+
+      factors.push({
+        text: `${team} have ${parts.join(' and ')}. The projection does not adjust for absences.`,
+        subject: { kind: 'uncertainty' },
+        // Negative because it is a caution about the projection, not a claim
+        // about either side's chances.
+        direction: 'negative',
+      });
+    }
+  }
+
   return factors;
 }
 
@@ -247,8 +288,17 @@ export function projectGame(
   const extras = {
     hasStandings: options.hasStandings ?? false,
     hasHeadToHead: options.hasHeadToHead ?? false,
+    availability: options.availability ?? null,
   };
 
+  /*
+   * `dataQuality` does not receive the availability.
+   *
+   * Knowing a squad is short is not knowing what it is worth, and folding a
+   * count into the quality score would turn a caution into a number the model
+   * has no basis for. It is reported — in `quality_reasons` and as a stated
+   * factor — and it moves no arithmetic.
+   */
   const quality = dataQuality(home, away, config, extras);
   if (quality < MIN_DATA_QUALITY) return null;
 
@@ -293,7 +343,7 @@ export function projectGame(
       Math.round(quantile(distribution.awayScores, 0.75)),
     ],
     quality_reasons: qualityReasons(home, away, config, extras),
-    factors: buildFactors(home, away, expected, set, config, distribution),
+    factors: buildFactors(home, away, expected, set, config, distribution, extras.availability),
     generated_at: (options.now ?? new Date()).toISOString(),
   };
 

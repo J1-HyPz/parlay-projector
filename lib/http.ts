@@ -36,6 +36,17 @@ interface FetchOptions {
   /** Used only to redact the key from log output. */
   redactSecret?: string;
   accept?: string;
+  /**
+   * Raise the size ceiling for one call that is known to exceed it.
+   *
+   * The default guards against a provider streaming something *unbounded* at
+   * us. A specific endpoint whose size has actually been measured is a
+   * different case: ESPN's league-wide injury feed is 8.9 MB decompressed for
+   * the NFL, which is large but neither unbounded nor a surprise. Passing a
+   * measured ceiling keeps the guard doing its job everywhere else rather than
+   * raising the global limit to accommodate one caller.
+   */
+  maxBytes?: number;
 }
 
 async function fetchText(url: string, options: FetchOptions): Promise<string> {
@@ -58,13 +69,15 @@ async function fetchText(url: string, options: FetchOptions): Promise<string> {
       throw new ProviderError(`provider responded ${response.status}`, response.status);
     }
 
+    const ceiling = options.maxBytes ?? MAX_RESPONSE_BYTES;
+
     const declared = Number(response.headers.get('content-length') ?? '0');
-    if (declared > MAX_RESPONSE_BYTES) {
+    if (declared > ceiling) {
       throw new ProviderError('provider response too large', response.status, true);
     }
 
     const text = await response.text();
-    if (text.length > MAX_RESPONSE_BYTES) {
+    if (text.length > ceiling) {
       throw new ProviderError('provider response too large', response.status, true);
     }
     return text;

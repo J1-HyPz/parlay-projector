@@ -25,6 +25,8 @@ import {
 import { sidesOf } from '../home/types.ts';
 import type { SportModelConfig } from './config.ts';
 import type { Game } from '../home/types';
+import { isAbsent, isInDoubt } from '../games/availability-normalise.ts';
+import type { PlayerAvailability } from '../games/availability-normalise.ts';
 
 /** A completed game reduced to what the ratings need. */
 export interface ResultRecord {
@@ -325,11 +327,77 @@ export function dataQuality(
  * returns an empty list, and the interface says so rather than manufacturing a
  * caveat to fill the space.
  */
+/**
+ * What the provider says about the two squads.
+ *
+ * Absent or null means it says nothing at all for this competition, which is
+ * not the same as saying nobody is missing — see `leagueAvailability`.
+ */
+export interface SquadNews {
+  home: readonly PlayerAvailability[];
+  away: readonly PlayerAvailability[];
+}
+
+/** Absences and doubts on one side. */
+export function squadCount(players: readonly PlayerAvailability[]): {
+  out: number;
+  doubt: number;
+} {
+  let out = 0;
+  let doubt = 0;
+  for (const player of players) {
+    if (isAbsent(player.status)) out += 1;
+    else if (isInDoubt(player.status)) doubt += 1;
+  }
+  return { out, doubt };
+}
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+/** One side's news, as a phrase, or null when there is none to report. */
+function sidePhrase(team: string, tally: { out: number; doubt: number }): string | null {
+  const parts: string[] = [];
+  if (tally.out > 0) parts.push(`${plural(tally.out, 'player')} out`);
+  if (tally.doubt > 0) parts.push(`${plural(tally.doubt, 'more')} in doubt`);
+  if (parts.length === 0) return null;
+  return `${team} have ${parts.join(' and ')}`;
+}
+
+/**
+ * The squad news as a stated limitation.
+ *
+ * Deliberately a count and never a valuation. The model has no basis to say
+ * what a specific absence is worth — that needs the player's own performance
+ * history, which this application does not hold — so this reports who the
+ * provider lists and states plainly that the rating cannot account for it.
+ * Anything more precise would be the fabrication this file exists to avoid.
+ */
+export function squadNewsReason(
+  homeTeam: string,
+  awayTeam: string,
+  news: SquadNews,
+): string | null {
+  const phrases = [
+    sidePhrase(homeTeam, squadCount(news.home)),
+    sidePhrase(awayTeam, squadCount(news.away)),
+  ].filter((phrase): phrase is string => phrase !== null);
+
+  if (phrases.length === 0) return null;
+  return `${phrases.join('; ')}. The ratings are built from completed games and cannot account for who is missing.`;
+}
+
 export function qualityReasons(
   home: TeamRating | undefined,
   away: TeamRating | undefined,
   config: SportModelConfig,
-  extras: { hasStandings: boolean; hasHeadToHead: boolean },
+  extras: {
+    hasStandings: boolean;
+    hasHeadToHead: boolean;
+    /** Null or absent where the provider publishes nothing for the competition. */
+    availability?: SquadNews | null;
+  },
 ): string[] {
   const reasons: string[] = [];
   if (!home || !away) return ['No rating could be built for one of the sides.'];
@@ -364,12 +432,30 @@ export function qualityReasons(
   }
 
   /*
-   * Stated once, plainly, on every projection. These are not gaps that better
-   * data would close later in the season — the application has no source for
-   * them at all, and a reader comparing this against a service that does needs
-   * to know that.
+   * Availability, stated as specifically as the provider allows.
+   *
+   * This line used to be unconditional — "no player-availability data exists
+   * for any competition here" — and became untrue the moment injury reporting
+   * shipped for the American sports. Three outcomes now, and they are three
+   * different claims:
+   *
+   *   The provider publishes nothing for this competition. The original
+   *   sentence, narrowed to the competition it is actually true of.
+   *
+   *   It publishes a report and lists nobody. No caveat at all: inventing one
+   *   to fill the space is what the rest of this function exists not to do.
+   *
+   *   It lists players. Say who and how many, and say plainly that the rating
+   *   cannot account for them.
    */
-  reasons.push('No lineup, injury or player-availability data exists for any competition here.');
+  if (!extras.availability) {
+    reasons.push(
+      'No lineup, injury or player-availability data is published for this competition.',
+    );
+  } else {
+    const news = squadNewsReason(home.team, away.team, extras.availability);
+    if (news) reasons.push(news);
+  }
 
   return reasons;
 }

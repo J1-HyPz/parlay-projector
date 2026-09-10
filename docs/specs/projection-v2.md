@@ -1,7 +1,7 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1 and §4.2.a have shipped; everything below them
-is still a plan. Companion to
+**Status: in progress.** §4.1, §4.2.a and the first two points of §4.2.b have
+shipped; everything else is still a plan. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -286,6 +286,10 @@ specified; it is simply a separate increment from the injury and starter work.
 
 #### 4.2.b Model input
 
+**Points 1 and 2 shipped. Point 3 is not built** — its feasibility was
+established rather than assumed, and the finding is recorded at the end of this
+subsection.
+
 **How.**
 
 1. **The blanket caveat becomes conditional.** `qualityReasons()` currently
@@ -332,6 +336,67 @@ specified; it is simply a separate increment from the injury and starter work.
   new default.
 - A pitcher below a minimum-starts threshold gets no rating; the team rate is
   used, unchanged from now.
+
+**What shipped, and what it corrected.**
+
+Point 1's premise was already out of date by the time it was built. The blanket
+line did not merely need narrowing — §4.2.a had made it **false**, since injury
+data now exists for the American sports and the sentence claimed none existed
+for any competition. Three outcomes now, and they are three different claims:
+the provider publishes nothing for this competition (the original sentence,
+narrowed to where it is true), it publishes a report naming nobody (no caveat
+at all), or it lists players (say who, how many, and that the ratings cannot
+account for them).
+
+Point 2 shipped as specified: a `kind: 'uncertainty'` factor per side, and
+`dataQuality` deliberately does **not** receive the availability. A count
+folded into the quality score would be exactly the manufactured point value
+this phase exists not to produce.
+
+Two implementation findings worth keeping, both caught by checking live output
+rather than by reasoning about it:
+
+- **The two feeds disagree about how coverage is signalled.** The fixture
+  summary omits its `injuries` key for an uncovered competition; the
+  league-wide feed always sends the key and sends `[]`. Reading the second as
+  "nobody is injured" would have told a reader both Premier League squads were
+  fully fit. A report with zero teams is therefore read as no report at all —
+  the conservative error, since a covered competition never returns zero.
+- **The two feeds put the team id in different places** — `block.id` on the
+  league feed, `block.team.id` on the summary. The first cut silently matched
+  no team at all, which looks exactly like a competition with nobody injured.
+
+One thing changed that §4.2.a had already shipped. The game page originally
+read injuries from the fixture summary, which is **capped at five per side**:
+for one MLB fixture it showed five where the full report held seven and ten.
+Since the projection's caveats are built from the full report and appear on the
+same page, the two sat inches apart disagreeing. The page now reads injuries
+from the competition-wide report as well, and the summary is kept only for
+probable starters, which appear nowhere else.
+
+**Point 3: feasible, not built.**
+
+The blocking question was whether a pitcher's rate could be built *as at* a
+past fixture, since the ERA carried on the scoreboard is season-to-date and
+using it in a backtest would leak games played after the fixture being scored.
+
+It can. `common/v3/sports/baseball/mlb/athletes/<id>/gamelog` returns a
+pitcher's whole season a start at a time — innings, runs, earned runs, and each
+game's date — in **one request**. Filtering to starts before a kick-off gives a
+genuine point-in-time rate, and caching per pitcher keeps a season-long
+backtest to roughly the number of distinct starters rather than one request per
+start. The `$ref`-chasing core API path costs about thirty requests per pitcher
+and is not viable; this one is.
+
+Two things to settle before building it:
+
+- The backtest can only know the *actual* starter of a past fixture, not who
+  was *announced* beforehand. In MLB those agree the large majority of the
+  time, but not always, so the comparison is mildly optimistic and must say so.
+- The live path can use the season-to-date ERA already present on the
+  scoreboard at no request cost, while the backtest needs the gamelog. Sharing
+  one rate definition across both is what stops the shipped model differing
+  from the one that was measured.
 
 ---
 

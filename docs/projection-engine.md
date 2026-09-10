@@ -352,8 +352,20 @@ score, probability or `MODEL_VERSION` is affected by it. Knowing a player is
 out is not knowing what the absence is worth, and sizing that needs player
 statistics this application does not hold.
 
-It reads `<league>/summary?event=<id>`, which `espnGameDetail` already fetches,
-so it adds no request and inherits that call's freshness.
+Injuries come from the competition-wide report (`<league>/injuries`), cached
+per competition for fifteen minutes and shared by the game page and the
+projection pipeline — so the two cannot disagree about how many players are
+out, which they briefly did when the page read the fixture summary's
+five-per-side extract instead. Probable starters still come from the fixture
+summary, which is the only place they appear and which `espnGameDetail` already
+fetches.
+
+The two feeds signal "not covered" differently, which is worth knowing before
+touching either: the summary omits its `injuries` key, while the league feed
+always sends the key and sends an empty array. A league report naming zero
+teams is therefore treated as no report at all — a covered competition never
+returns zero, and reading football's empty array as "nobody is injured" would
+state a squad is fit on no evidence.
 
 Coverage is uneven and the contract says so rather than papering over it.
 `GameDetail.availability` is `null` where the provider publishes nothing for
@@ -371,6 +383,14 @@ Two normalisation rules are worth knowing before changing this code:
   into `out` or `available`.
 - `INJURY_STATUS_ACTIVE` means listed but expected to play, and is the majority
   of the NFL's report. It is never counted as an absence.
+
+**What the model does with it: nothing, deliberately.** Availability reaches
+`projectGame` and changes two things, both text — the `quality_reasons` line
+and a `kind: 'uncertainty'` factor naming how many are out on each side. It is
+kept out of `dataQuality` and `estimateConfidence` on purpose. The model knows
+who is missing; it does not know what they are worth, and folding a count into
+a quality score would manufacture exactly the value it lacks. `MODEL_VERSION`
+is unchanged because no probability moved.
 
 ### Backtesting
 

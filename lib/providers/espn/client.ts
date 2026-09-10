@@ -41,6 +41,12 @@ export function espnUrl(path: string, query = '', api: EspnApi = 'site'): string
   return `${root}/${path}${query ? `?${query}` : ''}`;
 }
 
-export async function fetchEspn<T>(path: string, query = '', api: EspnApi = 'site'): Promise<T> {
-  return getJson<T>(espnUrl(path, query, api), { timeoutMs: espnConfig.timeoutMs });
+export async function fetchEspn<T>(
+  path: string,
+  query = '',
+  api: EspnApi = 'site',
+  /** Only for an endpoint whose size has been measured; see FetchOptions. */
+  maxBytes?: number,
+): Promise<T> {
+  return getJson<T>(espnUrl(path, query, api), { timeoutMs: espnConfig.timeoutMs, maxBytes });
 }

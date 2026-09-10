@@ -265,6 +265,23 @@ function injuryDetail(raw: RawInjury['details']): string | null {
   return specific;
 }
 
+/**
+ * One team's entries, normalised and ordered.
+ *
+ * Exported because two different feeds carry the same entry shape: the fixture
+ * summary this file is named for, and the league-wide injuries feed the
+ * projection pipeline reads. Sharing the mapping is what stops the game page
+ * and the projection disagreeing about whether a player is out.
+ */
+export function playersFrom(raw: unknown): PlayerAvailability[] {
+  if (!Array.isArray(raw)) return [];
+  return sortPlayers(
+    raw
+      .map((entry) => toPlayer(entry as RawInjury))
+      .filter((player): player is PlayerAvailability => player !== null),
+  );
+}
+
 function toPlayer(raw: RawInjury): PlayerAvailability | null {
   const name = athleteName(raw.athlete);
   // Without a name there is nothing a reader can act on, and attributing an
@@ -323,37 +340,19 @@ function toProbable(raw: RawProbable): ProbableStarter | null {
 }
 
 /**
- * Availability for a fixture, or null where the provider publishes none.
+ * Named probable starters for each side, from the fixture summary.
  *
- * Null is returned when the payload has no `injuries` key at all — the state
- * every football fixture is in. It is *not* returned for an empty injury list,
- * which is the provider actively saying nobody is missing.
- *
- * Team attribution is by provider team id and nothing else. A fixture whose
- * ids do not match the two competitors yields empty lists rather than guessing
- * an assignment: putting an absence on the wrong side of a fixture is a worse
- * failure than showing none.
+ * The summary is the only place these appear, so it remains the source for
+ * them — unlike the injury lists, which come from the competition-wide report
+ * instead. See `fixtureAvailability` for why they were separated.
  */
-export function availabilityFromSummary(
-  summary: RawAvailabilitySummary | null | undefined,
-  homeTeamId: string | null,
-  awayTeamId: string | null,
-): FixtureAvailability | null {
-  if (!summary || !Array.isArray(summary.injuries)) return null;
+export function probablesFromSummary(summary: RawAvailabilitySummary | null | undefined): {
+  home: ProbableStarter[];
+  away: ProbableStarter[];
+} {
+  const competitors = summary?.header?.competitions?.[0]?.competitors ?? [];
 
-  const forTeam = (teamId: string | null): PlayerAvailability[] => {
-    if (!teamId) return [];
-    const entry = summary.injuries?.find((block) => str(block?.team?.id) === teamId);
-    if (!entry || !Array.isArray(entry.injuries)) return [];
-    return sortPlayers(
-      entry.injuries
-        .map(toPlayer)
-        .filter((player): player is PlayerAvailability => player !== null),
-    );
-  };
-
-  const competitors = summary.header?.competitions?.[0]?.competitors ?? [];
-  const probablesFor = (side: 'home' | 'away'): ProbableStarter[] => {
+  const forSide = (side: 'home' | 'away'): ProbableStarter[] => {
     const competitor = competitors.find((entry) => str(entry?.homeAway) === side);
     if (!competitor || !Array.isArray(competitor.probables)) return [];
     return competitor.probables
@@ -361,9 +360,45 @@ export function availabilityFromSummary(
       .filter((starter): starter is ProbableStarter => starter !== null);
   };
 
+  return { home: forSide('home'), away: forSide('away') };
+}
+
+/**
+ * Availability for a fixture, or null where the provider publishes none.
+ *
+ * Injuries come from the **competition-wide report**, not from the fixture
+ * summary, even though the summary carries an injury block of its own and
+ * costs nothing to read. The summary's block is capped at five players a side:
+ * for one MLB fixture it listed five where the full report held seven and ten.
+ * Since the game page shows this section directly above the projection — whose
+ * caveats are built from the full report — the two would have sat inches apart
+ * disagreeing about how many players were out. One source settles it, and the
+ * complete one is the right source.
+ *
+ * A null report means the provider publishes nothing for the competition, and
+ * the whole object is null in turn: "we cannot say" must not reach a reader as
+ * "nobody is missing".
+ *
+ * Team attribution is by provider team id and nothing else. A team the report
+ * does not name has nobody listed, which is an empty list; a fixture whose
+ * sides cannot be identified at all yields empty lists rather than a guessed
+ * assignment, because putting an absence against the wrong club is a worse
+ * failure than showing none.
+ */
+export function fixtureAvailability(
+  report: ReadonlyMap<string, PlayerAvailability[]> | null,
+  probables: { home: ProbableStarter[]; away: ProbableStarter[] },
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+): FixtureAvailability | null {
+  if (!report) return null;
+
+  const forTeam = (teamId: string | null): PlayerAvailability[] =>
+    teamId ? [...(report.get(teamId) ?? [])] : [];
+
   return {
     home: { team_id: homeTeamId, players: forTeam(homeTeamId) },
     away: { team_id: awayTeamId, players: forTeam(awayTeamId) },
-    probables: { home: probablesFor('home'), away: probablesFor('away') },
+    probables,
   };
 }

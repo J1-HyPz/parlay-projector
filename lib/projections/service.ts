@@ -43,6 +43,9 @@ import type { RatingSet } from './features';
 import { candidateSelections, projectGame } from './project';
 import type { ProjectionOutcome } from './project';
 import { marketsForLeagues } from '../odds/service';
+import { leagueAvailability } from '../providers/espn/availability';
+import type { LeagueAvailability } from '../providers/espn/availability';
+import type { SquadNews } from './features';
 import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
 import { gridFrom, projectRace, raceSelections } from './race-selections';
 import type { GameMarkets } from '../markets/types';
@@ -265,6 +268,27 @@ export async function buildCandidates(
   return value;
 }
 
+/**
+ * One fixture's squad news, pulled out of its competition's report.
+ *
+ * Null when the competition is not covered, and null again when either side
+ * cannot be identified — an unidentified team's absences cannot be attributed
+ * to it, and guessing would put one club's injuries against another's name.
+ * A team absent from the map is covered and simply has nobody listed, which is
+ * an empty list rather than a null.
+ */
+function squadNewsFor(report: LeagueAvailability, game: Game): SquadNews | null {
+  if (!report) return null;
+  const homeId = game.home_team?.id ?? null;
+  const awayId = game.away_team?.id ?? null;
+  if (!homeId || !awayId) return null;
+
+  return {
+    home: report.get(homeId) ?? [],
+    away: report.get(awayId) ?? [],
+  };
+}
+
 async function computeCandidates(
   filter: CandidateFilter,
   asOf: number,
@@ -293,6 +317,21 @@ async function computeCandidates(
       reason: error instanceof Error ? error.message : 'unknown',
     });
   }
+
+  /*
+   * Squad availability, one request per competition rather than per fixture.
+   *
+   * The game page reads this out of the per-fixture summary it already
+   * fetches; a slate cannot, so it uses the competition-wide report instead.
+   * A failure yields null for that competition and the projections there
+   * simply say no availability data was published, which is true of them.
+   */
+  const availability = new Map<string, LeagueAvailability>();
+  await Promise.all(
+    leagues.map(async (league) => {
+      availability.set(league.id, await leagueAvailability(league));
+    }),
+  );
 
   // One entry per pool, so competitions sharing ratings are loaded once.
   const pools = new Map<string, League>();
@@ -331,6 +370,7 @@ async function computeCandidates(
       for (const game of fixtures) {
         const outcome = projectGame(game, model.ratings, config, {
           simulations: projectionConfig.simulations,
+          availability: squadNewsFor(availability.get(league.id) ?? null, game),
           now: new Date(asOf),
         });
         // Null means insufficient data. That fixture produces nothing — it is
@@ -514,10 +554,14 @@ export async function projectionForGame(
     `projection:game:${game.id}:${projectionConfig.modelVersion}`,
     projectionTtlFor(game.start_time, asOf),
     async () => {
-      const model = await buildPoolModel(league, asOf);
+      const [model, report] = await Promise.all([
+        buildPoolModel(league, asOf),
+        leagueAvailability(league),
+      ]);
       if (!model) return null;
       return projectGame(game, model.ratings, config, {
         simulations: projectionConfig.simulations,
+        availability: squadNewsFor(report, game),
         now: new Date(asOf),
       });
     },
