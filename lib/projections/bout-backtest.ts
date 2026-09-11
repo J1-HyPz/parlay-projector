@@ -136,6 +136,25 @@ export function backtestBouts(
   const cases: BoutCase[] = [];
   let skipped = 0;
 
+  /*
+   * Ratings are rebuilt once per day, not once per contest, and that is more
+   * faithful rather than merely cheaper.
+   *
+   * A real projection is made before the day's card or draw begins, so it
+   * cannot use a result from earlier the same day. Rebuilding per contest
+   * quietly let the third fight on a card learn from the first two, which no
+   * live projection could ever do. Rebuilding per day removes that.
+   *
+   * It also turns the harness from quadratic into something that finishes: a
+   * tour season is eighteen thousand matches, and rebuilding a rating set for
+   * each of them against all the others is hundreds of millions of Elo updates
+   * for an answer a per-day rebuild gives more correctly.
+   */
+  const DAY_MS = 86_400_000;
+  let cachedDay: number | null = null;
+  let cachedRatings: ReturnType<typeof buildBoutRatings> | null = null;
+  let cachedTooThin = false;
+
   for (const game of chronological) {
     const kickoff = Date.parse(game.start_time ?? '');
     if (!Number.isFinite(kickoff)) {
@@ -143,17 +162,26 @@ export function backtestBouts(
       continue;
     }
 
-    // Both ends of the window, exactly as the team harness learned to do: the
-    // upper bound is the look-ahead rule, the lower is fidelity to what the
-    // live model would have been given.
-    const windowStart = kickoff - config.historyDays * 86_400_000;
-    const history = played.filter((r) => r.date < kickoff && r.date >= windowStart);
-    if (history.length < minHistory) {
+    const day = Math.floor(kickoff / DAY_MS);
+    if (day !== cachedDay) {
+      // Both ends of the window, exactly as the team harness learned to do: the
+      // upper bound is the look-ahead rule -- the start of this day, so nothing
+      // from the day itself is visible -- and the lower is fidelity to what the
+      // live model would have been given.
+      const dayStart = day * DAY_MS;
+      const windowStart = dayStart - config.historyDays * DAY_MS;
+      const history = played.filter((r) => r.date < dayStart && r.date >= windowStart);
+      cachedDay = day;
+      cachedTooThin = history.length < minHistory;
+      cachedRatings = cachedTooThin ? null : buildBoutRatings(history, config);
+    }
+
+    if (cachedTooThin || !cachedRatings) {
       skipped += 1;
       continue;
     }
 
-    const ratings = buildBoutRatings(history, config);
+    const ratings = cachedRatings;
     const projection = projectBout(
       game.home_team?.id ?? '',
       game.away_team?.id ?? '',

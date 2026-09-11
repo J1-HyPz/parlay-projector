@@ -8,6 +8,7 @@
  */
 
 import assert from 'node:assert/strict';
+import { sportOptions } from '../lib/leagues/catalogue.ts';
 import { describe, it } from 'node:test';
 
 import {
@@ -217,15 +218,44 @@ describe('counting what each sport holds', () => {
   });
 
   it('separates "nothing on" from "not tracked at all"', () => {
+    /*
+     * Tennis used to be this test's example of a sport that could never
+     * appear. It no longer is: the ATP and WTA tours are both tracked, so
+     * every sport in `SPORT_IDS` now has at least one real competition behind
+     * it. The distinction the scoreboard draws still matters for whatever gets
+     * added next, so it is exercised through the filter instead.
+     */
     const tally = tallySports([], []);
-    const hockey = tally.find((entry) => entry.id === 'nhl');
-    const tennis = tally.find((entry) => entry.id === 'tennis');
+    for (const entry of tally) {
+      assert.ok(entry.tracked > 0, `${entry.id} has no competition behind it`);
+      assert.equal(entry.unavailable, null, `${entry.id} is tracked, just not on`);
+    }
+  });
 
-    assert.ok((hockey?.tracked ?? 0) > 0);
-    assert.equal(hockey?.unavailable, null, 'hockey is tracked, just not on');
+  it('still says why a sport cannot appear, when one cannot', () => {
+    // The mechanism, exercised by excluding everything rather than by needing
+    // a sport nothing covers.
+    const none = sportOptions(() => false);
+    for (const option of none) {
+      assert.equal(option.supported, false);
+      assert.ok(option.unavailable, `${option.id} must say why it is empty`);
+    }
+  });
 
-    assert.equal(tennis?.tracked, 0);
-    assert.ok(tennis?.unavailable, 'tennis must say why it can never appear');
+  it('never claims a sport has no model when it has one', () => {
+    /*
+     * MMA and tennis are modelled and calibrated but not yet offered in
+     * parlays. Saying "no model for this sport" would be the interface
+     * asserting something false about its own insides.
+     */
+    for (const id of ['mma', 'tennis']) {
+      const option = sportOptions().find((entry) => entry.id === id);
+      assert.ok(option?.unavailable, `${id} is not in parlays yet and should say so`);
+      assert.ok(
+        !option.unavailable.includes('no model'),
+        `${id} has a model; the message said: ${option.unavailable}`,
+      );
+    }
   });
 
   it('counts live and upcoming apart', () => {

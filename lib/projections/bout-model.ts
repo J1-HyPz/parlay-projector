@@ -1,5 +1,13 @@
 /**
- * Projecting a fight.
+ * Projecting a contest between two individuals.
+ *
+ * Written for fights and now shared with tennis, which is why the vocabulary
+ * says "bout" throughout. The two sports need exactly the same engine — rate
+ * each competitor by Elo from completed results, read the winner probability
+ * off the gap — and differ only in their constants, the way the NFL and the
+ * NBA share the Normal-scoring family with different numbers. `BOUT_CONFIG`
+ * and `TENNIS_CONFIG` at the bottom are that difference, and nothing else in
+ * this file knows which sport it is looking at.
  *
  * Nothing in the scoring model transfers, and the reason is not that a fight is
  * a simpler fixture. The team model asks how much each side will score and
@@ -127,6 +135,84 @@ export const BOUT_CONFIG: BoutModelConfig = {
   scale: 400,
 };
 
+/**
+ * Tennis, on the same engine with its own numbers.
+ *
+ * `eloK` is 32 against MMA's 160, and the ratio is the schedule rather than a
+ * judgement about the sports. A tour player contests fifty or eighty matches a
+ * year where a fighter has two or three, so a rating has vastly more chances to
+ * find its level and each one should move it less. Swept and turned cleanly:
+ * held-out Brier falls to 0.2242 at 32 and rises either side, and calibration
+ * bias crosses zero between 32 and 48. Both criteria agree.
+ *
+ * **`minFights` is the one value here the data does not identify, and saying so
+ * matters.** Accuracy was measured against the weaker player's record length
+ * directly, in bands: 4-6 gave 57.4%, 6-8 gave 55.1%, 8-10 gave 64.6%, 13-16
+ * gave 66.5% and 16-20 gave 54.0%. There is no ordering in that — the bands
+ * hold two or three hundred matches each and are all within noise of one
+ * another. Only the 30-and-over band is stable, at 62.8% across 5,641 matches
+ * with a bias of +0.0001.
+ *
+ * So 10 is a judgement, not an optimum. It is defended by the two loosest steps
+ * measured earlier — dropping from 10 to 6 admitted 368 matches at 58.7%, and 6
+ * to 4 admitted 209 at 56.0% — and by ten tour matches being a record a person
+ * would recognise as one. It is not defended by a measured minimum, because
+ * there is not one.
+ *
+ * `historyDays` measured best at five years, marginally (Brier 0.2234 against
+ * 0.2242 at three). Worth reading carefully: the archive begins in 2020, so a
+ * five-year window on a 2024 match reaches past its start. The real comparison
+ * is therefore "three years" against "everything there is", and everything won
+ * narrowly.
+ *
+ * **Qualifying rounds are rated.** They are a third of the draw and they cost
+ * nothing: scored on the main-draw matches both variants could project,
+ * including them gave 63.7% and a Brier of 0.2187 against 63.8% and 0.2180
+ * without — identical. But they let the model reach 6,860 held-out matches
+ * instead of 4,753. Free coverage for no measurable quality.
+ */
+export const TENNIS_CONFIG: BoutModelConfig = {
+  eloK: 32,
+  minFights: 10,
+  targetFights: 30,
+  historyDays: 5 * 365,
+  scale: 400,
+};
+
+/**
+ * The women's tour, which wants its own K.
+ *
+ * Checked rather than assumed that one tennis config would serve both, and it
+ * does not. On the WTA archive, K=32 leaves the model 2.1 points
+ * under-confident (bias -0.0214); K=48 brings that to -0.0015 and takes Brier
+ * from 0.2238 to 0.2230. The error difference is small and the calibration
+ * difference is not — a systematically under-confident price is wrong in the
+ * same direction every time, which is exactly what bias measures and error
+ * averages away.
+ *
+ * No explanation is offered for *why* the women's tour wants faster-moving
+ * ratings. Several are plausible and this application has no evidence for any
+ * of them, so the measurement is recorded and the story is not.
+ *
+ * Everything else is the ATP's, because everything else was measured on the
+ * ATP archive and nothing suggested the two tours differ in it.
+ */
+export const WTA_CONFIG: BoutModelConfig = { ...TENNIS_CONFIG, eloK: 48 };
+
+/**
+ * The config for a competition rated by this engine, or null.
+ *
+ * Null is the answer for every team sport and every race: those have their own
+ * models, and this one must not be handed a fixture it would rate as though
+ * two people had played it.
+ */
+export function boutConfigForLeague(leagueId: string): BoutModelConfig | null {
+  if (leagueId === 'ufc') return BOUT_CONFIG;
+  if (leagueId === 'atp') return TENNIS_CONFIG;
+  if (leagueId === 'wta') return WTA_CONFIG;
+  return null;
+}
+
 /** Starting rating for a fighter nobody has seen yet. */
 export const STARTING_ELO = 1500;
 
@@ -189,7 +275,24 @@ export function toBoutResults(games: readonly Game[], asOf: number): BoutResult[
     if (!home || !away || home === away) continue;
 
     /*
-     * A no-contest is not a result.
+     * A walkover is not evidence about anybody.
+     *
+     * The opponent withdrew before play, so no tennis happened at all and the
+     * "winner" did nothing to earn it. A retirement is different and is kept:
+     * a set and a half was played and the player who stopped was usually
+     * losing it.
+     *
+     * Measured before being decided, because the principle could have gone
+     * either way. Excluding walkovers, retirements, both or neither moves the
+     * held-out Brier by less than 0.0003 across 7,170 matches — they are 3.3%
+     * of the archive and the difference is nothing. So this is a choice made
+     * on principle over a tie, not a measured improvement, and it is recorded
+     * that way rather than dressed up as a finding.
+     */
+    if (game.completion === 'walkover') continue;
+
+    /*
+     * A no-contest is not a result either.
      *
      * `winner` is null for a draw and for a no-contest alike, and the two are
      * different: a draw is a contested outcome and belongs in a rating at 0.5,

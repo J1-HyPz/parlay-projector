@@ -107,6 +107,21 @@ const COMBAT: HubTerminology = {
   transactions: 'Roster Moves',
 };
 
+/**
+ * Tennis has none of the team vocabulary either, and not the combat one.
+ *
+ * A tour runs tournaments rather than fixtures, its competitors are players,
+ * and the thing that looks like a table is a rolling 52-week ranking the
+ * provider does not publish as one -- reported as absent rather than shown as
+ * a permanently empty section. An individual athlete has no transactions.
+ */
+const RACKET: HubTerminology = {
+  games: 'Matches',
+  teams: 'Players',
+  standings: 'Rankings',
+  transactions: 'Roster Moves',
+};
+
 const EMOJI: Record<string, string> = {
   'american-football': '\u{1F3C8}',
   basketball: '\u{1F3C0}',
@@ -115,10 +130,12 @@ const EMOJI: Record<string, string> = {
   football: '⚽',
   motorsport: '\u{1F3CE}\uFE0F',
   combat: '🥊',
+  racket: '🎾',
   other: '\u{1F3C6}',
 };
 
 function terminologyFor(league: League): HubTerminology {
+  if (league.group === 'racket') return RACKET;
   if (league.group === 'combat') return COMBAT;
   if (league.group === 'motorsport') return MOTORSPORT;
   if (league.group === 'football') return FOOTBALL;

@@ -161,6 +161,26 @@ export interface Game {
   division?: string | null;
   /** Scheduled rounds for a bout -- three, or five for a main event or title. */
   scheduledRounds?: number | null;
+  /**
+   * Whether a contest ran to its natural end.
+   *
+   * `retired` and `walkover` are real, distinguishable outcomes in tennis --
+   * the provider publishes them as their own statuses, and there were 79 and 9
+   * of them respectively in a single quarter. They matter because a retirement
+   * settles as **void** rather than as a loss for the player who stopped: the
+   * match happened, but nothing about who was better was actually settled.
+   *
+   * Absent for a sport where the distinction does not arise.
+   */
+  completion?: 'played' | 'retired' | 'walkover';
+  /**
+   * Games won per set, for a sport scored in sets.
+   *
+   * Not folded into `score`, which is one number per side. Sets-won would
+   * discard the games a total-games market needs; total games would read as a
+   * scoreline nobody recognises. The structure is kept whole instead.
+   */
+  setGames?: { home: number[]; away: number[] };
 }
 
 /** True for a contest decided by a winner rather than by a score. */

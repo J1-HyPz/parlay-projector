@@ -738,6 +738,72 @@ age, layoff, weight-cut difficulty, judging variance and referee stoppage
 timing are all real, widely discussed, and none recoverable from a win/loss
 record.
 
+### Tennis
+
+Same engine as fights, in `lib/projections/bout-model.ts`, with its own
+constants — the two sports need identical machinery and differ only in their
+numbers, the way the NFL and the NBA share the Normal-scoring family.
+
+**`eloK` is 32 for the ATP and 48 for the WTA, against MMA's 160.** The ratio
+is the schedule, not a judgement about the sports: a tour player contests fifty
+or eighty matches a year where a fighter has two or three, so a tennis rating
+has vastly more chances to find its level and each result should move it less.
+
+**The two tours were not assumed to share a config.** One was tried for both
+and left the WTA 2.1 points under-confident; its own K brings that to 0.15 and
+takes Brier from 0.2238 to 0.2230. The calibration difference is the one that
+matters — a systematically under-confident price is wrong in the same direction
+every time, which is what bias measures and error averages away.
+
+**Calibration**, held out from 2024:
+
+| | ATP | WTA |
+|---|---|---|
+| coverage | 86.2% | 82.5% |
+| matches scored | 6,890 | 9,168 |
+| accuracy on the favourite | 62.3% | 63.3% |
+| Brier | 0.2234 | 0.2230 |
+| bias | -0.0013 | -0.0015 |
+
+| ATP band | model says | actually happened |
+|---|---|---|
+| 50-60% | 54.8% | 53.6% |
+| 60-70% | 64.4% | 65.0% |
+| 70-80% | 74.3% | 76.9% |
+| 80-90% | 84.0% | 88.1% |
+| 90-100% | 92.5% | 91.1% |
+
+Close across the whole range, and mildly *under*-confident at the top — the
+safer direction to err in.
+
+**Qualifying rounds are rated, retirements are rated, walkovers are not.** All
+three were measured rather than assumed. Qualifying is a third of the draw and
+costs nothing — identical error on the main-draw matches both variants could
+project — while letting the model reach 6,860 held-out matches instead of
+4,753. Retirements and walkovers are 3.3% of the archive and excluding any
+combination of them moves Brier by less than 0.0003, so that one is a choice
+made on principle over a tie: a walkover means no tennis was played at all,
+while a retirement means a set and a half was.
+
+**The minimum-matches floor is a judgement, not an optimum, and is recorded as
+one.** Accuracy against the weaker player's record length has no ordering below
+thirty matches: 4-6 gave 57.4%, 6-8 gave 55.1%, 8-10 gave 64.6%, 13-16 gave
+66.5%, 16-20 gave 54.0%, each on two or three hundred matches. Only the 30-plus
+band is stable. Ten is defended by the two loosest steps measured degrading,
+not by a minimum in the data.
+
+**No surface component, and it cannot be built.** §4.8.a proposed rating hard,
+clay and grass separately. The provider publishes no surface at all — a
+tournament carries a city name, and the word does not appear anywhere in a
+quarter's payload. Dropped rather than guessed at from a tournament's name or
+its place in the calendar.
+
+**The two tours read their own feeds.** Checked as a set union rather than
+assumed: of 46 tournaments in a quarter only 7 appear in both, those 7 are the
+combined events, and every men's singles match is in the ATP feed with every
+women's in the WTA feed. So nothing is merged across them, which would
+otherwise have counted every combined event twice.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the
@@ -909,8 +975,9 @@ the model's own probability expressed as a decimal, labelled as such.
 ## What this model does not do
 
 - **No player projections**, for the reasons at the top.
-- **No tennis yet.** The provider carries it — checked 2026-09-10 — and it is
-  the next sport in §4.8. It is not built.
+- **No tennis doubles.** A pair is not an individual, and the rating is keyed
+  on one person. Singles only, enforced structurally: a doubles competitor has
+  no `athlete` at all.
 - **No boxing, and not for want of trying.** Every path on this provider 404s;
   its one answering endpoint returns an empty object where the identical MMA
   one returns real fighters. Blocked until a provider carries it.

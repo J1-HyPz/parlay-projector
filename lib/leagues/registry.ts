@@ -24,6 +24,7 @@ export type LeagueGroup =
   | 'football'
   | 'motorsport'
   | 'combat'
+  | 'racket'
   | 'other';
 
 /**
@@ -39,13 +40,21 @@ export type LeagueGroup =
  *   fixture  two sides and a score. Every team competition.
  *   race     a field finishing in an order, with no score at all.
  *   bout     two sides and no score -- a winner, and nothing to add up.
+ *   match    two sides, a winner, and a score the winner does not fall out of.
  *
- * `bout` is not `fixture` with the score left out. A fixture's model asks how
- * much each side will score and compares the two; a fight has no scoring
- * process to ask that of, so the model behind a bout is an Elo alone. See
+ * Neither `bout` nor `match` is `fixture` with the score left out. A fixture's
+ * model asks how much each side will score and compares the two. A fight has
+ * no scoring process to ask that of at all; a tennis match has one, but its
+ * sets and games are a nested structure rather than two numbers, and the
+ * winner is decided by the shape of it rather than by the total. Both are
+ * therefore rated by an Elo alone -- the same engine, in
  * `lib/projections/bout-model.ts`.
+ *
+ * They are separate values because the two payloads are nothing alike: a card
+ * lists its fights directly, while a tournament nests its matches inside
+ * per-draw groupings that also hold doubles.
  */
-export type LeagueFormat = 'fixture' | 'race' | 'bout';
+export type LeagueFormat = 'fixture' | 'race' | 'bout' | 'match';
 
 /**
  * Which provider serves a competition.
@@ -83,6 +92,14 @@ export interface League {
    * Null for competitions ESPN does not carry.
    */
   espnPath: string | null;
+  /**
+   * Which draw to read from a tournament, for a `match` competition.
+   *
+   * A tennis tournament's payload holds every draw it ran -- both singles and
+   * all three doubles -- so the tour alone does not identify the competition.
+   * Absent for every other format.
+   */
+  espnDraw?: string;
   /**
    * TheSportsDB league id, e.g. `4405` for the CFL.
    * Null for competitions served by ESPN.
@@ -441,6 +458,52 @@ export const LEAGUES: readonly League[] = [
     // this API, and a ranking is not a league table in any case.
     hasStandings: false,
     // A North American team-league concept; an individual athlete has none.
+    hasTransactions: false,
+    collegiate: false,
+  },
+
+  // Racket sports
+  {
+    id: 'atp',
+    label: 'ATP Tour',
+    shortLabel: 'ATP',
+    group: 'racket',
+    sport: 'tennis',
+    provider: 'espn',
+    /*
+     * Verified live 2026-09-11. The two tours are genuinely separate feeds,
+     * which had to be measured rather than assumed: of 46 tournaments in one
+     * quarter only 7 appear in both, and those 7 are the combined events,
+     * which carry both draws in either feed. Every men's singles match appears
+     * in this feed, so nothing has to be merged across the two.
+     */
+    espnPath: 'tennis/atp',
+    espnDraw: 'mens-singles',
+    format: 'match',
+    sportsdbLeagueId: null,
+    /*
+     * The ATP ranking is a rolling 52-week points system, not a league table,
+     * and this API does not publish it as one. Reported as absent rather than
+     * shown as a permanently empty section.
+     */
+    hasStandings: false,
+    hasTransactions: false,
+    collegiate: false,
+  },
+  {
+    id: 'wta',
+    label: 'WTA Tour',
+    shortLabel: 'WTA',
+    group: 'racket',
+    sport: 'tennis',
+    provider: 'espn',
+    // Same verification as the ATP entry: every women's singles match appears
+    // in this feed.
+    espnPath: 'tennis/wta',
+    espnDraw: 'womens-singles',
+    format: 'match',
+    sportsdbLeagueId: null,
+    hasStandings: false,
     hasTransactions: false,
     collegiate: false,
   },
