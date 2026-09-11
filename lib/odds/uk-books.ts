@@ -51,9 +51,11 @@ const BASE = 'https://api.the-odds-api.com/v4';
  * Absent means this competition is not priced, which is a fact about the
  * provider rather than a gap to fill in later: there is no key to guess.
  *
- * Tennis is deliberately absent. This provider keys tennis per *tournament*
- * (`tennis_atp_us_open` and so on) rather than per tour, so there is no single
- * key for the ATP, and neither tennis nor MMA is offered in parlays yet.
+ * Tennis is absent from this table on purpose and priced all the same. The
+ * provider keys tennis per *tournament* (`tennis_atp_us_open` and so on)
+ * rather than per tour, so there is no single key for the ATP — the keys in
+ * play this week are discovered from the provider's own sports list instead.
+ * See `TOUR_PREFIXES` and `tournamentKeysFor`.
  */
 const SPORT_KEYS: Readonly<Record<string, string>> = {
   nfl: 'americanfootball_nfl',
@@ -74,9 +76,91 @@ const SPORT_KEYS: Readonly<Record<string, string>> = {
   ufc: 'mma_mixed_martial_arts',
 };
 
-/** Whether this competition can be priced at all. */
+/** The fixed key for a competition that has one. Null for tennis; see below. */
 export function sportKeyFor(leagueId: string): string | null {
   return SPORT_KEYS[leagueId] ?? null;
+}
+
+/**
+ * Competitions priced as a family of tournament keys rather than one key.
+ *
+ * Every ATP event is `tennis_atp_<tournament>` and every WTA event is
+ * `tennis_wta_<tournament>`, and which of them exist changes week to week as
+ * the calendar moves on. The prefix is what identifies the tour.
+ */
+const TOUR_PREFIXES: Readonly<Record<string, string>> = {
+  atp: 'tennis_atp_',
+  wta: 'tennis_wta_',
+};
+
+/** Whether this provider prices the competition at all, by either route. */
+export function pricesLeague(leagueId: string): boolean {
+  return leagueId in SPORT_KEYS || leagueId in TOUR_PREFIXES;
+}
+
+/** One entry of the provider's sports list, as it arrives. */
+export interface RawSport {
+  key?: unknown;
+  active?: unknown;
+  has_outrights?: unknown;
+}
+
+/**
+ * The tournament keys currently in play for a tour, from the sports list.
+ *
+ * Pure, and exported for that reason. Only active keys, and never an outright
+ * — an outright is a tournament-winner market keyed separately, and it holds
+ * no match prices to join to a fixture.
+ */
+export function tournamentKeysFor(leagueId: string, sports: readonly RawSport[]): string[] {
+  const prefix = TOUR_PREFIXES[leagueId];
+  if (!prefix) return [];
+
+  return sports
+    .filter((sport) => sport.active === true && sport.has_outrights !== true)
+    .map((sport) => str(sport.key))
+    .filter((key): key is string => key !== null && key.startsWith(prefix))
+    .sort();
+}
+
+/**
+ * How long the sports list is held.
+ *
+ * Tournaments start and finish on a weekly rhythm, and a key that has gone
+ * simply returns no events — so a list a few hours old costs at most one
+ * wasted call, never a wrong price.
+ */
+const SPORTS_LIST_TTL_MS = 6 * 60 * 60_000;
+
+/** The provider's list of in-season sports, cached. Empty on any failure. */
+async function activeSports(): Promise<RawSport[]> {
+  if (!oddsApiConfig.key) return [];
+
+  try {
+    const { value } = await cached(`uk-odds:sports`, SPORTS_LIST_TTL_MS, async () => {
+      const url = `${BASE}/sports?apiKey=${encodeURIComponent(oddsApiConfig.key)}`;
+      return getJson<RawSport[]>(url, { timeoutMs: oddsApiConfig.timeoutMs });
+    });
+    return Array.isArray(value) ? value : [];
+  } catch (error) {
+    logger.warn('uk_odds_sports_failed', {
+      reason: error instanceof ProviderError ? `status ${error.status}` : 'unknown',
+    });
+    return [];
+  }
+}
+
+/**
+ * Every provider key to ask for this competition's prices.
+ *
+ * One key for a competition that has one; the tournaments currently running
+ * for a tour; nothing for a competition the provider does not price.
+ */
+export async function sportKeysFor(leagueId: string): Promise<string[]> {
+  const fixed = sportKeyFor(leagueId);
+  if (fixed) return [fixed];
+  if (!(leagueId in TOUR_PREFIXES)) return [];
+  return tournamentKeysFor(leagueId, await activeSports());
 }
 
 // ---------------------------------------------------------------------------
@@ -329,34 +413,48 @@ export async function ukMarketsForLeague(
   league: League,
   fixtures: readonly Game[],
 ): Promise<UkOddsResult> {
-  const sport = sportKeyFor(league.id);
-  if (!oddsApiConfig.key || !sport || fixtures.length === 0) return EMPTY;
+  if (!oddsApiConfig.key || !pricesLeague(league.id) || fixtures.length === 0) return EMPTY;
 
   try {
-    const { value } = await cached(
-      `uk-odds:${league.id}:${oddsApiConfig.region}`,
-      oddsApiConfig.cacheTtlMs,
-      async () => {
-        /*
-         * One request per competition, three markets, one region.
-         *
-         * The provider charges markets x regions per call, so this is three
-         * credits. Asking for more regions to "see more books" would multiply
-         * the bill for prices a UK reader cannot use anyway.
-         */
-        const url =
-          `${BASE}/sports/${sport}/odds?apiKey=${encodeURIComponent(oddsApiConfig.key)}` +
-          `&regions=${oddsApiConfig.region}&markets=h2h,spreads,totals` +
-          `&oddsFormat=decimal&dateFormat=iso`;
-        return getJson<RawUkEvent[]>(url, { timeoutMs: oddsApiConfig.timeoutMs });
-      },
+    const keys = await sportKeysFor(league.id);
+    if (keys.length === 0) return EMPTY;
+
+    /*
+     * One request per key, three markets, one region.
+     *
+     * The provider charges markets x regions per call, so each key is three
+     * credits. Asking for more regions to "see more books" would multiply the
+     * bill for prices a UK reader cannot use anyway.
+     *
+     * A tour is several keys — one per tournament in play, typically two to
+     * four — so a week of tennis costs a few times what a football league
+     * does. Stated here rather than hidden: on the free tier that is the
+     * difference between a month's quota lasting and not, and the cache
+     * lifetime in `oddsApiConfig` is the lever.
+     */
+    const payloads = await Promise.all(
+      keys.map(async (sport) => {
+        const { value } = await cached(
+          `uk-odds:${sport}:${oddsApiConfig.region}`,
+          oddsApiConfig.cacheTtlMs,
+          async () => {
+            const url =
+              `${BASE}/sports/${sport}/odds?apiKey=${encodeURIComponent(oddsApiConfig.key)}` +
+              `&regions=${oddsApiConfig.region}&markets=h2h,spreads,totals` +
+              `&oddsFormat=decimal&dateFormat=iso`;
+            return getJson<RawUkEvent[]>(url, { timeoutMs: oddsApiConfig.timeoutMs });
+          },
+        );
+        return Array.isArray(value) ? value : [];
+      }),
     );
 
-    const events = Array.isArray(value) ? value : [];
+    const events = payloads.flat();
     const markets = joinToFixtures(events, fixtures, new Date().toISOString());
 
     logger.info('uk_odds_refreshed', {
       league: league.id,
+      keys: keys.length,
       events: events.length,
       fixtures: fixtures.length,
       matched: markets.size,

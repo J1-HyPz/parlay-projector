@@ -201,6 +201,7 @@ export function publishPredictions(
 
       const projection = selection.projection;
       const race = selection.race;
+      const bout = selection.bout;
 
       created.push({
         id: selection.id,
@@ -212,15 +213,17 @@ export function publishPredictions(
         selection: selection.label,
         settlement: selection.settlement,
         // A race has no two sides. The competitor is named on the settlement
-        // rule, which is what the result is judged against anyway.
-        home_team: projection?.home_team ?? null,
-        away_team: projection?.away_team ?? null,
+        // rule, which is what the result is judged against anyway. A bout has
+        // two, and they are what make "X won" readable at settlement.
+        home_team: projection?.home_team ?? bout?.home_team ?? null,
+        away_team: projection?.away_team ?? bout?.away_team ?? null,
         model_probability: selection.probability,
         model_confidence: selection.confidence,
         data_quality: selection.data_quality,
-        // Race predictions carry their own model version: the two models are
-        // not comparable and must never be averaged together silently.
-        model_version: race ? race.model_version : MODEL_VERSION,
+        // Race and bout predictions carry their own model versions: the
+        // models are not comparable and must never be averaged together
+        // silently.
+        model_version: race ? race.model_version : bout ? bout.model_version : MODEL_VERSION,
         risk,
         created_at: now,
         game_start: selection.start_time,
@@ -235,8 +238,9 @@ export function publishPredictions(
          * The scoreline the model published, frozen with the prediction.
          *
          * Null for a race, which projects a finishing order rather than a
-         * score. Its equivalent — where the driver was actually classified —
-         * is recorded on `actual` at settlement.
+         * score, and for a bout, which projects a winner. Their equivalents —
+         * where the driver was classified, who won — are recorded on `actual`
+         * at settlement.
          */
         projected: projection
           ? {
@@ -324,6 +328,17 @@ export interface GameState {
    * it.
    */
   order?: readonly { entrant: string; position: number }[];
+  /**
+   * Who won, for a fight or a tennis match.
+   *
+   * These have no score either, so this is what their predictions are
+   * settled against. Recorded only for a contest that has no score, because
+   * its presence is how settlement knows to read it instead of `home` and
+   * `away`. `completion` says whether it ran its course; a retirement or a
+   * walkover voids rather than settles.
+   */
+  winner?: 'home' | 'away' | null;
+  completion?: 'played' | 'retired' | 'walkover';
 }
 
 export type GameStates = ReadonlyMap<string, GameState>;
@@ -394,7 +409,7 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
           to: revised,
         });
 
-        const outcome = outcomeOf(record.settlement, evidence);
+        const outcome = outcomeOf(record.settlement, evidence, sidesOf(record));
 
         return {
           ...record,
@@ -408,7 +423,9 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
               new_result: revised,
               reason: isRaceRule(record.settlement)
                 ? 'provider corrected the finishing order'
-                : 'provider corrected the final score',
+                : evidence.winner !== undefined
+                  ? 'provider corrected the result'
+                  : 'provider corrected the final score',
               changed_at: timestamp,
             },
           ],
@@ -482,7 +499,7 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
 
       // --- finished with a result -------------------------------------------
       const outcome = settle(record.settlement, evidence);
-      const described = outcomeOf(record.settlement, evidence);
+      const described = outcomeOf(record.settlement, evidence, sidesOf(record));
 
       summary.settled += 1;
       logger.info('prediction_settled', {
@@ -513,6 +530,11 @@ export function settlePredictions(states: GameStates): Promise<SettlementSummary
     summary.parlays = await refreshParlays(updated, timestamp);
     return summary;
   });
+}
+
+/** The two names a record froze, for describing a result in words. */
+function sidesOf(record: PredictionRecordV2): { home: string | null; away: string | null } {
+  return { home: record.home_team ?? null, away: record.away_team ?? null };
 }
 
 /** Fold leg outcomes into their generated lines. */

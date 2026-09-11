@@ -56,7 +56,7 @@ describe('the sport catalogue', () => {
 
   it('offers the sports the project actually tracks', () => {
     const byId = new Map(sportOptions().map((option) => [option.id, option]));
-    for (const id of ['nfl', 'nba', 'mlb', 'nhl', 'football', 'f1'] as const) {
+    for (const id of ['nfl', 'nba', 'mlb', 'nhl', 'football', 'f1', 'mma', 'tennis'] as const) {
       assert.ok(byId.get(id)?.supported, `${id} must be buildable`);
     }
   });

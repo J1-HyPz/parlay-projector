@@ -208,7 +208,7 @@ export interface CustomSlip {
 
 export function assembleSlip(
   selections: readonly Selection[],
-  distribution: Distribution,
+  distribution: Distribution | null,
 ): CustomSlip {
   const legs: Selection[] = [];
   let dropped = 0;
@@ -218,10 +218,32 @@ export function assembleSlip(
       dropped += 1;
       continue;
     }
+    /*
+     * A fixture with no simulations can hold one leg and no more.
+     *
+     * That is a fight or a tennis match: one market, two sides that conflict
+     * with each other, and no distribution to count a second leg against. A
+     * second leg could only be priced by multiplying, which is the one thing
+     * this module exists not to do.
+     */
+    if (!distribution && legs.length >= 1) {
+      dropped += 1;
+      continue;
+    }
     legs.push(candidate);
   }
 
-  const assessment = evaluateCombination(legs, distribution);
+  const assessment = distribution
+    ? evaluateCombination(legs, distribution)
+    : {
+        independent: Number((legs[0]?.probability ?? 0).toFixed(4)),
+        joint: Number((legs[0]?.probability ?? 0).toFixed(4)),
+        correlation: {
+          level: 'low' as const,
+          ratio: 1,
+          note: 'A single selection has nothing to be correlated with.',
+        },
+      };
 
   return {
     legs,

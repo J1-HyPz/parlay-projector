@@ -41,7 +41,7 @@ import { compactDate, espnGameId } from '../providers/espn/fixtures';
 import type { League } from '../leagues/registry';
 import type { GameMarkets } from '../markets/types';
 import { getLeagueGames } from '../leagues/games.ts';
-import { sportKeyFor, ukMarketsForLeague } from './uk-books.ts';
+import { pricesLeague, ukMarketsForLeague } from './uk-books.ts';
 import { normaliseOddsResponse } from './normalise.ts';
 import type { RawOddsResponse } from './normalise.ts';
 
@@ -74,7 +74,7 @@ export async function marketsForLeague(
    * this provider does not price -- falls through to the feed's own prices
    * rather than leaving the reader with none.
    */
-  if (oddsApiConfig.key && sportKeyFor(league.id)) {
+  if (oddsApiConfig.key && pricesLeague(league.id)) {
     try {
       const { games } = await getLeagueGames([league]);
       const upcoming = games.filter((game) => game.status === 'scheduled');
@@ -167,7 +167,7 @@ export async function marketsForLeagues(
   const queue = leagues.filter(
     (league) =>
       (league.provider === 'espn' && league.espnPath) ||
-      (Boolean(oddsApiConfig.key) && sportKeyFor(league.id) !== null),
+      (Boolean(oddsApiConfig.key) && pricesLeague(league.id)),
   );
 
   let next = 0;

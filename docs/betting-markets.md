@@ -32,8 +32,31 @@ They are now separate objects:
 
 ## Where prices come from
 
-The sports feed the application already calls carries bookmaker prices
-alongside the fixtures. `lib/odds/` reads them, deliberately and in one place.
+**Two sources, and which one answers depends on configuration.** `lib/odds/`
+holds both, deliberately and in one place.
+
+With `ODDS_API_KEY` set, prices come from **UK bookmakers** via The Odds API —
+Sky Bet, William Hill, Paddy Power, Ladbrokes, Coral, Betfred, BetVictor and
+the rest of the `uk` region. Without it, the fallback is the prices the sports
+feed carries alongside its fixtures, which an audit of a week's worth found to
+be DraftKings and nothing else: real prices, quoted in a country most of this
+application's readers are not in. The fallback is kept because it is better
+than nothing for a reader who *is* in the United States, but it is second, and
+what it is gets said out loud rather than presented as simply "the odds".
+
+Most competitions are one key at the provider. **Tennis is not**, and it is
+worth knowing why: this provider keys tennis per *tournament*
+(`tennis_atp_us_open`) rather than per tour, and which tournaments exist
+changes week to week as the calendar moves on. So the keys in play are read
+from the provider's own sports list rather than hard-coded — a fixed list would
+price the ATP for a fortnight and then quietly stop. Inactive keys and
+outrights are skipped: the first returns nothing, and the second is a
+tournament-winner market with no match prices to join to a fixture.
+
+That costs more. A competition with one key is three credits per refresh;
+a tour is three per tournament in play, typically two to four at once.
+`ODDS_API_CACHE_TTL_SECONDS` is the lever, and on the free tier's 500 credits a
+month it is not a small one.
 
 This does not undo the betting-data strip in the fixtures adapter. That
 boundary still holds: a `Game` has no odds on it and never will. Prices live in
@@ -58,6 +81,8 @@ Verified against live data:
 | NFL, NCAA football, WNBA | Yes, months ahead |
 | Every football competition | Yes, including draw prices — a true 1X2 |
 | MLB, NBA, NHL, NCAA basketball | Close to the start only |
+| UFC, ATP, WTA | Only with `ODDS_API_KEY`; the fixtures feed carries neither |
+| Formula 1 | Never — no motorsport market on either source |
 
 The second group matters: the same competition is priced today and unpriced
 next week, so **availability is decided per fixture, never per competition.** A
@@ -177,11 +202,18 @@ behind it.
 handicaps the model can price but nobody offers is the exact failure this work
 set out to fix.
 
+**No second market on a fight or a tennis match.** The winner, and nothing
+else. The UK source quotes handicaps and totals on both sports, but the model
+produces no probability for either, so there is nothing to set against those
+prices — and a market this application cannot price is one it must not appear
+to have an opinion on. Some books also quote a drawn fight; the model has no
+draw probability, so it says nothing there either.
+
 **No bookmaker is hard-coded as a source.** A price records the book that
-quoted it, whichever that turns out to be. Where a feed lists several books the
-first is taken rather than the best price being hunted across them: presenting
-the most generous quote from each as though it were one offer would describe a
-bet that exists nowhere.
+quoted it, whichever that turns out to be. From the UK source the best decimal
+price per selection is taken across books, and which book gave it travels with
+the quote — so a slip never implies one book offered all of it. From the
+fixtures feed, where several books appear, the first is taken.
 
 ## Safeguards
 
@@ -205,9 +237,24 @@ bet that exists nowhere.
 ## Configuration
 
 ```
-ODDS_ENABLED=true          # false reports every selection as model_only
+ODDS_ENABLED=true              # false reports every selection as model_only
 ODDS_CACHE_TTL_SECONDS=600
+ODDS_API_KEY=                  # empty means off: no request, no UK prices
+ODDS_API_REGION=uk
+ODDS_API_CACHE_TTL_SECONDS=1800
 ```
 
-No credentials are involved. See `docs/data-providers.md` for the provider
-caveat that applies to the whole feed.
+`ODDS_API_KEY` is a credential: anyone holding it can spend the account's
+quota. It is read from the environment only, never committed, never logged and
+never sent to the browser — the odds module logs the competition and the
+outcome of a call, never its URL, because the key travels in the query string
+as that API requires.
+
+Empty means off, and off is a degraded state rather than a broken one: every
+selection reports as an unverified model projection, exactly as it does for a
+fixture no book has quoted yet. The one visible consequence is that MMA,
+tennis and Formula 1 produce no parlay legs at all, because a leg must be a bet
+somebody is offering.
+
+See `docs/data-providers.md` for the provider caveat that applies to the
+fixtures feed.

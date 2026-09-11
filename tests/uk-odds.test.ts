@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { joinToFixtures, sportKeyFor } from '../lib/odds/uk-books.ts';
+import {
+  joinToFixtures,
+  pricesLeague,
+  sportKeyFor,
+  tournamentKeysFor,
+} from '../lib/odds/uk-books.ts';
 import type { RawUkEvent } from '../lib/odds/uk-books.ts';
 import { eligible } from '../lib/projections/optimiser.ts';
 import { RISK_PROFILES } from '../lib/projections/config.ts';
@@ -182,9 +187,53 @@ describe('reading UK bookmaker prices', () => {
   it('knows which competitions this provider prices, and admits the rest', () => {
     assert.equal(sportKeyFor('epl'), 'soccer_epl');
     assert.equal(sportKeyFor('ufc'), 'mma_mixed_martial_arts');
-    // Keyed per tournament rather than per tour, so there is no key to give.
+    // Keyed per tournament rather than per tour, so there is no fixed key.
     assert.equal(sportKeyFor('atp'), null);
     assert.equal(sportKeyFor('f1'), null);
+
+    // But the tours are still priced, by the other route.
+    assert.equal(pricesLeague('atp'), true);
+    assert.equal(pricesLeague('wta'), true);
+    assert.equal(pricesLeague('f1'), false);
+  });
+});
+
+describe('finding this week’s tennis tournaments', () => {
+  /*
+   * This provider keys tennis per tournament — `tennis_atp_us_open` — and
+   * which of them exist changes as the calendar moves on. Hard-coding a list
+   * would price the ATP for a fortnight and then quietly stop, so the keys in
+   * play are read from the provider's own sports list instead.
+   */
+  const sports = [
+    { key: 'tennis_atp_us_open', active: true },
+    { key: 'tennis_atp_shanghai_masters', active: true },
+    { key: 'tennis_wta_us_open', active: true },
+    { key: 'tennis_atp_wimbledon', active: false },
+    { key: 'tennis_atp_aus_open_winner', active: true, has_outrights: true },
+    { key: 'soccer_epl', active: true },
+  ];
+
+  it('takes only the tour asked for', () => {
+    assert.deepEqual(tournamentKeysFor('atp', sports), [
+      'tennis_atp_shanghai_masters',
+      'tennis_atp_us_open',
+    ]);
+    assert.deepEqual(tournamentKeysFor('wta', sports), ['tennis_wta_us_open']);
+  });
+
+  it('skips a tournament that is over', () => {
+    // An inactive key returns no events, so asking for it spends a credit to
+    // learn nothing.
+    assert.ok(!tournamentKeysFor('atp', sports).includes('tennis_atp_wimbledon'));
+  });
+
+  it('skips an outright, which holds no match prices to join to a fixture', () => {
+    assert.ok(!tournamentKeysFor('atp', sports).includes('tennis_atp_aus_open_winner'));
+  });
+
+  it('gives nothing for a competition priced by a single key', () => {
+    assert.deepEqual(tournamentKeysFor('epl', sports), []);
   });
 });
 

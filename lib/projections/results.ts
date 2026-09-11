@@ -42,6 +42,12 @@ export interface ResultLeg {
   away_team: string | null;
   home_score: number | null;
   away_score: number | null;
+  /**
+   * Who won, for a contest that has no score. Absent for everything else, so
+   * a scoreline of nulls beside it reads as "no scoreline" rather than as a
+   * result nobody recorded.
+   */
+  winner?: 'home' | 'away' | null;
 }
 
 /**
@@ -144,6 +150,11 @@ function teamName(record: PredictionRecordV2, side: 'home' | 'away'): string {
   return name ?? (side === 'home' ? 'the home side' : 'the away side');
 }
 
+/** A team is plural in this application's English; a person is not. */
+function wasOrWere(sport: string): string {
+  return sport === 'mma' || sport === 'tennis' ? 'was' : 'were';
+}
+
 /** A line or a margin, written the way it was published. */
 function plain(value: number): string {
   return String(value);
@@ -177,6 +188,13 @@ export function missReason(record: PredictionRecordV2): string | null {
         return 'The match was projected to end level and it did not.';
       }
       const team = teamName(record, rule.side);
+
+      // A fight or a match has no margin to lose by; the other side won.
+      if (actual.winner !== undefined) {
+        const other = teamName(record, rule.side === 'home' ? 'away' : 'home');
+        return `${team} ${wasOrWere(record.sport)} projected to win and ${other} won.`;
+      }
+
       const lostBy = rule.side === 'home' ? -margin : margin;
       if (lostBy === 0) {
         return `${team} were projected to win and the match was drawn.`;
@@ -339,6 +357,9 @@ function scopeOf(legs: readonly PredictionRecordV2[]): ResultScope {
 }
 
 function toLeg(record: PredictionRecordV2): ResultLeg {
+  // A bout's stored scores are zero and mean nothing; the winner is its result.
+  const decidedByWinner = record.actual?.winner !== undefined;
+
   return {
     id: record.id,
     game_id: record.game_id,
@@ -349,8 +370,9 @@ function toLeg(record: PredictionRecordV2): ResultLeg {
     away_team: record.away_team ?? null,
     // A scoreline is only offered when it was actually recorded. Never zero as
     // a stand-in for "not known".
-    home_score: record.actual?.home_score ?? null,
-    away_score: record.actual?.away_score ?? null,
+    home_score: decidedByWinner ? null : (record.actual?.home_score ?? null),
+    away_score: decidedByWinner ? null : (record.actual?.away_score ?? null),
+    ...(decidedByWinner ? { winner: record.actual?.winner ?? null } : {}),
   };
 }
 

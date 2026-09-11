@@ -54,10 +54,35 @@ export function TeamIdentity({
   );
 }
 
+/**
+ * How a contest between two people ended, in a few words.
+ *
+ * A fight or a match has no score to put in the middle of the header, so the
+ * result goes there instead once there is one. Null before then.
+ */
+function contestResult(game: GameDetail): string | null {
+  if (game.winner === undefined || game.status !== 'finished') return null;
+  if (game.completion === 'walkover') return 'Walkover';
+  const winner =
+    game.winner === 'home' ? game.home_team.name : game.winner === 'away' ? game.away_team.name : null;
+  if (!winner) return 'Draw / no contest';
+  return game.completion === 'retired' ? `${winner} won by retirement` : `${winner} won`;
+}
+
 export function GameHeader({ game }: { game: GameDetail }) {
   const date = formatDate(game.start_time);
   const time = formatTime(game.start_time);
   const showScore = hasScore(game);
+  /*
+   * A contest between two people has no home side: the first-listed is
+   * `home_team` only because that is the field name. So it reads left to
+   * right in card or draw order, and the Away · Home caption is dropped
+   * rather than shown about people it does not describe.
+   */
+  const contest = game.winner !== undefined;
+  const left = contest ? game.home_team : game.away_team;
+  const right = contest ? game.away_team : game.home_team;
+  const result = contestResult(game);
 
   return (
     <section className="panel p-5 md:p-7" aria-label="Game summary">
@@ -93,10 +118,12 @@ export function GameHeader({ game }: { game: GameDetail }) {
 
       {/* Matchup */}
       <div className="mt-7 flex items-center justify-between gap-4 md:gap-8">
-        <TeamIdentity team={game.away_team} align="left" />
+        <TeamIdentity team={left} align="left" />
 
         <div className="shrink-0 text-center">
-          {showScore ? (
+          {result ? (
+            <p className="max-w-40 text-sm font-semibold leading-snug text-ink-strong">{result}</p>
+          ) : showScore ? (
             <div className="flex items-center gap-3 text-3xl font-semibold tabular-nums text-ink-strong md:gap-5 md:text-4xl">
               <span>{game.score?.away ?? '--'}</span>
               <span className="text-lg text-ink-faint md:text-xl">-</span>
@@ -105,17 +132,25 @@ export function GameHeader({ game }: { game: GameDetail }) {
           ) : (
             <span className="text-sm font-medium uppercase tracking-[.2em] text-ink-faint">VS</span>
           )}
-          {!showScore && time && (
+          {!showScore && !result && time && (
             <p className="mt-2 text-sm font-medium text-ink-muted">{time}</p>
           )}
         </div>
 
-        <TeamIdentity team={game.home_team} align="right" />
+        <TeamIdentity team={right} align="right" />
       </div>
 
-      <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
-        Away · Home
-      </p>
+      {contest ? (
+        (game.division || game.title) && (
+          <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
+            {[game.title, game.division].filter(Boolean).join(' · ')}
+          </p>
+        )
+      ) : (
+        <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
+          Away · Home
+        </p>
+      )}
 
       {/* When and where */}
       <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-line pt-5 text-xs text-ink-subtle">

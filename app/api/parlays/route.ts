@@ -124,7 +124,9 @@ async function bundlesFor(gameIds: readonly string[]): Promise<FixtureBundle[]> 
     if (detail.kind !== 'ok') continue;
 
     const candidates = await gameCandidates(detail.game as unknown as Game);
-    if (!candidates) continue;
+    // A fight or a match has one market and no simulations, so it cannot
+    // contribute more than one leg; it is left to the ordinary optimiser.
+    if (!candidates || !candidates.outcome) continue;
 
     bundles.push({
       gameId,
@@ -161,7 +163,9 @@ async function bestSameGame(
     if (detail.kind !== 'ok') continue;
 
     const candidates = await gameCandidates(detail.game as unknown as Game);
-    if (!candidates) continue;
+    // No same-game line from a fight or a match: one market, two sides that
+    // exclude each other, and nothing to count a second leg against.
+    if (!candidates || !candidates.outcome) continue;
 
     const result = buildSameGame(candidates.selections, candidates.outcome.distribution, {
       risk: options.risk,

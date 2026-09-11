@@ -11,7 +11,7 @@
 import { Info, LineChart, Swords, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { GameDetail, FormResult, RecentGame, TeamStanding } from '@/lib/games/types';
-import { formatDate, formatRecord, formatTime, ordinal, scoreNoun } from './game-data';
+import { formatDate, formatRecord, formatTime, ordinal, scoreNoun, sidesNoun } from './game-data';
 import { EmptyNote } from '@/components/ui/states';
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ export function RecentForm({ game }: { game: GameDetail }) {
           ))}
         </div>
       ) : (
-        <EmptyNote>Recent form is not available for these teams.</EmptyNote>
+        <EmptyNote>Recent form is not available for these {sidesNoun(game.sport)}.</EmptyNote>
       )}
     </Section>
   );
@@ -212,10 +212,12 @@ export function TeamComparison({ game }: { game: GameDetail }) {
   const away = game.standings.away;
   const home = game.standings.home;
   const nouns = scoreNoun(game.sport);
+  // "Team Comparison" over two fighters names something neither of them is.
+  const title = game.sport === 'mma' || game.sport === 'tennis' ? 'Comparison' : 'Team Comparison';
 
   if (!away && !home) {
     return (
-      <Section title="Team Comparison" icon={LineChart}>
+      <Section title={title} icon={LineChart}>
         <EmptyNote>
           Season statistics are not published for this competition yet.
         </EmptyNote>
@@ -256,7 +258,7 @@ export function TeamComparison({ game }: { game: GameDetail }) {
   ].filter((row) => row.away !== null || row.home !== null);
 
   return (
-    <Section title="Team Comparison" icon={LineChart}>
+    <Section title={title} icon={LineChart}>
       {/* Header: away | stat | home. Stacks safely because it is a 3-column
           grid rather than a table, so it never scrolls horizontally. */}
       <div className="grid grid-cols-[1fr_auto_1fr] gap-3 border-b border-line pb-3 text-2xs uppercase tracking-wider text-ink-faint">
@@ -338,7 +340,7 @@ export function RecentGames({ game }: { game: GameDetail }) {
           ))}
         </div>
       ) : (
-        <EmptyNote>No recent results available for these teams.</EmptyNote>
+        <EmptyNote>No recent results available for these {sidesNoun(game.sport)}.</EmptyNote>
       )}
     </Section>
   );

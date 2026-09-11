@@ -25,6 +25,7 @@
 
 import { SPORT_IDS } from '../home/types.ts';
 import type { ConcreteSportId, SportId } from '../home/types';
+import { boutConfigForLeague } from '../projections/bout-model.ts';
 import { modelConfigForLeague } from '../projections/config.ts';
 import { sportLabel } from '../schedule/filters.ts';
 import { FOOTBALL_GROUPS } from '../sports/hubs.ts';
@@ -39,31 +40,18 @@ export const ALL_COMPETITIONS = 'all';
 /**
  * Whether the engine has a model for this competition.
  *
- * A race carries its own model — a field finishing in order, which the scoring
- * model knows nothing about — so it is projectable despite having no entry in
- * the scoring model's table.
+ * Three engines answer it. A race carries its own — a field finishing in
+ * order, which the scoring model knows nothing about. A fight and a tennis
+ * match carry theirs — two individuals and a winner, with no score to
+ * simulate. Everything else is the scoring model's table. This is the one
+ * definition of "projectable" in the application: the parlay selector, the
+ * candidate build and the settlement tracker all ask it, so a competition
+ * cannot be offered in one place and forgotten in another.
  */
 export function isProjectable(league: League): boolean {
   if (league.format === 'race') return true;
+  if (boutConfigForLeague(league.id) !== null) return true;
   return modelConfigForLeague(league.id, league.sport) !== null;
-}
-
-/**
- * Whether a competition has a model of its own, whether or not parlays offer it.
- *
- * `isProjectable` answers "can the parlay engine build selections from this",
- * which is a narrower question. A fight and a tennis match are both modelled --
- * `bout-model.ts` rates the individuals and calls the winner, backtested like
- * every other sport -- but neither is wired into the selection layer yet, so
- * offering them there would be a dead end.
- *
- * The distinction exists so the interface can say which of the two is true.
- * Telling a reader "no model for this sport" when the model exists and is
- * calibrated would be the interface claiming something false about its own
- * insides.
- */
-export function hasOwnModel(league: League): boolean {
-  return league.format === 'bout' || league.format === 'match';
 }
 
 /** Region headings the catalogue already records, keyed by league id. */
@@ -149,9 +137,7 @@ export function sportOptions(
           ? null
           : tracked.length === 0
             ? 'No competition is tracked for this sport yet.'
-            : tracked.some(hasOwnModel)
-              ? 'Projections exist for this sport, but parlays do not offer it yet.'
-              : 'The projection engine has no model for this sport yet.',
+            : 'The projection engine has no model for this sport yet.',
       competitions: competitions.map(toOption),
     };
   });

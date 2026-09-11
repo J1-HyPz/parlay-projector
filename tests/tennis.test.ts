@@ -127,6 +127,58 @@ describe('reading a tennis draw', () => {
     assert.equal(games[0].round, 'Round 1');
     assert.equal(games[0].title, 'Brisbane International');
   });
+
+  it('drops an unfilled draw slot, which is a bracket row and not a match', () => {
+    /*
+     * A tournament that has not started publishes its whole empty bracket —
+     * 64 slots, then 32, then 16, down to the final, every one "TBD v TBD".
+     * Measured 2026-09-11: 247 of 249 upcoming ATP matches were these. Left
+     * in, the Schedule shows rows naming nobody and the projection engine
+     * reports them as matches it declined for want of history, which is not
+     * why it declined them.
+     *
+     * Structural, like the doubles guard: a placeholder carries a negative
+     * id, the same pair in every slot of every tournament.
+     */
+    const bracket = normaliseTennisFixtures(
+      {
+        events: [
+          {
+            id: '441-2026',
+            name: 'Chengdu Open',
+            date: '2026-09-23T04:00Z',
+            groupings: [
+              {
+                grouping: { slug: 'mens-singles' },
+                competitions: [
+                  {
+                    id: '183393',
+                    date: '2026-09-23T04:00Z',
+                    round: { displayName: 'Round 1' },
+                    status: { type: { name: 'STATUS_SCHEDULED' } },
+                    competitors: [
+                      { id: '-3', order: 1, athlete: { displayName: 'TBD' } },
+                      { id: '-4', order: 2, athlete: { displayName: 'TBD' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      ATP,
+      'mens-singles',
+    );
+
+    assert.equal(bracket.length, 0);
+  });
+
+  it('keeps a real match, so the guard cannot swallow the draw it came for', () => {
+    // The same check from the other side: a positive id is a person.
+    assert.equal(games.length, 3);
+    assert.ok(games.every((game) => Number(game.home_team?.id) > 0));
+  });
 });
 
 describe('what a tennis rating counts', () => {
@@ -209,11 +261,16 @@ describe('the tennis catalogue entries', () => {
     assert.equal(findLeague('wta')?.hasStandings, false);
   });
 
-  it('says tennis is modelled but not yet in parlays', () => {
-    // Saying "no model for this sport" would be the interface asserting
-    // something false about its own insides.
+  it('offers both tours in parlays', () => {
+    // The model exists, is calibrated, and is now wired to the selection
+    // layer — so the selector lists the tours rather than explaining their
+    // absence.
     const tennis = sportOptions().find((option) => option.id === 'tennis');
-    assert.ok(tennis?.unavailable);
-    assert.ok(!tennis.unavailable.includes('no model'));
+    assert.ok(tennis?.supported);
+    assert.equal(tennis.unavailable, null);
+    assert.deepEqual(
+      tennis.competitions.map((competition) => competition.id).sort(),
+      ['atp', 'wta'],
+    );
   });
 });
