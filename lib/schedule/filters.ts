@@ -350,6 +350,7 @@ const SPORT_LABELS: Record<SportId, string> = {
   nhl: 'Hockey',
   football: 'Football',
   tennis: 'Tennis',
+  mma: 'MMA',
 };
 
 export function sportLabel(sport: SportId): string {
@@ -376,5 +377,7 @@ export function badgeLabel(league: string | null, sport: SportId): string {
 
 /** Football and tennis read "vs"; the North American leagues read "@". */
 export function separatorFor(sport: SportId): string {
-  return sport === 'football' || sport === 'tennis' ? 'vs' : '@';
+  // A fight and a tennis match have no host, and football says "vs" by
+  // convention. Only the American leagues put a visitor at someone's ground.
+  return sport === 'football' || sport === 'tennis' || sport === 'mma' ? 'vs' : '@';
 }

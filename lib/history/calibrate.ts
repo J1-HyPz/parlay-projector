@@ -68,6 +68,12 @@ const BY_SPORT: Record<ConcreteSportId, CompetitiveWindow> = {
   football: { from: { month: 8, day: 1 }, to: { month: 6, day: 30 }, crossesYear: true },
   // Testing is in February; the season runs March to December.
   f1: { from: { month: 3, day: 1 }, to: { month: 12, day: 31 }, crossesYear: false },
+  /*
+   * Every UFC card counts. There is no pre-season to exclude, which is what
+   * this window exists to do for the team sports — a fight on a January
+   * prelim is contested exactly as hard as one in December.
+   */
+  mma: { from: { month: 1, day: 1 }, to: { month: 12, day: 31 }, crossesYear: false },
   tennis: { from: { month: 1, day: 1 }, to: { month: 12, day: 31 }, crossesYear: false },
 };
 

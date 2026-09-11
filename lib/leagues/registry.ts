@@ -23,6 +23,7 @@ export type LeagueGroup =
   | 'hockey'
   | 'football'
   | 'motorsport'
+  | 'combat'
   | 'other';
 
 /**
@@ -32,7 +33,19 @@ export type LeagueGroup =
  * finishing in order, which has no home side, no away side and no score, and
  * so is normalised, displayed and projected differently throughout.
  */
-export type LeagueFormat = 'fixture' | 'race';
+/**
+ * The shape of a competition's events.
+ *
+ *   fixture  two sides and a score. Every team competition.
+ *   race     a field finishing in an order, with no score at all.
+ *   bout     two sides and no score -- a winner, and nothing to add up.
+ *
+ * `bout` is not `fixture` with the score left out. A fixture's model asks how
+ * much each side will score and compares the two; a fight has no scoring
+ * process to ask that of, so the model behind a bout is an Elo alone. See
+ * `lib/projections/bout-model.ts`.
+ */
+export type LeagueFormat = 'fixture' | 'race' | 'bout';
 
 /**
  * Which provider serves a competition.
@@ -399,6 +412,35 @@ export const LEAGUES: readonly League[] = [
     hasStandings: true,
     // Transactions are a North American professional-league concept; the
     // provider publishes none for motorsport.
+    hasTransactions: false,
+    collegiate: false,
+  },
+  // Combat sports
+  {
+    id: 'ufc',
+    label: 'UFC',
+    shortLabel: 'UFC',
+    group: 'combat',
+    sport: 'mma',
+    provider: 'espn',
+    /*
+     * Verified live 2026-09-10, as §4.8.a step 3 requires: roughly 570 fights a
+     * year consistently from 2019 onward, each card an event whose competitions
+     * are the individual fights, each fight carrying two athletes with stable
+     * ids, a winner, a weight class and a scheduled round count.
+     *
+     * Boxing was checked at the same time and is absent from this provider
+     * entirely -- every path 404s, and its one answering endpoint returns an
+     * empty object where MMA's returns real fighters. There is deliberately no
+     * boxing entry here rather than a placeholder one.
+     */
+    espnPath: 'mma/ufc',
+    format: 'bout',
+    sportsdbLeagueId: null,
+    // Divisional rankings exist on the website but not as a standings table on
+    // this API, and a ranking is not a league table in any case.
+    hasStandings: false,
+    // A North American team-league concept; an individual athlete has none.
     hasTransactions: false,
     collegiate: false,
   },

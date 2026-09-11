@@ -24,21 +24,25 @@ import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixtur
 import type { RawFixtureResponse } from './fixture-normalise';
 import { normaliseRaceFixtures } from './racing.ts';
 import type { RawRaceResponse } from './racing';
+import { normaliseBoutFixtures } from './bouts.ts';
+import type { RawBoutResponse } from './bouts';
 
 /**
  * Read a scoreboard payload according to how the competition is contested.
  *
  * A race weekend is one event carrying several sessions, each with a field
- * rather than two sides. Both shapes come from the same endpoint, so the choice
- * is made here — once — rather than at each of the two places that fetch one.
+ * rather than two sides. A fight card is one event carrying several fights,
+ * each with two sides and no score. Every shape comes from the same endpoint,
+ * so the choice is made here — once — rather than at each of the places that
+ * fetch one.
  */
 function normalisePayload(
-  payload: RawFixtureResponse & RawRaceResponse,
+  payload: RawFixtureResponse & RawRaceResponse & RawBoutResponse,
   league: League,
 ): Game[] {
-  return league.format === 'race'
-    ? normaliseRaceFixtures(payload, league)
-    : normaliseFixtures(payload, league);
+  if (league.format === 'race') return normaliseRaceFixtures(payload, league);
+  if (league.format === 'bout') return normaliseBoutFixtures(payload, league);
+  return normaliseFixtures(payload, league);
 }
 
 export {
@@ -81,7 +85,7 @@ export async function fixturesForLeague(
     ttlMs,
     async () => {
       try {
-        const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse>(
+        const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse & RawBoutResponse>(
           `${espnPath}/scoreboard`,
           `dates=${range}&limit=200`,
         );
@@ -184,7 +188,7 @@ async function fetchWindow(
 
   const { value } = await cached(`espn:history:${league.id}:${range}`, ttlMs, async () => {
     try {
-      const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse>(
+      const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse & RawBoutResponse>(
         `${espnPath}/scoreboard`,
         `dates=${range}&limit=${EVENT_LIMIT}`,
       );

@@ -6,7 +6,9 @@ data, §4.9 — the distributional fix §4.4 uncovered but could not make — ha
 shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
 blocked at the provider, and §4.7 has shipped as something other than what it
 proposed — the split it named was measured and refused, and the venue effect
-underneath it shipped instead. §4.8 is still a plan. Companion to
+underneath it shipped instead. §4.8's provider check has been run — boxing is
+blocked at the provider, MMA and tennis both pass — and §4.8.c has shipped for
+MMA: fight-winner, calibrated and backtested. Tennis is next. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1527,6 +1529,85 @@ scaffolding §4.8.b and §4.8.c are built on. The first thing that ships is
 match/fight-winner for whichever of the three sports passes its provider
 check first, backtested exactly like every team sport's config.
 
+**The provider check, run 2026-09-10. Boxing fails; MMA and tennis pass.**
+
+Step 3 above says a sport that fails this check does not proceed and no
+substitute source is assumed in its place. That is now load-bearing for one of
+the three.
+
+**Boxing is absent from the provider.** Every path shape this codebase uses was
+tried: `boxing/scoreboard`, `boxing/news`, `boxing/teams`, `mma/boxing/...`,
+`combat/boxing/...` and the core API's `sports/boxing` all return 404 or 400.
+The one endpoint that answers at all — `common/v3/sports/boxing/athletes` —
+returns a literal empty object, two bytes, where the identical
+`common/v3/sports/mma/athletes` returns fifteen kilobytes of real fighters.
+That contrast is the evidence: the endpoint *shape* exists for boxing and the
+sport behind it does not. **§4.8.c therefore ships for MMA only**, and boxing
+stays blocked until a provider carries it. Nothing about boxing is modelled,
+and no alternative source is assumed.
+
+**MMA passes comprehensively.** `mma/ufc/scoreboard` accepts the same
+`dates=YYYYMMDD-YYYYMMDD` range the team sports use, and returns roughly 570
+fights a year consistently from 2019 through 2025 — about four thousand
+contests, which is what an Elo needs. Each card is an event whose
+`competitions` are the individual fights, and each fight carries:
+
+| | |
+|---|---|
+| two athletes | `competitors[].id`, with `uid` of the form `s:3301~a:<id>` |
+| who won | `competitors[].winner`, a boolean |
+| a date | on the competition, not only the card |
+| weight class | `type.abbreviation`, e.g. "Lightweight", "W Strawweight" |
+| scheduled rounds | `format.regulation.periods` — 3 or 5 |
+| career record | `competitors[].records[].summary`, e.g. "13-6-0" |
+
+**Fighter ids are stable**, which had to be checked rather than assumed: a
+rating keyed on a per-fixture competitor id would silently reset every contest.
+Across 168 fighters appearing in two months of cards, **not one carried more
+than a single id**.
+
+**Method of victory is only partly there, and this constrains §4.8.c.**
+`status.type.detail` is the bare string "Final" on every completed fight. What
+*is* recoverable: `linescores` holds the judges' scorecards and is present for a
+decision and null for a finish, and `status.period` / `displayClock` give the
+round and time a fight ended. So **decision versus finish is derivable, and so
+is `goes_the_distance`** — but **KO/TKO cannot be told from submission**, which
+is the one distinction §4.8.c's `method_of_victory` names as the real
+difference between the two sports. That market is therefore reduced to what the
+data supports, or deferred; it is not invented from a field that does not
+exist. Round-betting is answerable — the round is there — but is a follow-on to
+winner either way.
+
+**Tennis passes, and corrects two assumptions in this section.**
+
+- **ATP and WTA are not separate feeds.** Step 2 above proposes a catalogue
+  entry each "since they are separately ranked". They are, but the provider
+  does not split them: `tennis/atp/scoreboard` and `tennis/wta/scoreboard`
+  return *the same tournaments* and the same five groupings —
+  `mens-singles`, `womens-singles`, `mens-doubles`, `womens-doubles`,
+  `mixed-doubles`. The separation that actually exists is per match, on
+  `type.slug`. One tennis feed, split downstream.
+- **There is no surface in the feed.** Step 8 proposes a surface-specific
+  rating component, and the §4.7 note attached to it says to measure before
+  building. It does not get that far: the tournament carries `venue:
+  {displayName: "Brisbane, Australia"}` and nothing else — no `surface` field,
+  no clay/grass/hard anywhere in the payload. **A surface component cannot be
+  built from this provider at all**, measured or not, and is dropped rather
+  than approximated from a tournament's name or its place in the calendar.
+
+Structure otherwise holds: an event is a *tournament*, its `groupings` hold the
+matches, and a completed match carries two competitors with `winner`,
+per-set `linescores`, a `round`, and a human-readable `notes` result string.
+Singles and doubles are cleanly separable — a singles competitor has `athlete`,
+a doubles competitor has `roster` with an `athletes` array — so a doubles pair
+never enters an individual rating. Volume is ample at roughly ten thousand
+matches a year.
+
+**Order of build.** Both surviving sports pass, so the tie is broken on
+structure: **MMA first.** Its fights are a flat list on a card rather than
+nested inside tournament groupings, its weight class is present for the scoping
+step 8 requires, and its athlete ids are verified stable. Tennis follows.
+
 ---
 
 #### 4.8.b Tennis
@@ -1576,6 +1657,12 @@ application.
 ---
 
 #### 4.8.c Boxing and MMA/UFC — one model family, two configs
+
+**MMA only. Boxing is blocked at the provider** — see the check recorded at the
+end of §4.8.a. The "two configs" framing below is kept as written because it is
+still the right shape the day a boxing source exists, but nothing boxing-shaped
+is being built now, and the shared-family argument is currently carrying one
+member.
 
 **Why together.** Structurally the same problem as NFL and NBA sharing the
 Normal-scoring family with different constants: two competitions, one
