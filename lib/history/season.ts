@@ -59,6 +59,14 @@ const BOUNDS: Record<ConcreteSportId, { from: string; to: string; crossesYear: b
   // A Formula 1 season is a calendar year, March to December.
   f1: { from: '02-01', to: '12-31', crossesYear: false },
   /*
+   * The UFC has no season to bound. It runs cards more or less continuously,
+   * about fifty a year with no close season, so a "season" here is the
+   * calendar year and the window is all of it. Stated rather than defaulted:
+   * a bound that pretended there were an off-season would silently drop every
+   * card outside it.
+   */
+  mma: { from: '01-01', to: '12-31', crossesYear: false },
+  /*
    * No competition in the catalogue uses this yet — the sport id exists ahead
    * of §4.8, which brings tennis into real coverage. The entry is here because
    * the exhaustive `Record` demands a decision rather than letting a sport

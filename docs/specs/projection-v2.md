@@ -6,8 +6,9 @@ data, §4.9 — the distributional fix §4.4 uncovered but could not make — ha
 shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
 blocked at the provider, and §4.7 has shipped as something other than what it
 proposed — the split it named was measured and refused, and the venue effect
-underneath it shipped instead. §4.8's provider check has been run: boxing is
-blocked at the provider, and MMA and tennis both pass. Companion to
+underneath it shipped instead. §4.8's provider check has been run — boxing is
+blocked at the provider, MMA and tennis both pass — and §4.8.c has shipped for
+MMA: fight-winner, calibrated and backtested. Tennis is next. Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
