@@ -34,7 +34,46 @@ than the current season, and a basketball model that no longer overstates how
 uncertain it is, a baseball model that no longer claims to be more certain than
 it is, baseball totals that account for the temperature and for the ballpark,
 every other sport checked the same way, and two new sports — the UFC, and
-the ATP and WTA tours — each with a model of its own. 911 tests.
+the ATP and WTA tours — each with a model of its own and each now offered
+throughout the application. 967 tests.
+
+### Added
+
+**Fights and tennis matches are projected, offered and tracked**
+
+- The UFC, ATP and WTA had a model, a calibration and a backtest, and produced
+  **nothing anyone could see**: no projection on a fixture's page, no selection
+  in a parlay, and no settlement — so a prediction, had one ever been
+  published, would have sat open until it was quietly voided. They now go
+  through the same pipeline as every other sport.
+- A fight's page shows a **winner probability and the record behind each
+  rating** where a football match shows an expected scoreline. It shows no
+  score, because the sport has none, and nothing invents one.
+- The winner is the only market offered on either sport. The price source
+  quotes handicaps and totals as well, but the model has no probability for
+  them — and a market it cannot price is one it must not appear to have an
+  opinion on.
+- **A retirement, a walkover and a drawn fight void rather than lose.** The
+  match happened but settled nothing, or was never played at all; counting
+  either as a miss would understate the model as surely as counting it as a hit
+  would flatter it. Each is spelled out on the selection *before* it is placed.
+- Tennis prices are now fetched. This bookmaker keys tennis per tournament
+  rather than per tour, so the tournaments in play are read from the provider's
+  own list each time rather than hard-coded — a fixed list would have priced
+  the ATP for a fortnight and then quietly stopped.
+
+### Fixed
+
+**Tennis no longer lists matches between nobody**
+
+- A tournament that has not started publishes its **whole empty bracket** — 64
+  first-round slots, then 32, then 16, every one "TBD v TBD". Of 249 upcoming
+  ATP matches, 247 were these. They appeared on the Schedule as rows naming
+  nobody, and the projection engine reported them as matches it had declined
+  for want of history, which is not why it declined them.
+- They are dropped structurally, on the negative id the provider gives a
+  placeholder, rather than by matching the text "TBD". No rating changes: the
+  rated-result count is identical either side of the fix.
 
 ### Changed
 

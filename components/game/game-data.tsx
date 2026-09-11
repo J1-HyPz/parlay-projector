@@ -114,6 +114,20 @@ export function scoreNoun(sport: ConcreteSportId): { for: string; against: strin
 }
 
 /**
+ * What the two sides of this fixture are called.
+ *
+ * A fight and a tennis match are contested by people, and an empty state that
+ * says "not available for these teams" about two named individuals reads as
+ * the interface not knowing what it is showing. The hubs already keep this
+ * vocabulary per sport; these sections needed the same thing.
+ */
+export function sidesNoun(sport: ConcreteSportId): string {
+  if (sport === 'mma') return 'fighters';
+  if (sport === 'tennis') return 'players';
+  return 'teams';
+}
+
+/**
  * Win-draw-loss record.
  *
  * Draws are omitted for sports that do not have them, rather than printing a

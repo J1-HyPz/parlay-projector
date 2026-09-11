@@ -229,12 +229,71 @@ export interface Selection {
    * The projection this came from.
    *
    * Absent for a race, which is projected as a finishing order rather than as
-   * a scoreline — `race` carries that instead. Exactly one of the two is
-   * always present.
+   * a scoreline — `race` carries that instead — and absent for a fight or a
+   * tennis match, which is projected as a single winner and carried on `bout`.
+   * Exactly one of the three is always present.
    */
   projection?: GameProjection;
   /** The race projection, for a competition contested by a field. */
   race?: RaceProjection;
+  /** The bout projection, for a contest between two individuals with no score. */
+  bout?: BoutProjection;
+}
+
+/**
+ * The model's view of a contest between two individuals.
+ *
+ * The counterpart to `GameProjection` for a fight or a tennis match. There is
+ * no expected score, no margin and no total, because the contest has no scoring
+ * process to project: what it has is a winner, and the probability of each
+ * side being that winner is the whole of the model's claim. The records behind
+ * the two ratings travel with it so a reader can see what the number rests on.
+ *
+ * `home_team` and `away_team` keep the fixture's field names, and mean
+ * first-listed and second-listed: neither side is at home, and the model
+ * carries no home advantage.
+ */
+export interface BoutProjection {
+  game_id: string;
+  sport: ConcreteSportId;
+  league: string | null;
+  start_time: string | null;
+  home_team: string;
+  away_team: string;
+  /** The card or tournament, e.g. `UFC 331`, `US Open`. */
+  event: string | null;
+  /** Weight class for a fight; null for tennis, which rates without one. */
+  division: string | null;
+  /** Draw round for a tennis match, e.g. `Quarterfinal`. Null for a fight. */
+  round: string | null;
+
+  outcome: { home: number; away: number };
+  /** Rating points between them, first-listed minus second. */
+  rating_edge: number;
+  records: { home: BoutRecord; away: BoutRecord };
+  /** True when either competitor has competed in more than one division. */
+  moved_division: boolean;
+
+  /** Reliability of the estimate itself, 0..1. Distinct from probability. */
+  confidence: number;
+  data_quality: DataQuality;
+  quality_reasons: string[];
+  factors: ProjectionFactor[];
+  model_version: string;
+  generated_at: string;
+}
+
+/** One competitor's record inside the rating window, as the model counted it. */
+export interface BoutRecord {
+  contests: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  rating: number;
+  /** ISO-8601 instant of the most recent contest counted. Null if none. */
+  last_contest: string | null;
+  /** Newest first. */
+  recent_form: ('W' | 'D' | 'L')[];
 }
 
 /**
@@ -560,6 +619,14 @@ export interface ActualOutcome {
   position?: number | null;
   /** How many competitors were classified, so a position has a denominator. */
   field_size?: number | null;
+  /**
+   * Which side won, for a contest decided without a score.
+   *
+   * A fight or a tennis match settles on a winner, and `home_score` and
+   * `away_score` are zero for it rather than a scoreline anyone should read.
+   * Null for a draw or a no-contest. Absent for every fixture that has a score.
+   */
+  winner?: 'home' | 'away' | null;
 }
 
 /**

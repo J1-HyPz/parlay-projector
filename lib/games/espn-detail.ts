@@ -13,10 +13,14 @@
  */
 
 import { cached } from '../cache';
-import { espnConfig } from '../config';
+import { espnConfig, todayInAppTimezone } from '../config';
 import { logger } from '../logger';
 import { fetchEspn } from '../providers/espn/client';
 import { parseEspnGameId, statusFromEspn } from '../providers/espn/fixtures';
+import { fixturesForRange } from '../providers/fixtures';
+import { getLeagueGames } from '../leagues/games';
+import { addDays } from '../schedule/range';
+import { contestDetailFrom } from './contest-detail';
 import { normaliseSeasonSeries, parseForm, overallRecord } from '../providers/espn/normalise';
 import { meetingsToRecentGames, recordToStanding, standingFromForm } from '../providers/merge';
 import { findLeague } from '../leagues/registry';
@@ -27,6 +31,7 @@ import { leagueHistory } from '../history/store';
 import { venueIsRoofed } from '../providers/espn/venues';
 import { meetingsBetween, summariseMeetings } from '../history/head-to-head';
 import type { Meeting } from '../history/head-to-head';
+import type { League } from '../leagues/registry';
 import type { GameDetail, RecentGame, TeamStanding } from './types';
 
 interface RawCompetitor {
@@ -151,6 +156,42 @@ function mergeMeetings(
   return [...byId.values()].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
 }
 
+/** How far back a contest's page can still be found once it is over. */
+const CONTEST_LOOKBACK_DAYS = 120;
+/** A settled window; a finished contest never changes. */
+const CONTEST_SETTLED_TTL_MS = 7 * 24 * 60 * 60_000;
+/** The window containing today, which can still gain a result. */
+const CONTEST_CURRENT_TTL_MS = 60 * 60_000;
+
+/**
+ * Detail for a fight or a tennis match, from the scoreboard.
+ *
+ * The summary endpoint does not serve these — see `contest-detail.ts` — so the
+ * contest is found among the fixtures already fetched for its competition.
+ * The hub window first, because it is what every other page has already
+ * loaded and so is a cache hit; then a longer settled range, so a leg on a
+ * fight from last month still opens rather than 404ing.
+ */
+async function contestDetail(league: League, gameId: string): Promise<GameDetail | null> {
+  const { games } = await getLeagueGames([league]);
+  const recent = games.find((game) => game.id === gameId);
+  if (recent) return contestDetailFrom(recent);
+
+  const today = todayInAppTimezone();
+  const older = await fixturesForRange(
+    league,
+    addDays(today, -CONTEST_LOOKBACK_DAYS),
+    addDays(today, 21),
+    { currentTtlMs: CONTEST_CURRENT_TTL_MS, settledTtlMs: CONTEST_SETTLED_TTL_MS, today },
+  );
+  const found = older.find((game) => game.id === gameId);
+  if (!found) {
+    logger.info('espn_detail_not_found', { league: league.id, event: gameId });
+    return null;
+  }
+  return contestDetailFrom(found);
+}
+
 /** Detail for one ESPN fixture. Returns null when ESPN has no such event. */
 export async function espnGameDetail(gameId: string): Promise<GameDetail | null> {
   if (!espnConfig.enabled) return null;
@@ -163,6 +204,11 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
   // the path is checked rather than assumed.
   const espnPath = league?.espnPath;
   if (!league || !espnPath) return null;
+
+  // A fight or a match is not an event the summary endpoint serves.
+  if (league.format === 'bout' || league.format === 'match') {
+    return contestDetail(league, gameId);
+  }
 
   const { value } = await cached(
     `espn:detail:${league.id}:${parsed.eventId}`,

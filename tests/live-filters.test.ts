@@ -242,19 +242,16 @@ describe('counting what each sport holds', () => {
     }
   });
 
-  it('never claims a sport has no model when it has one', () => {
+  it('offers the two individual sports now that their models are wired in', () => {
     /*
-     * MMA and tennis are modelled and calibrated but not yet offered in
-     * parlays. Saying "no model for this sport" would be the interface
-     * asserting something false about its own insides.
+     * MMA and tennis were modelled and calibrated before they were offered,
+     * and for a while the selector had to explain that gap. It no longer
+     * exists: both are built from, tracked and settled like every other sport.
      */
     for (const id of ['mma', 'tennis']) {
       const option = sportOptions().find((entry) => entry.id === id);
-      assert.ok(option?.unavailable, `${id} is not in parlays yet and should say so`);
-      assert.ok(
-        !option.unavailable.includes('no model'),
-        `${id} has a model; the message said: ${option.unavailable}`,
-      );
+      assert.ok(option?.supported, `${id} must be buildable`);
+      assert.equal(option.unavailable, null, `${id} has nothing to explain`);
     }
   });
 

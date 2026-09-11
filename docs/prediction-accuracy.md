@@ -77,10 +77,15 @@ A prediction voids when:
 - the game was **cancelled or postponed** — it was never tested;
 - the game finished but **no final score was ever published**, and the
   finalisation window has passed;
-- **no result at all** arrives within the finalisation window.
+- **no result at all** arrives within the finalisation window;
+- a tennis match ended in a **retirement or a walkover** — the first was never
+  settled on merit, the second was never played;
+- a fight was a **draw or a no-contest** — neither side won, so a bet on
+  either was never tested.
 
 A void is never counted as a miss. A statistic that never arrived is not
-evidence the prediction was wrong.
+evidence the prediction was wrong, and neither is a contest that did not run
+its course.
 
 ### Push rules
 

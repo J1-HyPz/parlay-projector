@@ -32,13 +32,23 @@ Two questions are answered there, and they are not the same question:
 | Question | Answer from |
 | --- | --- |
 | Which competitions exist? | the registry |
-| Which can be projected? | the model configuration |
+| Which can be projected? | `isProjectable` |
 
 A competition can be tracked — fixtures, results, standings — without the
-engine having a model for its sport. Tennis is exactly that case today: the
-application recognises the sport, no competition is tracked for it, and so
-nothing can be built. It is listed, disabled, with the reason, rather than
-being silently dropped from a page it used to appear on.
+engine having a model for its sport. Such a competition is listed, disabled,
+with the reason, rather than being silently dropped from a page it used to
+appear on. Every tracked competition currently has a model, so nothing is in
+that state today; the path exists for whatever gets added next.
+
+**`isProjectable` is the single definition, and that matters more than it
+sounds.** Three engines can own a competition — the scoring model, the race
+model, and the individual-contest model behind MMA and tennis — and the
+question "can this be built from?" is asked in three places: the selector, the
+candidate build, and the settlement tracker. They used to answer it separately.
+The UFC and both tennis tours were the cost of that: modelled, calibrated,
+backtested, and then invisible everywhere, because the selector asked one
+question and the tracker asked another. One function now answers all three, so
+a competition cannot be offered in one place and forgotten in another.
 
 ## Competition ids, not names
 
@@ -97,13 +107,21 @@ defining it.
 | Baseball | MLB |
 | Hockey | NHL |
 | Football | Premier League, Championship, League One, Champions League, Europa League, Conference League, La Liga, Bundesliga, Serie A |
-| Tennis | none tracked |
+| Tennis | ATP Tour, WTA Tour |
+| MMA | UFC |
 | Formula 1 | Formula 1 |
 
 A sport with one competition selects it outright — offering "all" above a
 single identical choice is a decision that isn't one. Football is grouped by
 region using the headings the catalogue already carries for the hubs; nothing
 is invented for the sports that do not need it.
+
+MMA and tennis are offered but will produce no legs until `ODDS_API_KEY` is
+set, and the reason is the same one that applies to Formula 1: a parlay leg
+must be a bet a bookmaker is actually quoting, and the fixtures feed's own
+prices cover neither sport. Their projections still appear on each fixture's
+page, where they read as analysis. That is a configuration state rather than a
+gap in the model — see docs/betting-markets.md.
 
 Formula 1 is not forced into a league shape. It is one competition whose events
 are sessions, and only the Grand Prix itself is projected — see

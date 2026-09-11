@@ -46,6 +46,14 @@ interface MarketsResponse {
   groups?: MarketGroup[];
   model_picks?: Selection[];
   pricing?: { source: string; fetched_at: string; markets: number } | null;
+  /**
+   * Present for a fight or a tennis match.
+   *
+   * Which matters to the builder rather than to the list: a contest between
+   * two people is not simulated, so there is no set of games to count a
+   * combination across and only one selection can be taken at all.
+   */
+  bout?: unknown;
   reason?: string;
 }
 
@@ -211,6 +219,8 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
 
   const slip = slipResult?.key === key ? slipResult.slip : null;
   const evaluating = chosen.length > 0 && slipResult?.key !== key;
+  /** A fight or a tennis match: one market, and no simulations behind it. */
+  const contest = Boolean(data?.bout);
 
   const toggle = useCallback((id: string) => {
     setChosen((current) =>
@@ -330,7 +340,9 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
 
         {chosen.length === 0 ? (
           <p className="mt-2 text-2xs leading-5 text-ink-faint">
-            Choose selections above to see what the model makes of them together.
+            {contest
+              ? 'Choose the selection above to see what the model makes of it.'
+              : 'Choose selections above to see what the model makes of them together.'}
           </p>
         ) : !slip ? (
           <p className="mt-2 text-2xs leading-5 text-ink-faint">Working it out…</p>
@@ -406,8 +418,9 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
 
         <div className="mt-3">
           <Note>
-            Selections from one fixture affect each other, so the combined figure is counted
-            across the simulations rather than multiplied. Nothing here places a bet.
+            {contest
+              ? 'This contest is decided by a winner, so the model prices that one market and nothing else — there is no second selection to combine with. Nothing here places a bet.'
+              : 'Selections from one fixture affect each other, so the combined figure is counted across the simulations rather than multiplied. Nothing here places a bet.'}
           </Note>
         </div>
       </div>

@@ -227,9 +227,14 @@ from different games so the legs stay independent, fixtures without enough
 history are not projected at all, and published predictions are settled against
 real results to feed the homepage accuracy widget.
 
-There is no stake field, no projected return and no bookmaker data: without real
-odds a monetary figure would be invented. Player projections and tennis are
-absent because the required data does not exist — see the doc.
+There is no stake field and no projected return: without real odds a monetary
+figure would be invented. Player projections are absent because the required
+data does not exist — see the doc.
+
+Three engines sit behind that. Most competitions are scored fixtures; Formula 1
+is a field finishing in order; and the UFC, ATP and WTA are contests between two
+people with no score at all, rated by Elo and answered with a winner
+probability rather than a simulated scoreline.
 
 A line is built from a chosen sport and competition, and that choice is
 binding: a request for the Premier League that only three matches qualify for
@@ -344,7 +349,8 @@ Men's and women's college basketball share one 🏀 NCAA chip; the league dropdo
 separates them. The dropdown is generated from the loaded games, follows the
 chosen chip, and is ordered by the catalogue.
 
-Tennis is not offered: no configured league supplies it.
+Tennis is offered as the ATP and WTA tours, and MMA as the UFC; both come from
+the enrichment provider.
 
 Every path was verified against live data before being listed — nothing
 speculative is offered.
@@ -619,7 +625,7 @@ means today + 7, deliberately not Monday to Sunday.
 
 | Parameter | Values | Default |
 |---|---|---|
-| `sport` | `all` `nfl` `nba` `mlb` `nhl` `football` `tennis` | `all` |
+| `sport` | `all` `nfl` `nba` `mlb` `nhl` `football` `tennis` `f1` `mma` | `all` |
 
 There are **no caller-supplied date parameters**. The window is derived
 server-side and fixed at 8 dates, so no request can widen the range and burn the
@@ -674,10 +680,10 @@ rather than dropping the page to empty.
 
 ### Sports
 
-`nfl`, `nba`, `mlb`, `nhl`, `football`, `tennis`. Provider values are mapped to
-these identifiers inside the adapter — the frontend never sees a provider name.
-Tennis is registered and filterable, but the provider currently returns no
-tennis fixtures on this tier, so it shows an empty state.
+`nfl`, `nba`, `mlb`, `nhl`, `football`, `tennis`, `f1`, `mma`. Provider values
+are mapped to these identifiers inside the adapter — the frontend never sees a
+provider name. Tennis and MMA fixtures come from the enrichment provider rather
+than the primary one, which returns no rows for either on this tier.
 
 **No betting data.** No odds, spreads, totals, bookmakers, markets or parlay
 controls appear in the schedule contract, services or UI. CI asserts the

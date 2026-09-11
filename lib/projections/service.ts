@@ -54,6 +54,10 @@ import type { SquadNews } from './features';
 import type { FixturePitchers } from './pitchers';
 import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
 import { gridFrom, projectRace, raceSelections } from './race-selections';
+import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-model';
+import type { BoutRatings } from './bout-model';
+import { boutSelections, projectContest } from './bout-selections';
+import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
 import type { Game, ConcreteSportId } from '../home/types';
 import type { GameProjection, Selection } from './types';
@@ -470,13 +474,20 @@ async function computeCandidates(
   // same cache, same Selection shape out the other end.
   selections.push(...(await raceCandidates(scope, asOf)));
 
-  const pricedGames = projections.filter((projection) => quotes.has(projection.game_id)).length;
+  // So are fights and tennis matches, on the third model.
+  const bouts = await boutCandidates(scope, asOf);
+  selections.push(...bouts.selections);
+  skipped += bouts.skipped;
+  failedLeagues.push(...bouts.failed);
+
+  const pricedGames =
+    projections.filter((projection) => quotes.has(projection.game_id)).length + bouts.priced;
 
   logger.info('projection_candidates_built', {
     sport: scope.sport,
     league: scope.league ?? 'all',
     pools: pools.size,
-    projected: projections.length,
+    projected: projections.length + bouts.projected,
     skipped,
     selections: selections.length,
     priced: pricedGames,
@@ -485,6 +496,216 @@ async function computeCandidates(
   });
 
   return { selections, projections, failedLeagues, skipped, pricedGames };
+}
+
+// ---------------------------------------------------------------------------
+// Fights and tennis
+// ---------------------------------------------------------------------------
+
+export interface BoutModel {
+  /** Ratings built from every completed contest in the window. */
+  ratings: BoutRatings;
+  /** Upcoming contests, scheduled and not yet started. */
+  upcoming: Game[];
+}
+
+/**
+ * Ratings for a fight or tennis competition, built only from contests that
+ * had already finished.
+ *
+ * The bout counterpart to `buildPoolModel`. No pool: a fighter is rated at a
+ * division and a player on a tour, and neither competition shares results
+ * with another. `asOf` is the same look-ahead boundary — `toBoutResults`
+ * filters on it, so the ratings cannot see the result of the contest being
+ * projected.
+ */
+export async function buildBoutModel(
+  league: League,
+  asOf: number = Date.now(),
+): Promise<BoutModel | null> {
+  const config = boutConfigForLeague(league.id);
+  if (!config) return null;
+
+  const today = todayInAppTimezone();
+  let games: Game[];
+  try {
+    games = await fixturesForRange(
+      league,
+      addDays(today, -config.historyDays),
+      addDays(today, 7),
+      { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
+    );
+  } catch (error) {
+    logger.warn('projection_history_failed', {
+      league: league.id,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+    return null;
+  }
+  if (games.length === 0) return null;
+
+  const { value: ratings } = await cached(
+    `projection:bout-ratings:${league.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => buildBoutRatings(toBoutResults(games, asOf), config),
+  );
+
+  const upcoming = games.filter(
+    (game) =>
+      game.status === 'scheduled' &&
+      game.start_time !== null &&
+      Date.parse(game.start_time) > asOf,
+  );
+
+  logger.info('bout_pool_built', {
+    league: league.id,
+    results: ratings.sample,
+    rated: ratings.fighters.size,
+    upcoming: upcoming.length,
+  });
+
+  return { ratings, upcoming };
+}
+
+interface BoutCandidateResult {
+  selections: Selection[];
+  projected: number;
+  skipped: number;
+  priced: number;
+  failed: string[];
+}
+
+/**
+ * Every fight and tennis selection across the eligible competitions.
+ *
+ * Kept apart from the scoring model for the same reason races are: a contest
+ * between two people has no score to simulate, and bolting it onto the team
+ * model would mean rating a fight as a nil-nil draw waiting to happen. The
+ * two meet again at `Selection`, so a fight leg travels through the optimiser,
+ * the store and the accuracy figures like any other.
+ *
+ * A large share of every card is skipped, and that is the model working as
+ * designed: a fighter with fewer than three fights at the weight, or a player
+ * with fewer than ten tour matches, gets no projection rather than a thin one.
+ */
+async function boutCandidates(scope: ParlayScope, asOf: number): Promise<BoutCandidateResult> {
+  const leagues = scope.leagues.filter((league) => boutConfigForLeague(league.id) !== null);
+  const result: BoutCandidateResult = {
+    selections: [],
+    projected: 0,
+    skipped: 0,
+    priced: 0,
+    failed: [],
+  };
+  if (leagues.length === 0) return result;
+
+  const today = todayInAppTimezone();
+  let quotes = new Map<string, GameMarkets>();
+  try {
+    quotes = await marketsForLeagues(leagues, today, addDays(today, 7));
+  } catch (error) {
+    logger.warn('odds_lookup_failed', {
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+
+  for (const league of leagues) {
+    const config = boutConfigForLeague(league.id);
+    if (!config) continue;
+
+    try {
+      const model = await buildBoutModel(league, asOf);
+      if (!model) continue;
+
+      let projected = 0;
+      for (const game of model.upcoming) {
+        const outcome = projectContest(game, model.ratings, config, { now: new Date(asOf) });
+        // Null means insufficient record. That contest produces nothing — it
+        // is never filled in with a fabricated estimate.
+        if (!outcome) {
+          result.skipped += 1;
+          continue;
+        }
+
+        projected += 1;
+        if (quotes.has(game.id)) result.priced += 1;
+        result.selections.push(
+          ...boutSelections(game, outcome, quotes.get(game.id) ?? null, asOf).map(
+            (selection) => ({ ...selection, league_id: league.id }),
+          ),
+        );
+      }
+      result.projected += projected;
+
+      logger.info('bout_candidates_built', {
+        league: league.id,
+        upcoming: model.upcoming.length,
+        projected,
+        selections: result.selections.length,
+      });
+    } catch (error) {
+      // One competition's outage must not take the rest of the card with it.
+      logger.warn('bout_candidates_failed', {
+        league: league.id,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+      result.failed.push(league.id);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Projection for one fight or tennis match, for the game detail page.
+ *
+ * Null for any fixture that is not one, and null for a contest the model has
+ * too little record to say anything about.
+ */
+export async function boutProjectionForGame(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<BoutOutcome | null> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (!league) return null;
+  const config = boutConfigForLeague(league.id);
+  if (!config) return null;
+
+  const { value } = await cached(
+    `projection:bout:${game.id}:${config.modelVersion}`,
+    projectionTtlFor(game.start_time, asOf),
+    async () => {
+      const model = await buildBoutModel(league, asOf);
+      if (!model) return null;
+      return projectContest(game, model.ratings, config, { now: new Date(asOf) });
+    },
+  );
+
+  return value;
+}
+
+/**
+ * Whichever projection a fixture has.
+ *
+ * A fixture is projected by exactly one engine, and which one is a property
+ * of its competition. Callers that only hold a game — the detail page, the
+ * market explorer — ask here rather than guessing, and get the scoring
+ * projection or the bout projection, never both and never the wrong one.
+ */
+export interface FixtureProjection {
+  game: ProjectionOutcome | null;
+  bout: BoutOutcome | null;
+}
+
+export async function fixtureProjection(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<FixtureProjection> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (league && boutConfigForLeague(league.id)) {
+    return { game: null, bout: await boutProjectionForGame(game, asOf) };
+  }
+  return { game: await projectionForGame(game, asOf), bout: null };
 }
 
 /**
@@ -672,7 +893,16 @@ export async function projectionForGame(
  */
 export interface GameCandidates {
   game: Game;
-  outcome: ProjectionOutcome;
+  /**
+   * The scoring projection and its simulations.
+   *
+   * Null for a fight or a tennis match, which has no distribution: a single
+   * winner probability is the whole of the model's claim, so nothing can be
+   * counted jointly and a same-game line cannot be built from one. `bout`
+   * carries that projection instead. Exactly one of the two is present.
+   */
+  outcome: ProjectionOutcome | null;
+  bout: BoutOutcome | null;
   selections: Selection[];
   markets: GameMarkets | null;
 }
@@ -684,11 +914,12 @@ export async function gameCandidates(
   const league = LEAGUES.find((entry) => entry.label === game.league);
   if (!league) return null;
 
-  const config = modelConfigForLeague(league.id, league.sport);
-  if (!config) return null;
+  const boutConfig = boutConfigForLeague(league.id);
+  const config = boutConfig ? null : modelConfigForLeague(league.id, league.sport);
+  if (!boutConfig && !config) return null;
 
-  const outcome = await projectionForGame(game, asOf);
-  if (!outcome) return null;
+  const projected = await fixtureProjection(game, asOf);
+  if (!projected.game && !projected.bout) return null;
 
   const today = todayInAppTimezone();
   let markets: GameMarkets | null = null;
@@ -703,13 +934,18 @@ export async function gameCandidates(
     });
   }
 
+  const selections =
+    projected.bout || !config
+      ? projected.bout
+        ? boutSelections(game, projected.bout, markets, asOf)
+        : []
+      : candidateSelections(game, projected.game!, config, markets, asOf);
+
   return {
     game,
-    outcome,
-    selections: candidateSelections(game, outcome, config, markets, asOf).map((selection) => ({
-      ...selection,
-      league_id: league.id,
-    })),
+    outcome: projected.game,
+    bout: projected.bout,
+    selections: selections.map((selection) => ({ ...selection, league_id: league.id })),
     markets,
   };
 }

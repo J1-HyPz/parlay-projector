@@ -25,6 +25,21 @@ export interface FinalScore {
    * a top-ten selection rather than voiding it.
    */
   order?: readonly { entrant: string; position: number }[];
+  /**
+   * Which side won, for a contest decided without a score.
+   *
+   * Present only for a fight or a tennis match, whose `home` and `away` are
+   * zero and mean nothing. Null is a draw or a no-contest, which is a real
+   * outcome rather than a missing one.
+   */
+  winner?: 'home' | 'away' | null;
+  /** Whether a contest ran its course. Tennis publishes the two exceptions. */
+  completion?: 'played' | 'retired' | 'walkover';
+}
+
+/** True for a result that is a winner rather than a scoreline. */
+function decidedByWinner(final: FinalScore): boolean {
+  return final.winner !== undefined;
 }
 
 /**
@@ -42,6 +57,21 @@ export function settle(rule: SettlementRule, final: FinalScore): PredictionStatu
 
   switch (rule.kind) {
     case 'winner': {
+      if (decidedByWinner(final)) {
+        /*
+         * A contest that was not fully contested is void, not lost.
+         *
+         * A tennis retirement is the case §4.8.b of the v2 spec decides: the
+         * match happened, but nothing about who was better was settled, and
+         * a walkover means no tennis was played at all. A drawn or no-contest
+         * fight is the same shape — neither side won, so a bet on either was
+         * never tested. None of these is evidence the projection was wrong.
+         */
+        if (final.completion === 'retired' || final.completion === 'walkover') return 'void';
+        if (final.winner === null) return 'void';
+        return final.winner === rule.side ? 'won' : 'lost';
+      }
+
       const actual = margin > 0 ? 'home' : margin < 0 ? 'away' : 'draw';
       return actual === rule.side ? 'won' : 'lost';
     }
@@ -146,6 +176,15 @@ export interface GameObservation {
   home: number | null;
   away: number | null;
   order?: readonly { entrant: string; position: number }[];
+  /** For a fight or a match: who won, and whether it ran its course. */
+  winner?: 'home' | 'away' | null;
+  completion?: 'played' | 'retired' | 'walkover';
+}
+
+/** The two names, so a result can be described rather than merely coded. */
+export interface SideNames {
+  home: string | null;
+  away: string | null;
 }
 
 /** True for a rule judged on a finishing order rather than a scoreline. */
@@ -176,21 +215,72 @@ export function evidenceFor(rule: SettlementRule, state: GameObservation): Final
     return { home: 0, away: 0, status: 'finished', order: state.order };
   }
 
+  /*
+   * A fight or a match has no score either. The winner is the entire result,
+   * and the tracker only ever records one for a contest that has none — so its
+   * presence, not its value, is what says this is that kind of fixture. Null
+   * is a draw or a no-contest and is evidence, not its absence.
+   */
+  if (rule.kind === 'winner' && state.winner !== undefined) {
+    return {
+      home: 0,
+      away: 0,
+      status: 'finished',
+      winner: state.winner,
+      ...(state.completion ? { completion: state.completion } : {}),
+    };
+  }
+
   if (typeof state.home !== 'number' || typeof state.away !== 'number') return null;
   return { home: state.home, away: state.away, status: 'finished' };
+}
+
+/** A contest decided by a winner, in words. */
+function describeWinner(evidence: FinalScore, names: SideNames): string {
+  const winner =
+    evidence.winner === 'home'
+      ? (names.home ?? 'The first-listed side')
+      : evidence.winner === 'away'
+        ? (names.away ?? 'The second-listed side')
+        : null;
+
+  if (evidence.completion === 'walkover') return 'Walkover — not played';
+  if (evidence.completion === 'retired') {
+    return winner ? `${winner} won by retirement` : 'Ended by retirement';
+  }
+  if (!winner) return 'No winner — draw or no contest';
+  return `${winner} won`;
 }
 
 /**
  * What actually happened, in the shape a prediction can be read against later.
  *
  * A fixture ends on a scoreline; a race ends in a classified position out of a
- * field. Shared by the first settlement and by a correction, so the two can
- * never disagree about how the same result is described.
+ * field; a fight or a match ends with a winner. Shared by the first settlement
+ * and by a correction, so the two can never disagree about how the same result
+ * is described.
+ *
+ * `names` lets a winner be named rather than coded. It is optional because a
+ * scoreline and a finishing order need no names to be readable.
  */
 export function outcomeOf(
   rule: SettlementRule,
   evidence: FinalScore,
+  names: SideNames = { home: null, away: null },
 ): { text: string; actual: ActualOutcome } {
+  if (decidedByWinner(evidence)) {
+    return {
+      text: describeWinner(evidence, names),
+      actual: {
+        home_score: 0,
+        away_score: 0,
+        margin: 0,
+        total: 0,
+        winner: evidence.winner ?? null,
+      },
+    };
+  }
+
   if (!isRaceRule(rule)) {
     return {
       text: describeResult(evidence),

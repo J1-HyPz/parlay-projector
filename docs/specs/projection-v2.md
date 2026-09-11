@@ -1,15 +1,15 @@
 # Spec — Projection v2
 
-**Status: in progress.** §4.1 and §4.2 have shipped in full, §4.3's archive is
+**Status: complete.** §4.1 and §4.2 have shipped in full, §4.3's archive is
 built, filled and read, §4.4 has been run for every competition with settled
 data, §4.9 — the distributional fix §4.4 uncovered but could not make — has
 shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
 blocked at the provider, and §4.7 has shipped as something other than what it
 proposed — the split it named was measured and refused, and the venue effect
 underneath it shipped instead. §4.8 has shipped for both sports that passed
-its provider check — MMA in §4.8.c and tennis in §4.8.b, each calibrated and
-backtested — and boxing stays blocked at the provider. **Every phase in this
-document is now resolved.** Companion to
+its provider check — MMA in §4.8.c and tennis in §4.8.b, each calibrated,
+backtested and now wired into the live product — and boxing stays blocked at
+the provider. **Every phase in this document is now resolved.** Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1719,9 +1719,19 @@ the player who stopped was usually losing it.
 
 **Still to do.** Total games and set betting, both of which §4.8.b already
 defers; `setGames` carries games-per-set through the normaliser so the data is
-there when they are built. And settlement: the `completion` field distinguishes
-a retirement, which is what voiding one requires, but neither sport is wired
-into the selection layer yet.
+there when they are built.
+
+**Settlement is done, and so is the rest of the wiring.** Both sports now reach
+the live product: a projection on each fixture's page, selections in the
+candidate build, and settlement against `winner` — where a retirement and a
+walkover void rather than losing, which is what §4.8.b asks for and what
+`completion` was carried through the normaliser to make possible. One thing had
+to be fixed on the way: an unstarted tournament publishes its **whole empty
+bracket**, 247 of 249 upcoming ATP matches being "TBD v TBD", and those are now
+dropped structurally at the normaliser (a placeholder carries a negative id).
+They were never rated — the rated-result count is identical either side of the
+change, 20,410 for the ATP and 27,061 for the WTA — so this is a coverage and
+display fix, not a model one.
 
 ---
 

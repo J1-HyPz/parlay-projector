@@ -65,6 +65,21 @@ import type { Game } from '../home/types';
 
 export interface BoutModelConfig {
   /**
+   * Stored on every prediction this config produces.
+   *
+   * Per competition, as the v2 spec requires: a UFC prediction and a WTA one
+   * are made by different constants and must never be averaged together under
+   * one label in the accuracy breakdown.
+   */
+  modelVersion: string;
+  /**
+   * What a contest and a competitor are called in this sport.
+   *
+   * Only for the text a projection explains itself with. A tennis reader
+   * shown "fights" would rightly stop trusting the rest of the sentence.
+   */
+  nouns: { contest: string; contests: string; competitor: string };
+  /**
    * Elo K-factor.
    *
    * Higher than a team sport's on purpose: a fighter competes two or three
@@ -88,6 +103,8 @@ export interface BoutModelConfig {
 }
 
 export const BOUT_CONFIG: BoutModelConfig = {
+  modelVersion: 'bout-v1-ufc',
+  nouns: { contest: 'fight', contests: 'fights', competitor: 'fighter' },
   /*
    * Fitted against 1,125 held-out fights from 2024-2025, everything else held
    * fixed. Swept until it turned: Brier falls from 0.2379 at K=64 to 0.2344 at
@@ -172,6 +189,8 @@ export const BOUT_CONFIG: BoutModelConfig = {
  * instead of 4,753. Free coverage for no measurable quality.
  */
 export const TENNIS_CONFIG: BoutModelConfig = {
+  modelVersion: 'bout-v1-atp',
+  nouns: { contest: 'match', contests: 'matches', competitor: 'player' },
   eloK: 32,
   minFights: 10,
   targetFights: 30,
@@ -197,7 +216,11 @@ export const TENNIS_CONFIG: BoutModelConfig = {
  * Everything else is the ATP's, because everything else was measured on the
  * ATP archive and nothing suggested the two tours differ in it.
  */
-export const WTA_CONFIG: BoutModelConfig = { ...TENNIS_CONFIG, eloK: 48 };
+export const WTA_CONFIG: BoutModelConfig = {
+  ...TENNIS_CONFIG,
+  modelVersion: 'bout-v1-wta',
+  eloK: 48,
+};
 
 /**
  * The config for a competition rated by this engine, or null.
@@ -396,7 +419,16 @@ export function buildBoutRatings(
   return { fighters, divisionsFought, sample: results.length };
 }
 
-export interface BoutProjection {
+/**
+ * The model's raw answer for one contest.
+ *
+ * The number and what it rests on, nothing else. The projection a reader sees
+ * — names, records, evidence, a model version — is built from this in
+ * `bout-selections.ts`, the same way `projectGame` dresses the scoring model's
+ * distribution. Kept apart so the estimate stays a pure function of the
+ * ratings, which is what the backtest replays.
+ */
+export interface BoutEstimate {
   /** Probability the first-listed fighter wins, excluding a draw. */
   home: number;
   away: number;
@@ -406,6 +438,10 @@ export interface BoutProjection {
   dataQuality: number;
   /** True when either fighter is competing outside their usual division. */
   movedDivision: boolean;
+  /** How many divisions each has appeared in, so the caution can name who moved. */
+  divisions: { home: number; away: number };
+  /** The two ratings the estimate was read from, for the explanation. */
+  ratings: { home: FighterRating; away: FighterRating };
 }
 
 /**
@@ -434,7 +470,7 @@ export function projectBout(
   division: string | null | undefined,
   ratings: BoutRatings,
   config: BoutModelConfig = BOUT_CONFIG,
-): BoutProjection | null {
+): BoutEstimate | null {
   const home = ratings.fighters.get(ratingKey(homeId, division));
   const away = ratings.fighters.get(ratingKey(awayId, division));
   if (!home || !away) return null;
@@ -452,13 +488,18 @@ export function projectBout(
    */
   const homeWin = eloExpectation(edge);
 
+  const divisions = {
+    home: ratings.divisionsFought.get(homeId)?.size ?? 0,
+    away: ratings.divisionsFought.get(awayId)?.size ?? 0,
+  };
+
   return {
     home: homeWin,
     away: 1 - homeWin,
     edge,
     dataQuality,
-    movedDivision:
-      (ratings.divisionsFought.get(homeId)?.size ?? 0) > 1 ||
-      (ratings.divisionsFought.get(awayId)?.size ?? 0) > 1,
+    movedDivision: divisions.home > 1 || divisions.away > 1,
+    divisions,
+    ratings: { home, away },
   };
 }

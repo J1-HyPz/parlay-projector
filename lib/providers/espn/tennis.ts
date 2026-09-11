@@ -93,6 +93,19 @@ function str(value: unknown): string | null {
  * Null for a doubles pair, which has a `roster` rather than an `athlete`. That
  * is the structural guard: a pair is not an individual and must never reach a
  * rating keyed on one person.
+ *
+ * Null again for an unfilled draw slot, and that guard matters more than it
+ * looks. A tournament that has not started is published as its **whole empty
+ * bracket** — 64 first-round slots, 32 second-round, and so on down to the
+ * final — every one of them "TBD v TBD". Measured 2026-09-11: of 249 upcoming
+ * ATP matches in the forward window, 247 were these. Left in, they would put
+ * rows naming nobody on the Schedule, and a slate of them would be reported as
+ * matches the model declined for want of history, which is not why.
+ *
+ * Structural rather than by name, as the doubles guard is: the provider gives
+ * a placeholder a **negative** id (`-3` and `-4`, the same pair in every slot
+ * of every tournament), where a real player's id is a positive number.
+ * Matching on the string "TBD" would be one translation away from breaking.
  */
 function player(competitor: RawPlayer): Team | null {
   if (!competitor.athlete) return null;
@@ -102,6 +115,7 @@ function player(competitor: RawPlayer): Team | null {
     str(competitor.athlete.fullName) ??
     str(competitor.athlete.shortName);
   if (!id || !name) return null;
+  if (!(Number(id) > 0)) return null;
   return { id, name, logo: null };
 }
 

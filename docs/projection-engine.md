@@ -105,13 +105,14 @@ The American leagues are each rated alone; they share no fixtures with anything.
 | Injuries, suspensions, expected availability | Not modelled. |
 | Lineups, starting pitchers, starting quarterbacks, goalkeepers | Not modelled. |
 | xG, EPA, pace, offensive/defensive ratings | Not used; scoring rates are derived from results instead. |
-| Any tennis competition in the league catalogue | **No tennis model.** |
 
-The brief asks for player props and tennis. Both are absent because the inputs
-they require do not exist, and generating them would mean inventing the
-evidence. `player_performance` exists as a selection type and settlement
-handles it, so a future data source can fill it in; nothing currently produces
-one.
+Player props are absent because the inputs they require do not exist, and
+generating them would mean inventing the evidence. `player_performance` exists
+as a selection type and settlement handles it, so a future data source can fill
+it in; nothing currently produces one.
+
+Tennis was in this table for a long time and is not any more: the ATP and WTA
+tours are tracked, rated and projected — see "Tennis" below.
 
 ---
 
@@ -296,6 +297,27 @@ and compares them against the stored rule.
 
 A cancelled or postponed game **voids**: the projection was never tested, and
 counting it either way would distort the figures.
+
+**Three kinds of result are settled against, because three engines produce
+predictions.** A team fixture is judged on its scoreline; a race on its
+classified finishing order; a fight or a tennis match on who won. Which one
+applies is decided by what the tracker actually recorded — a contest between
+two people carries a `winner` and no score, and nothing else does — rather than
+by the sport, so the three paths cannot be confused for one another.
+
+A contest that did not run its course **voids** rather than losing:
+
+| Outcome | Settles as | Why |
+| --- | --- | --- |
+| A winner | won / lost | The contest was decided |
+| Tennis retirement | **void** | The match happened, but nothing about who was better was settled |
+| Tennis walkover | **void** | No tennis was played at all |
+| Drawn or no-contest fight | **void** | Neither side won, so a bet on either was never tested |
+
+The first of these is what §4.8.b of the v2 spec requires, and it is the reason
+`completion` is carried through the normaliser rather than flattened into an
+ordinary win. Each is stated on the selection *before* it is placed, not
+explained afterwards — see `whatNeedsToHappen`.
 
 ---
 
@@ -962,8 +984,14 @@ are the sports data the application already fetches.
 | Endpoint | Returns |
 | --- | --- |
 | `GET /api/projections/games?sport=` | Projections for every eligible upcoming fixture |
-| `GET /api/projections/games/:gameId` | One fixture, or `projection: null` with a reason |
+| `GET /api/projections/games/:gameId` | One fixture, or both projections `null` with a reason |
 | `GET /api/parlays?risk=&sport=&legs=&variant=` | A generated line, or `null` with `insufficient_candidates` |
+
+`/api/projections/games/:gameId` answers with **one of two shapes**, because
+two engines can own a fixture. A team fixture comes back on `projection` with
+an expected score behind it; a fight or a tennis match comes back on `bout`
+with a winner probability and the two records it rests on. Never both, and the
+one that does not apply is `null` rather than absent.
 
 No endpoint returns odds, prices, bookmaker data or monetary figures. There is
 no stake field and no projected return anywhere in the application: without real
@@ -981,6 +1009,13 @@ the model's own probability expressed as a decimal, labelled as such.
 - **No boxing, and not for want of trying.** Every path on this provider 404s;
   its one answering endpoint returns an empty object where the identical MMA
   one returns real fighters. Blocked until a provider carries it.
+- **No second market on a fight or a tennis match.** The winner, and nothing
+  else. The price source quotes handicaps and totals on both sports, but this
+  model produces no probability for either, and a market it cannot price is one
+  it must not appear to have an opinion on. A same-game combination is
+  impossible there for the same reason: a contest is not simulated, so there is
+  no set of games to count two legs against, and multiplying them would be the
+  one thing `same-game.ts` exists to avoid.
 - **No league-strength adjustment inside the football pool.** All football
   competitions share one average, so a mid-table Serie A side and a mid-table
   League One side start from the same baseline. Elo separates them over time

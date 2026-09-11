@@ -19,10 +19,10 @@
 
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
+import { isProjectable } from '../leagues/catalogue';
 import { fixturesForLeague } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
 import { todayInAppTimezone } from '../config';
-import { modelConfigFor } from './config';
 import { invalidateAccuracy } from './accuracy';
 import { readPredictions, settlePredictions, settlementTargets } from './store';
 import type { GameState } from './store';
@@ -99,14 +99,16 @@ export async function runSettlement(): Promise<TrackerRun> {
     let reachable = 0;
 
     /*
-     * Competitions the engine projects. Motorsport qualifies through its own
-     * model rather than the scoring one, so it is included explicitly — an
-     * open race prediction that nothing ever looks up would sit unsettled
-     * until the abandonment rule quietly voided it.
+     * Competitions the engine projects, by the catalogue's own definition.
+     *
+     * This list used to be built from the scoring model's table with
+     * motorsport added by hand, which is how the UFC and both tennis tours
+     * came to be modelled, published and then never looked up again: an open
+     * prediction nothing examines sits unsettled until the abandonment rule
+     * quietly voids it. Asking the catalogue is the same question the parlay
+     * engine asks, so a competition cannot be offered without being settled.
      */
-    const leagues = LEAGUES.filter(
-      (league) => modelConfigFor(league.sport) !== null || league.format === 'race',
-    );
+    const leagues = LEAGUES.filter(isProjectable);
 
     await Promise.all(
       leagues.map(async (league) => {
@@ -138,6 +140,18 @@ export async function runSettlement(): Promise<TrackerRun> {
                 status: 'finished',
                 home: game.score?.home ?? null,
                 away: game.score?.away ?? null,
+                /*
+                 * A fight or a match is judged on who won. `winner` is
+                 * present on every bout the adapters emit and on nothing
+                 * else, so it is copied only when it is there — a team
+                 * fixture must keep settling on its score.
+                 */
+                ...(game.winner !== undefined
+                  ? {
+                      winner: game.winner,
+                      ...(game.completion ? { completion: game.completion } : {}),
+                    }
+                  : {}),
                 // A race is judged on where each competitor was classified.
                 ...(game.entrants
                   ? {

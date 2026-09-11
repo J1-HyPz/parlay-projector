@@ -37,6 +37,7 @@ import {
 } from './market-ui';
 import { LegStatusBadge } from './leg-status';
 import type { LegStatus } from './leg-status';
+import { BoutRecords } from '@/components/game/projector-analysis';
 
 export interface LegTracking {
   status: LegStatus;
@@ -44,13 +45,15 @@ export interface LegTracking {
   /**
    * What actually happened.
    *
-   * A fixture ends on a score; a race ends in a classified position. Both
-   * shapes travel here, and the card shows whichever it was given.
+   * A fixture ends on a score; a race ends in a classified position; a fight
+   * or a match ends with a winner. All three shapes travel here, and the card
+   * shows whichever it was given.
    */
   actual: {
     home_score: number;
     away_score: number;
     position?: number | null;
+    winner?: 'home' | 'away' | null;
   } | null;
   final_pre_game: boolean;
 }
@@ -99,18 +102,26 @@ function Outcome({
         : tracked.status === 'push'
           ? { text: 'Landed on the line — stake returned', tone: 'text-status-warn', mark: '=' }
           : tracked.status === 'void'
-            ? { text: 'Not played, so it could not be judged', tone: 'text-status-warn', mark: '−' }
+            ? { text: 'Void — could not be judged, stake returned', tone: 'text-status-warn', mark: '−' }
             : null;
 
   return (
     <div className="mt-3 rounded-xl border border-line bg-surface-1 p-3">
       <dl className="space-y-1.5 text-2xs">
-        {/* A race is classified in a position; a fixture ends on a score. */}
+        {/* A race is classified in a position; a fight or a match ends with
+            a winner; a fixture ends on a score. */}
         {typeof tracked.actual?.position === 'number' ? (
           <div className="flex justify-between gap-3">
             <dt className="text-ink-faint">Classified</dt>
             <dd className="tabular-nums text-ink">P{tracked.actual.position}</dd>
           </div>
+        ) : selection.bout ? (
+          tracked.result && (
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-faint">Result</dt>
+              <dd className="text-ink">{tracked.result}</dd>
+            </div>
+          )
         ) : (
           tracked.actual &&
           selection.projection && (
@@ -148,7 +159,9 @@ export function LegCard({
   index: number;
   tracked?: LegTracking;
 }) {
-  const { projection, race, market, reasoning } = selection;
+  const { projection, race, bout, market, reasoning } = selection;
+  /** Whichever of the three projections this leg carries. */
+  const source = race ?? bout ?? projection;
   const started = tracked !== undefined && tracked.status !== 'pending';
 
   return (
@@ -270,6 +283,10 @@ export function LegCard({
                   : 'Generated before qualifying, so the starting grid is not yet known.'}
               </p>
             </div>
+          ) : bout ? (
+            // A fight has no scoreline either. What it has is two records,
+            // and they are what the probability rests on.
+            <BoutRecords bout={bout} />
           ) : projection ? (
           <ProjectedScore
             homeTeam={projection.home_team}
@@ -330,13 +347,13 @@ export function LegCard({
             </span>
             <DataQualityBadge
               label={qualityLabel(selection.data_quality)}
-              reasons={(race ?? projection)?.quality_reasons ?? []}
+              reasons={source?.quality_reasons ?? []}
             />
           </div>
 
-          {((race ?? projection)?.quality_reasons.length ?? 0) > 0 && (
+          {(source?.quality_reasons.length ?? 0) > 0 && (
             <ul className="space-y-1">
-              {((race ?? projection)?.quality_reasons ?? []).slice(0, 3).map((reason) => (
+              {(source?.quality_reasons ?? []).slice(0, 3).map((reason) => (
                 <li key={reason} className="text-2xs leading-5 text-ink-faint">
                   {reason}
                 </li>

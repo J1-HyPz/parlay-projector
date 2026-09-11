@@ -56,6 +56,16 @@ export async function getGameDetail(gameId: string): Promise<GameDetailOutcome> 
           : await provider.gameById(id);
         if (!base) return null;
 
+        /*
+         * A fight or a match is not enriched.
+         *
+         * Enrichment matches a fixture against a team scoreboard by the two
+         * team names, and there is no such scoreboard for two people: the
+         * request would be made, match nothing, and cost a call. Its presence
+         * of `winner` is what marks a contest — see `contest-detail.ts`.
+         */
+        if (base.winner !== undefined) return base;
+
         // Enrichment is lazy by design: it runs here, for one game page, and
         // never across a schedule. A failure leaves the base game intact.
         bootstrapProviders();

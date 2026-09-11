@@ -119,6 +119,23 @@ export interface GameDetail {
    * provider comparison; contains no credentials.
    */
   _sources?: Record<string, string>;
+
+  /*
+   * The fields a fight or a tennis match carries and a team fixture does not.
+   *
+   * Named exactly as `Game` names them, because the projection routes hand a
+   * detail to the engine as a `Game` and the engine reads `division` and
+   * `winner` off it. Absent for every fixture that has a score, so their
+   * presence is what says the detail is a contest between two people. See
+   * `lib/home/types.ts` for what each one means.
+   */
+  /** The card or the tournament, e.g. `UFC 331`. */
+  title?: string | null;
+  division?: string | null;
+  scheduledRounds?: number | null;
+  winner?: 'home' | 'away' | null;
+  completion?: 'played' | 'retired' | 'walkover';
+  setGames?: { home: number[]; away: number[] };
 }
 
 export interface GameDetailResponse {

@@ -68,7 +68,7 @@ export async function GET(
   }
 
   const { candidates } = loaded;
-  const { selections, outcome, markets } = candidates;
+  const { selections, outcome, bout, markets } = candidates;
 
   /*
    * Grouped by market so the page can present them the way a betting interface
@@ -85,7 +85,8 @@ export async function GET(
 
   return json({
     model_version: MODEL_VERSION,
-    projection: outcome.projection,
+    projection: outcome?.projection ?? null,
+    bout: bout?.projection ?? null,
     /** Whether a bookmaker was quoting this fixture, and which. */
     pricing: markets
       ? { source: markets.source, fetched_at: markets.fetchedAt, markets: markets.markets.length }
@@ -172,7 +173,9 @@ export async function POST(
     });
   }
 
-  const slip = assembleSlip(chosen, candidates.outcome.distribution);
+  // A fight or a match has no simulations, and `assembleSlip` holds it to one
+  // leg rather than multiplying two it cannot count.
+  const slip = assembleSlip(chosen, candidates.outcome?.distribution ?? null);
 
   logger.info('slip_evaluated', {
     game: gameId,

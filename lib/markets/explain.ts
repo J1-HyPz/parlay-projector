@@ -84,6 +84,28 @@ const VOCABULARY: Partial<Record<ConcreteSportId, Vocabulary>> = {
     moneyline: 'Race Winner',
     hasDraw: false,
   },
+  /*
+   * A fight and a tennis match are each decided by a winner and nothing else.
+   * The only market the model prices is that winner, so `spread` and `unit`
+   * are named for what the sport does have, as with motorsport above, rather
+   * than left to read "Point Spread" about a fight. A drawn fight is real but
+   * is not a selection anyone is offered, so `hasDraw` stays false and the
+   * winner explanation says what a draw does to the bet instead.
+   */
+  mma: {
+    unit: 'round',
+    contest: 'fight',
+    spread: 'Round Handicap',
+    moneyline: 'Fight Winner',
+    hasDraw: false,
+  },
+  tennis: {
+    unit: 'game',
+    contest: 'match',
+    spread: 'Game Handicap',
+    moneyline: 'Match Winner',
+    hasDraw: false,
+  },
 };
 
 export function vocabularyFor(sport: ConcreteSportId): Vocabulary {
@@ -231,6 +253,18 @@ export function whatNeedsToHappen(rule: SettlementRule, names: FixtureNames): st
     case 'winner': {
       if (rule.side === 'draw') return `The ${contest} must end level.`;
       const team = teamFor(rule.side, names);
+      /*
+       * The two individual sports say what voids them, because settlement
+       * does void them and a reader is entitled to know before rather than
+       * after. A drawn or no-contest fight is not a loss for either fighter;
+       * a retirement or walkover means the match was never fully contested.
+       */
+      if (names.sport === 'mma') {
+        return `${team} must win the fight. A draw or a no-contest voids this selection and the stake is returned.`;
+      }
+      if (names.sport === 'tennis') {
+        return `${team} must win the match. A retirement or a walkover voids this selection and the stake is returned.`;
+      }
       return vocabulary.hasDraw
         ? `${team} must win the ${contest}. A draw loses this selection.`
         : `${team} must win the ${contest}.`;
@@ -377,6 +411,12 @@ export function probabilityMeaning(type: MarketType, sport: ConcreteSportId): st
 
   switch (type) {
     case 'moneyline':
+      // A fight or a match is not simulated: the winner probability is read
+      // straight off the gap between two ratings, and saying "simulations"
+      // would describe a step that did not happen.
+      if (sport === 'mma' || sport === 'tennis') {
+        return `The model's estimate that this side wins the ${contest}, read from the gap between the two ratings and the record behind each.`;
+      }
       return `How often this side wins the ${contest} outright across the simulations.`;
     case 'both_teams_to_score':
       return `How often both sides scored at least once, counted across the simulated ${contest}s rather than multiplied — a one-sided rout and a blank sheet tend to arrive together.`;

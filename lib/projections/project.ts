@@ -52,6 +52,7 @@ import {
   selectionLabel,
   whatNeedsToHappen,
 } from '../markets/explain.ts';
+import type { FixtureNames } from '../markets/explain.ts';
 import { modelEdge } from '../markets/price.ts';
 import { marketTypeOf, quoteIsFresh } from '../markets/types.ts';
 import type {
@@ -609,31 +610,30 @@ interface BuildContext {
  * A quote only counts as verified while it is fresh. A price read half an hour
  * ago is not evidence that a market is available now, and presenting it as
  * such would be the same failure the redesign exists to fix, one step removed.
+ *
+ * Exported because it is the one definition of "verified" in the application.
+ * The bout selections in `bout-selections.ts` build their market context
+ * through this same function, so a fight and a football match cannot disagree
+ * about what a fresh quote is.
  */
-function marketContextFor(
+export function marketContextFor(
   rule: SettlementRule,
-  context: BuildContext,
+  names: FixtureNames,
+  quotes: GameMarkets | null,
   quote: QuotedMarket | null,
+  now: number,
 ): MarketContext {
-  const { game } = context;
   const type = marketTypeOf(rule);
-  // From the projection rather than the fixture: it froze both names, and it
-  // only exists for a fixture that genuinely had two sides.
-  const names = {
-    homeTeam: context.outcome.projection.home_team,
-    awayTeam: context.outcome.projection.away_team,
-    sport: game.sport,
-  };
 
   const base = {
     type,
     period: 'full_game' as const,
-    label: marketLabel(type, game.sport),
+    label: marketLabel(type, names.sport),
     selection: selectionLabel(rule, names),
     line: 'line' in rule ? rule.line : null,
   };
 
-  if (!quote || !context.quotes || !quoteIsFresh(quote.fetchedAt, context.now)) {
+  if (!quote || !quotes || !quoteIsFresh(quote.fetchedAt, now)) {
     return {
       ...base,
       availability: 'model_only',
@@ -645,7 +645,7 @@ function marketContextFor(
     };
   }
 
-  const fair = fairProbabilityFor(context.quotes, quote);
+  const fair = fairProbabilityFor(quotes, quote);
 
   return {
     ...base,
@@ -659,7 +659,7 @@ function marketContextFor(
 }
 
 /** The model set against the price, where one exists. */
-function edgeFor(probability: number, market: MarketContext): EdgeAssessment | null {
+export function edgeFor(probability: number, market: MarketContext): EdgeAssessment | null {
   if (!market.price) return null;
   return {
     implied: market.price.implied,
@@ -678,6 +678,8 @@ function makeSelection(
   const { game, outcome } = context;
   const { projection, distribution } = outcome;
 
+  // From the projection rather than the fixture: it froze both names, and it
+  // only exists for a fixture that genuinely had two sides.
   const names = {
     homeTeam: projection.home_team,
     awayTeam: projection.away_team,
@@ -685,7 +687,7 @@ function makeSelection(
   };
 
   const type = selectionTypeOf(rule);
-  const market = marketContextFor(rule, context, quote);
+  const market = marketContextFor(rule, names, context.quotes, quote, context.now);
   const probability = boundProbability(probabilityFor(distribution, projection, rule));
   const verified = market.availability === 'verified';
 

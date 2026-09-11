@@ -8,6 +8,7 @@
  */
 
 import type {
+  ActualOutcome,
   PredictionRecordV2,
   PredictionStatus,
   SelectionType,
@@ -146,8 +147,15 @@ export function isPredictionRecordV2(value: unknown): value is PredictionRecordV
   );
 }
 
-/** A stored scoreline: all four fields present and finite, or nothing. */
-function outcome(value: unknown): { home_score: number; away_score: number; margin: number; total: number } | null {
+/**
+ * A stored scoreline: all four fields present and finite, or nothing.
+ *
+ * The optional shapes a result can also carry — a classified position for a
+ * race, a winner for a bout — are kept when they are well-formed and dropped
+ * when they are not. They used to be dropped on every read, which meant a
+ * settled race lost its position the moment the file was re-read.
+ */
+function outcome(value: unknown): ActualOutcome | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
 
@@ -157,7 +165,17 @@ function outcome(value: unknown): { home_score: number; away_score: number; marg
   }
 
   const [home_score, away_score, margin, total] = numbers as number[];
-  return { home_score, away_score, margin, total };
+  const kept: ActualOutcome = { home_score, away_score, margin, total };
+
+  const wholeNumber = (entry: unknown): entry is number =>
+    typeof entry === 'number' && Number.isInteger(entry) && entry >= 0;
+  if (wholeNumber(raw.position)) kept.position = raw.position;
+  if (wholeNumber(raw.field_size)) kept.field_size = raw.field_size;
+  if (raw.winner === 'home' || raw.winner === 'away' || raw.winner === null) {
+    kept.winner = raw.winner;
+  }
+
+  return kept;
 }
 
 function auditTrail(value: unknown): SettlementAudit[] {
