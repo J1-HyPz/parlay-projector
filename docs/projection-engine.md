@@ -645,6 +645,165 @@ distribution, and scoring that is the noise-free limit of the same measurement;
 re-running the simulated path at 12,000 draws agreed with it (t = -2.82 against
 -2.71 at weight 0.30).
 
+### Fights
+
+`lib/projections/bout-model.ts`. **MMA only** — boxing is absent from the
+provider, checked rather than assumed (§4.8.a in the v2 spec has the paths).
+
+**Nothing from the scoring model transfers, and not because a fight is a
+simpler fixture.** The team model asks how much each side will score and
+compares the two distributions. A fight has no scoring process to ask that of:
+one discrete outcome, nothing to accumulate. So there is no attack rate, no
+defence rate, no `expectedScores` and no total. The rating is an Elo alone,
+walked forward through completed fights exactly as team Elo already is — which
+makes this model *simpler* than the team model in one specific respect rather
+than a stripped-down copy of it.
+
+**There is no simulation, deliberately.** Every other model here simulates
+because it needs a joint distribution — totals, spreads and team totals must be
+read off the same simulated games or they can contradict one another. A fight
+winner is a single Bernoulli outcome and its probability *is* the answer.
+Running ten thousand coin flips at a known probability returns that probability
+plus sampling noise and nothing else.
+
+**The rating window is five years, and this is not the NCAAF mistake.** A
+longer window is wrong for a team because it lets a team borrow a roster that
+is no longer the team being projected. A fighter does not turn over: their last
+several fights across three years are evidence about the same specific person.
+A UFC fighter may have ten to twenty fights in a whole career, so a window of a
+few hundred days would hold one or two and say nothing.
+
+**`eloK` is 160 — more than twenty times the NFL's.** That is the sport, not a
+mistake. A team plays sixty or eighty times a season; a fighter competes two or
+three times a year. The first run of this model used a team-sport K and the
+ratings never left 1500: it gave the favourite 52% and the favourite won 59%,
+with every fight but one inside a single probability band. Swept until it
+turned — Brier falls from 0.2379 at K=64 to 0.2344 at 160 and rises beyond it,
+and calibration bias crosses zero between 160 and 200. Both criteria land in
+the same place.
+
+**Division scoping.** A rating is built from results at the weight a fighter is
+competing at, never blended across divisions, so a fighter moving up starts
+where a debutant does. Measured rather than assumed, on the fights both
+variants projected: scoping came out ahead on all three metrics (63.0% against
+61.0%, Brier 0.2345 against 0.2362) but **the difference is not statistically
+established** — paired t on Brier is -0.98 — and it costs real coverage, 45.6%
+of held-out fights against pooling's 56.3%. Scoping ships because the spec
+directs it, the point estimates favour it and it is the conservative reading of
+a weight change; the tie is recorded because this is the first thing to revisit
+if coverage matters more later.
+
+**The floor is three fights, chosen on what each floor *admits*.** Comparing
+whole-sample error across floors is meaningless — a stricter floor skips the
+fights the model knows least about, so its error falls for a reason unrelated
+to being better. Scored on the fights every floor projected, floors of 2, 3, 4
+and 6 produce identical numbers: the floor decides *which* fights get a
+projection and nothing about their quality. The marginal fights settle it.
+Going from 4 to 3 admits 117 held-out fights at 62.4% accuracy and a Brier of
+0.2324, as good as the base. Going from 3 to 2 admits 154 more at 55.8% and a
+bias of +0.0391 — barely better than a coin toss and over-confident about it.
+
+**Calibration**, held out on 2024-2025, 513 fights of 1,125:
+
+| | |
+|---|---|
+| accuracy on the favourite | 63.0% |
+| Brier | 0.2344 |
+| log loss | 0.6618 |
+| bias | -0.0155 |
+
+| predicted band | n | model says | actually happened |
+|---|---|---|---|
+| 50-60% | 260 | 54.8% | 60.0% |
+| 60-70% | 172 | 64.5% | 65.1% |
+| 70-80% | 64 | 74.4% | 67.2% |
+| 80-90% | 17 | 82.9% | 70.6% |
+
+The middle band is close to exact. The model is mildly **under**-confident at
+even money and **over**-confident above 70%, where the samples are thin (64 and
+17 fights). That is a real limitation and it is stated rather than smoothed:
+the high bands are where a confident call would cost the most, and they are the
+least evidenced.
+
+**Coverage is the honest half of the result.** Across the whole archive the
+model projects 912 fights and declines 2,368 — it says nothing about most of a
+card. That is correct rather than a gap: a UFC prelim is frequently two
+debutants, and §4.8.a step 6 is explicit that the honest answer there is
+"insufficient data" and that the floor must not be lowered to compensate.
+
+**Not modelled, and said so.** Method of victory beyond decision-versus-finish:
+the feed's `status.type.detail` is the bare string "Final" on every completed
+fight, so KO/TKO cannot be told from submission. Style matchup, reach, stance,
+age, layoff, weight-cut difficulty, judging variance and referee stoppage
+timing are all real, widely discussed, and none recoverable from a win/loss
+record.
+
+### Tennis
+
+Same engine as fights, in `lib/projections/bout-model.ts`, with its own
+constants — the two sports need identical machinery and differ only in their
+numbers, the way the NFL and the NBA share the Normal-scoring family.
+
+**`eloK` is 32 for the ATP and 48 for the WTA, against MMA's 160.** The ratio
+is the schedule, not a judgement about the sports: a tour player contests fifty
+or eighty matches a year where a fighter has two or three, so a tennis rating
+has vastly more chances to find its level and each result should move it less.
+
+**The two tours were not assumed to share a config.** One was tried for both
+and left the WTA 2.1 points under-confident; its own K brings that to 0.15 and
+takes Brier from 0.2238 to 0.2230. The calibration difference is the one that
+matters — a systematically under-confident price is wrong in the same direction
+every time, which is what bias measures and error averages away.
+
+**Calibration**, held out from 2024:
+
+| | ATP | WTA |
+|---|---|---|
+| coverage | 86.2% | 82.5% |
+| matches scored | 6,890 | 9,168 |
+| accuracy on the favourite | 62.3% | 63.3% |
+| Brier | 0.2234 | 0.2230 |
+| bias | -0.0013 | -0.0015 |
+
+| ATP band | model says | actually happened |
+|---|---|---|
+| 50-60% | 54.8% | 53.6% |
+| 60-70% | 64.4% | 65.0% |
+| 70-80% | 74.3% | 76.9% |
+| 80-90% | 84.0% | 88.1% |
+| 90-100% | 92.5% | 91.1% |
+
+Close across the whole range, and mildly *under*-confident at the top — the
+safer direction to err in.
+
+**Qualifying rounds are rated, retirements are rated, walkovers are not.** All
+three were measured rather than assumed. Qualifying is a third of the draw and
+costs nothing — identical error on the main-draw matches both variants could
+project — while letting the model reach 6,860 held-out matches instead of
+4,753. Retirements and walkovers are 3.3% of the archive and excluding any
+combination of them moves Brier by less than 0.0003, so that one is a choice
+made on principle over a tie: a walkover means no tennis was played at all,
+while a retirement means a set and a half was.
+
+**The minimum-matches floor is a judgement, not an optimum, and is recorded as
+one.** Accuracy against the weaker player's record length has no ordering below
+thirty matches: 4-6 gave 57.4%, 6-8 gave 55.1%, 8-10 gave 64.6%, 13-16 gave
+66.5%, 16-20 gave 54.0%, each on two or three hundred matches. Only the 30-plus
+band is stable. Ten is defended by the two loosest steps measured degrading,
+not by a minimum in the data.
+
+**No surface component, and it cannot be built.** §4.8.a proposed rating hard,
+clay and grass separately. The provider publishes no surface at all — a
+tournament carries a city name, and the word does not appear anywhere in a
+quarter's payload. Dropped rather than guessed at from a tournament's name or
+its place in the calendar.
+
+**The two tours read their own feeds.** Checked as a set union rather than
+assumed: of 46 tournaments in a quarter only 7 appear in both, those 7 are the
+combined events, and every men's singles match is in the ATP feed with every
+women's in the WTA feed. So nothing is merged across them, which would
+otherwise have counted every combined event twice.
+
 ### Backtesting
 
 `lib/projections/backtest.ts` replays completed games in order. For each one the
@@ -816,7 +975,12 @@ the model's own probability expressed as a decimal, labelled as such.
 ## What this model does not do
 
 - **No player projections**, for the reasons at the top.
-- **No tennis.**
+- **No tennis doubles.** A pair is not an individual, and the rating is keyed
+  on one person. Singles only, enforced structurally: a doubles competitor has
+  no `athlete` at all.
+- **No boxing, and not for want of trying.** Every path on this provider 404s;
+  its one answering endpoint returns an empty object where the identical MMA
+  one returns real fighters. Blocked until a provider carries it.
 - **No league-strength adjustment inside the football pool.** All football
   competitions share one average, so a mid-table Serie A side and a mid-table
   League One side start from the same baseline. Elo separates them over time

@@ -91,6 +91,37 @@ const MOTORSPORT: HubTerminology = {
   transactions: 'Roster Moves',
 };
 
+/**
+ * Combat sport has none of the team vocabulary.
+ *
+ * A card is not a fixture and a fighter is not a team. The provider publishes
+ * no standings table for the UFC -- divisional rankings exist on the website
+ * but not on this API, and a ranking is not a table in any case -- and an
+ * individual athlete has no transactions at all. Both are reported as absent
+ * rather than shown as permanently empty sections.
+ */
+const COMBAT: HubTerminology = {
+  games: 'Fights',
+  teams: 'Fighters',
+  standings: 'Rankings',
+  transactions: 'Roster Moves',
+};
+
+/**
+ * Tennis has none of the team vocabulary either, and not the combat one.
+ *
+ * A tour runs tournaments rather than fixtures, its competitors are players,
+ * and the thing that looks like a table is a rolling 52-week ranking the
+ * provider does not publish as one -- reported as absent rather than shown as
+ * a permanently empty section. An individual athlete has no transactions.
+ */
+const RACKET: HubTerminology = {
+  games: 'Matches',
+  teams: 'Players',
+  standings: 'Rankings',
+  transactions: 'Roster Moves',
+};
+
 const EMOJI: Record<string, string> = {
   'american-football': '\u{1F3C8}',
   basketball: '\u{1F3C0}',
@@ -98,10 +129,14 @@ const EMOJI: Record<string, string> = {
   hockey: '\u{1F3D2}',
   football: '⚽',
   motorsport: '\u{1F3CE}\uFE0F',
+  combat: '🥊',
+  racket: '🎾',
   other: '\u{1F3C6}',
 };
 
 function terminologyFor(league: League): HubTerminology {
+  if (league.group === 'racket') return RACKET;
+  if (league.group === 'combat') return COMBAT;
   if (league.group === 'motorsport') return MOTORSPORT;
   if (league.group === 'football') return FOOTBALL;
   return league.collegiate ? COLLEGE : AMERICAN;

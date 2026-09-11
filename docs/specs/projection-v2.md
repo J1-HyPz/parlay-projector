@@ -6,8 +6,10 @@ data, §4.9 — the distributional fix §4.4 uncovered but could not make — ha
 shipped, §4.5 has shipped for baseball, and §4.6 has been checked and is
 blocked at the provider, and §4.7 has shipped as something other than what it
 proposed — the split it named was measured and refused, and the venue effect
-underneath it shipped instead. §4.8's provider check has been run: boxing is
-blocked at the provider, and MMA and tennis both pass. Companion to
+underneath it shipped instead. §4.8 has shipped for both sports that passed
+its provider check — MMA in §4.8.c and tennis in §4.8.b, each calibrated and
+backtested — and boxing stays blocked at the provider. **Every phase in this
+document is now resolved.** Companion to
 [docs/projection-engine.md](../projection-engine.md), which describes v1 as it
 exists today, and to the audit that produced this list. Everything below is a
 decision, not an option, unless it says otherwise.
@@ -1579,13 +1581,21 @@ winner either way.
 
 **Tennis passes, and corrects two assumptions in this section.**
 
-- **ATP and WTA are not separate feeds.** Step 2 above proposes a catalogue
-  entry each "since they are separately ranked". They are, but the provider
-  does not split them: `tennis/atp/scoreboard` and `tennis/wta/scoreboard`
-  return *the same tournaments* and the same five groupings —
-  `mens-singles`, `womens-singles`, `mens-doubles`, `womens-doubles`,
-  `mixed-doubles`. The separation that actually exists is per match, on
-  `type.slug`. One tennis feed, split downstream.
+- **ATP and WTA are separate feeds after all — this note was wrong when first
+  written, and is corrected here.** The original version of this paragraph
+  said the two paths "return the same tournaments" and concluded there was one
+  tennis feed to be split downstream. That generalised from a single sample,
+  the Brisbane International, which happens to be a *combined* event and so
+  carries both draws in either feed. Measured properly on 2026-09-11: of 46
+  tournaments in one quarter, only **7** appear in both, and those 7 are
+  exactly the combined events. Step 2's proposal of a catalogue entry each was
+  right.
+
+  What is true, and is what the build rests on: every men's singles match
+  appears in the ATP feed and every women's in the WTA feed, checked as a set
+  union rather than assumed. So each tour reads its own feed alone and nothing
+  has to be merged or de-duplicated across them — which would otherwise have
+  put every combined event's matches into a rating twice.
 - **There is no surface in the feed.** Step 8 proposes a surface-specific
   rating component, and the §4.7 note attached to it says to measure before
   building. It does not get that far: the tournament carries `venue:
@@ -1652,6 +1662,66 @@ application.
 - A player below the sport's minimum-matches threshold produces no
   projection, not a low-confidence one.
 - A retired match settles as void, never as a loss.
+
+**Shipped 2026-09-11, on the same engine as §4.8.c.** The two sports need
+identical machinery — rate each competitor by Elo from completed results, read
+the winner probability off the gap — and differ only in their constants, the
+way the NFL and the NBA share the Normal-scoring family. What differs is large
+though: `eloK` is 32 for the ATP and 48 for the WTA against MMA's 160, because
+a tour player contests fifty or eighty matches a year where a fighter has two
+or three.
+
+Held out from 2024:
+
+| | ATP | WTA |
+|---|---|---|
+| coverage | 86.2% | 82.5% |
+| matches scored | 6,890 | 9,168 |
+| accuracy on the favourite | 62.3% | 63.3% |
+| Brier | 0.2234 | 0.2230 |
+| bias | **-0.0013** | **-0.0015** |
+
+Calibration bands, ATP: 54.8% predicted against 53.6% actual; 64.4% against
+65.0%; 74.3% against 76.9%; 84.0% against 88.1%; 92.5% against 91.1%. The WTA
+runs the same shape. Both are close across the whole range and mildly
+*under*-confident at the top, which is the safer direction to err in.
+
+**The two tours were not assumed to share a config.** One was tried for both
+and left the WTA 2.1 points under-confident; its own K brings that to 0.15 and
+takes Brier from 0.2238 to 0.2230. The error difference is small and the
+calibration difference is not — a systematically under-confident price is wrong
+in the same direction every time, which is what bias measures and error
+averages away. No explanation is offered for *why*; several are plausible and
+this application has evidence for none of them.
+
+**`minFights` is the one value the data does not identify, and that is stated
+rather than hidden.** Accuracy was measured directly against the weaker
+player's record length: 4-6 matches gave 57.4%, 6-8 gave 55.1%, 8-10 gave
+64.6%, 13-16 gave 66.5%, 16-20 gave 54.0%. There is no ordering in that — the
+bands hold two or three hundred matches each and sit within noise of one
+another. Only the 30-and-over band is stable, at 62.8% across 5,641 matches
+with a bias of +0.0001. So 10 is a judgement defended by the two loosest steps
+measured (10 to 6 admitted 368 matches at 58.7%, 6 to 4 admitted 209 at 56.0%)
+and by ten tour matches being a record a person would recognise as one. It is
+not defended by a measured minimum, because there is not one.
+
+**Qualifying rounds are rated.** A third of the draw, and free: scored on the
+main-draw matches both variants could project, including them gave 63.7% and a
+Brier of 0.2187 against 63.8% and 0.2180 without — identical — while letting
+the model reach 6,860 held-out matches instead of 4,753.
+
+**Retirements are rated; walkovers are not.** Measured first, and the
+measurement found nothing: excluding retirements, walkovers, both or neither
+moves held-out Brier by less than 0.0003 across 7,170 matches. So this is a
+choice made on principle over a tie and recorded as one — a walkover means no
+tennis was played at all, while a retirement means a set and a half was and
+the player who stopped was usually losing it.
+
+**Still to do.** Total games and set betting, both of which §4.8.b already
+defers; `setGames` carries games-per-set through the normaliser so the data is
+there when they are built. And settlement: the `completion` field distinguishes
+a retirement, which is what voiding one requires, but neither sport is wired
+into the selection layer yet.
 
 ---
 

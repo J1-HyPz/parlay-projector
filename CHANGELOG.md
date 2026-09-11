@@ -33,7 +33,8 @@ archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
 uncertain it is, a baseball model that no longer claims to be more certain than
 it is, baseball totals that account for the temperature and for the ballpark,
-and every other sport checked the same way. 871 tests.
+every other sport checked the same way, and two new sports — the UFC, and
+the ATP and WTA tours — each with a model of its own. 911 tests.
 
 ### Changed
 
@@ -82,6 +83,47 @@ and every other sport checked the same way. 871 tests.
   for it anyway is served as an ordinary parlay with the reason given.
 
 ### Added
+
+**Tennis, as a new sport**
+
+- The **ATP** and **WTA** tours each get their own hub — **Matches**,
+  **Players**, **Rankings** — and their matches appear on Schedule and Live
+  alongside every other competition.
+- A projection is a match-winner probability from an Elo rating built only from
+  what each player has actually done. On held-out 2024-2025 matches it calls
+  the favourite correctly **62.3%** of the time on the ATP and **63.3%** on the
+  WTA, and when it says 60-70% the favourite wins 65% of the time.
+- It covers **most of the draw** — 86% of ATP matches and 83% of WTA — because
+  a tour player has a real record where a UFC prelim fighter often does not.
+- **Singles only.** A doubles pair is two people, and a rating is about one.
+- A **retirement** and a **walkover** are told apart from an ordinary win and
+  from each other, so a retired match can settle as void rather than as a loss
+  for the player who stopped.
+- Set scores are kept as games per set rather than flattened, so the total-games
+  market has what it needs when it is built.
+
+**The UFC, as a new sport**
+
+- Fights now appear on Schedule and Live alongside every other competition,
+  with their own hub — **Fights**, **Fighters**, **Rankings** rather than the
+  team vocabulary, because a card is not a fixture and a fighter is not a team.
+- Each fight carries the division it is contested at and its scheduled
+  distance, and a fight has **no score**: the result is a winner, and recording
+  it as 1-0 would put a scoreline on a sport that has none.
+- A projection is a fight-winner probability from an Elo rating built only from
+  what each fighter has actually done at that weight. On held-out 2024-2025
+  fights it calls the favourite correctly **63.0%** of the time, and when it
+  says 60-70% the favourite wins 65.1% of the time.
+- **It declines most of a card, on purpose.** A UFC prelim is frequently two
+  debutants, and the honest answer there is that the model does not know. It
+  projects roughly one fight in four across the archive and says nothing about
+  the rest rather than offering a confident guess.
+- Ratings are never blended across weight classes — a fighter moving up starts
+  where a newcomer does, because carrying a rating across a weight change
+  would assert an equivalence nobody has established.
+- **No boxing.** It was checked at the same time and the provider does not
+  carry it at all, so there is no boxing section that would sit permanently
+  empty.
 
 **Baseball totals now account for the ballpark**
 

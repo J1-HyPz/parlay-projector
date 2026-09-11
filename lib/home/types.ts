@@ -15,6 +15,7 @@ export const SPORT_IDS = [
   'football',
   'tennis',
   'f1',
+  'mma',
 ] as const;
 export type SportId = (typeof SPORT_IDS)[number];
 
@@ -138,6 +139,53 @@ export interface Game {
    * rather than zero-zero.
    */
   score?: Score;
+  /**
+   * Which side won, for a contest that is decided without a score.
+   *
+   * A fight has two sides and no scoring process at all: the result is a
+   * winner, and there is nothing to add up. Recording it as `1-0` in `score`
+   * would be inventing a scoreline the sport does not have and would let the
+   * scoring model treat a fight as a one-nil football match.
+   *
+   * Null for a draw or a no-contest, which are real outcomes here rather than
+   * missing data -- a no-contest is settled as void, the same as a cancelled
+   * fixture. Absent entirely for anything that is not a bout.
+   */
+  winner?: 'home' | 'away' | null;
+  /**
+   * The division a bout is contested at, e.g. `Lightweight`.
+   *
+   * A scoping dimension rather than a descriptor: a rating is built from a
+   * fighter's results at their current weight, never blended across divisions.
+   */
+  division?: string | null;
+  /** Scheduled rounds for a bout -- three, or five for a main event or title. */
+  scheduledRounds?: number | null;
+  /**
+   * Whether a contest ran to its natural end.
+   *
+   * `retired` and `walkover` are real, distinguishable outcomes in tennis --
+   * the provider publishes them as their own statuses, and there were 79 and 9
+   * of them respectively in a single quarter. They matter because a retirement
+   * settles as **void** rather than as a loss for the player who stopped: the
+   * match happened, but nothing about who was better was actually settled.
+   *
+   * Absent for a sport where the distinction does not arise.
+   */
+  completion?: 'played' | 'retired' | 'walkover';
+  /**
+   * Games won per set, for a sport scored in sets.
+   *
+   * Not folded into `score`, which is one number per side. Sets-won would
+   * discard the games a total-games market needs; total games would read as a
+   * scoreline nobody recognises. The structure is kept whole instead.
+   */
+  setGames?: { home: number[]; away: number[] };
+}
+
+/** True for a contest decided by a winner rather than by a score. */
+export function isBout(game: Game): boolean {
+  return game.winner !== undefined || game.division !== undefined;
 }
 
 /**
