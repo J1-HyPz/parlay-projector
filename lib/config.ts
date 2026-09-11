@@ -124,15 +124,28 @@ export const oddsApiConfig = {
   region: env('ODDS_API_REGION', 'uk') || 'uk',
   timeoutMs: envInt('ODDS_API_TIMEOUT_MS', 8000),
   /*
-   * Longer than the old source's ten minutes, and deliberately.
+   * Twenty minutes, and the ceiling on it is freshness rather than cost.
    *
-   * The free tier is 500 credits a month and one refresh of one competition
-   * costs three, so an uncached request every ten minutes would exhaust a
-   * month's quota in under a day. Half an hour is a compromise between a price
-   * being current and there being any prices left by the end of the month;
-   * raise it on a paid plan.
+   * A quote stops counting as verified at `MAX_QUOTE_AGE_MS`, thirty minutes,
+   * past which it is reported as an unverified model projection instead. Two
+   * caches sit between a fetch and a reader: this one, and the five-minute
+   * candidate build in front of it. So the oldest a served quote can be is
+   * this lifetime plus five minutes, and twenty keeps that at twenty-five —
+   * inside the cliff with five minutes to spare.
+   *
+   * Thirty would put it *past* the cliff: prices bought, then discarded for
+   * being stale at the tail of every window. That was the previous setting,
+   * chosen when the free tier's 500 credits a month were the binding
+   * constraint, and at the time it was masked by a bug — the fetch timestamp
+   * was stamped when the cache was read rather than when the call was made, so
+   * nothing ever looked stale. With that fixed, the lifetime has to earn its
+   * length.
+   *
+   * Raising it above twenty-five minutes is not a way to save money. It makes
+   * quotes arrive already unverified, which costs exactly the same and
+   * delivers nothing. See docs/betting-markets.md for the budget.
    */
-  cacheTtlMs: envInt('ODDS_API_CACHE_TTL_SECONDS', 1800) * 1000,
+  cacheTtlMs: envInt('ODDS_API_CACHE_TTL_SECONDS', 1200) * 1000,
 };
 
 export const liveConfig = {
