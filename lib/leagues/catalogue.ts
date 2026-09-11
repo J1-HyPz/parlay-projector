@@ -48,6 +48,24 @@ export function isProjectable(league: League): boolean {
   return modelConfigForLeague(league.id, league.sport) !== null;
 }
 
+/**
+ * Whether a competition has a model of its own, whether or not parlays offer it.
+ *
+ * `isProjectable` answers "can the parlay engine build selections from this",
+ * which is a narrower question. A fight and a tennis match are both modelled --
+ * `bout-model.ts` rates the individuals and calls the winner, backtested like
+ * every other sport -- but neither is wired into the selection layer yet, so
+ * offering them there would be a dead end.
+ *
+ * The distinction exists so the interface can say which of the two is true.
+ * Telling a reader "no model for this sport" when the model exists and is
+ * calibrated would be the interface claiming something false about its own
+ * insides.
+ */
+export function hasOwnModel(league: League): boolean {
+  return league.format === 'bout' || league.format === 'match';
+}
+
 /** Region headings the catalogue already records, keyed by league id. */
 const REGION_BY_LEAGUE = new Map<string, string>(
   FOOTBALL_GROUPS.flatMap((group) => group.slugs.map((slug) => [slug, group.label] as const)),
@@ -131,7 +149,9 @@ export function sportOptions(
           ? null
           : tracked.length === 0
             ? 'No competition is tracked for this sport yet.'
-            : 'The projection engine has no model for this sport yet.',
+            : tracked.some(hasOwnModel)
+              ? 'Projections exist for this sport, but parlays do not offer it yet.'
+              : 'The projection engine has no model for this sport yet.',
       competitions: competitions.map(toOption),
     };
   });

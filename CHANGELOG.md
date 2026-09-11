@@ -33,10 +33,28 @@ archive that survives redeploys and finally makes head-to-head go back further
 than the current season, and a basketball model that no longer overstates how
 uncertain it is, a baseball model that no longer claims to be more certain than
 it is, baseball totals that account for the temperature and for the ballpark,
-every other sport checked the same way, and the UFC as a new sport with a
-fight model of its own. 895 tests.
+every other sport checked the same way, and two new sports — the UFC, and
+the ATP and WTA tours — each with a model of its own. 911 tests.
 
 ### Added
+
+**Tennis, as a new sport**
+
+- The **ATP** and **WTA** tours each get their own hub — **Matches**,
+  **Players**, **Rankings** — and their matches appear on Schedule and Live
+  alongside every other competition.
+- A projection is a match-winner probability from an Elo rating built only from
+  what each player has actually done. On held-out 2024-2025 matches it calls
+  the favourite correctly **62.3%** of the time on the ATP and **63.3%** on the
+  WTA, and when it says 60-70% the favourite wins 65% of the time.
+- It covers **most of the draw** — 86% of ATP matches and 83% of WTA — because
+  a tour player has a real record where a UFC prelim fighter often does not.
+- **Singles only.** A doubles pair is two people, and a rating is about one.
+- A **retirement** and a **walkover** are told apart from an ordinary win and
+  from each other, so a retired match can settle as void rather than as a loss
+  for the player who stopped.
+- Set scores are kept as games per set rather than flattened, so the total-games
+  market has what it needs when it is built.
 
 **The UFC, as a new sport**
 

@@ -57,6 +57,8 @@ describe('hub slugs', () => {
       'laliga', 'bundesliga', 'seriea',
       'f1',
       'ufc',
+      'atp',
+      'wta',
     ]);
   });
 
@@ -67,7 +69,9 @@ describe('hub slugs', () => {
   });
 
   it('returns null for an unknown or malformed slug', () => {
-    assert.equal(resolveHub('tennis'), null, 'no verified tennis competition exists');
+    // 'tennis' is the sport, not a competition: the ATP and WTA tours are
+    // separately drawn and separately ranked, and each is its own hub.
+    assert.equal(resolveHub('tennis'), null, 'tennis is a sport, not a competition');
     assert.equal(resolveHub('rugby'), null);
     assert.equal(resolveHub(''), null);
     assert.equal(resolveHub('../../etc/passwd'), null);
@@ -212,6 +216,7 @@ describe('navigation', () => {
         'football',
         'motorsport',
         'combat',
+        'racket',
       ],
     );
     // Football carries nine competitions; the sidebar only has room for two.
@@ -224,6 +229,9 @@ describe('navigation', () => {
     // The UFC likewise: the only competition contested by two people and no
     // score. Boxing is absent from the provider, so combat has one member.
     assert.equal(groups.find((group) => group.id === 'combat')?.hubs.length, 1);
+    // The two tours are ranked separately and drawn separately, so they are two
+    // competitions rather than one with a switcher.
+    assert.equal(groups.find((group) => group.id === 'racket')?.hubs.length, 2);
   });
 
   it('puts each hub in exactly one group', () => {
