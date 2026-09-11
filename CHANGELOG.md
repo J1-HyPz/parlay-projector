@@ -36,6 +36,52 @@ it is, baseball totals that account for the temperature and for the ballpark,
 every other sport checked the same way, and two new sports — the UFC, and
 the ATP and WTA tours — each with a model of its own. 911 tests.
 
+### Changed
+
+**Parlays now only contain bets you can actually place**
+
+- A parlay could previously include legs **no bookmaker anywhere was offering** —
+  the model's opinion on a market that does not exist to be taken. That was the
+  default setting, and the "Any market" option that produced it has been
+  removed. Every leg in a parlay is now a leg a book is quoting.
+- This is not a trim of a few edge cases. Of the seven kinds of market the model
+  can produce, the price source carries three, so the other four were only ever
+  estimates dressed as bets.
+- The model's view on markets nobody quotes has **not** gone — it is still on
+  each game's own page, where it reads as analysis rather than as something to
+  put on a slip.
+
+**Prices now come from UK bookmakers**
+
+- Every price the application showed came from **DraftKings**, which does not
+  operate in the UK. An audit of a week's fixtures found it quoting all 170 of
+  them and no other book at all. The odds were real; they were real somewhere
+  else.
+- With an API key set, prices now come from the UK region instead — Sky Bet,
+  William Hill, Paddy Power, Ladbrokes, Coral, Betfred, BetVictor and others —
+  and where several quote the same bet, **the best price wins** and the card
+  says which book gave it.
+- Without a key the application falls back to the old source rather than showing
+  nothing, and says which it used. Nothing is scraped; no bookmaker's site is
+  contacted.
+
+**The number of selections now follows the risk level**
+
+- The selections control opened at three whatever risk was chosen, even though
+  each risk level is built around its own count — three at low, four at medium,
+  five at high. Changing the risk now moves the count with it, and the
+  recommended one is marked. You can still overrule it.
+
+**Several selections from one match now need a single sport chosen**
+
+- A same-game line is built from one fixture's own simulations, which is sound
+  within a sport and misleading across several: asked for every sport, the
+  engine would rank football against basketball against baseball and then stack
+  several legs onto whichever fixture came top — a bet about one match wearing
+  the label of a survey of the evening.
+- The option is now disabled until a sport is chosen, and a request that asks
+  for it anyway is served as an ordinary parlay with the reason given.
+
 ### Added
 
 **Tennis, as a new sport**

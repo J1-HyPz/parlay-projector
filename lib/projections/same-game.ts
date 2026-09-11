@@ -136,7 +136,7 @@ export function buildSameGame(
   const profile = RISK_PROFILES[options.risk];
   const requested = clamp(options.legs ?? profile.defaultLegs, MIN_LEGS, MAX_LEGS);
 
-  const qualified = eligible(selections, profile, options.markets ?? 'any').sort(
+  const qualified = eligible(selections, profile, options.markets ?? 'available').sort(
     (a, b) => b.score - a.score,
   );
 
@@ -286,7 +286,7 @@ export function buildMixed(
   const pools = bundles
     .map((bundle) => ({
       bundle,
-      queue: eligible(bundle.selections, profile, options.markets ?? 'any').sort(
+      queue: eligible(bundle.selections, profile, options.markets ?? 'available').sort(
         (a, b) => b.score - a.score,
       ),
       chosen: [] as Selection[],

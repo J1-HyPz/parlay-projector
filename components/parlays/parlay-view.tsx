@@ -28,7 +28,7 @@ import { Layers3, LoaderCircle, RefreshCw, Shield, Sparkles, Target } from 'luci
 import type { Parlay, RiskLevel } from '@/lib/projections/types';
 import type { SportOption } from '@/lib/leagues/catalogue';
 import { ALL_COMPETITIONS, ALL_SPORTS } from '@/lib/leagues/catalogue';
-import { MAX_LEGS, MIN_LEGS } from '@/lib/projections/config';
+import { MAX_LEGS, MIN_LEGS, RISK_PROFILES } from '@/lib/projections/config';
 import { formatDayTab } from '@/lib/schedule/filters';
 import { LegCard } from './leg-card';
 import type { LegTracking } from './leg-card';
@@ -53,9 +53,17 @@ const RISKS: { id: RiskLevel; label: string; note: string }[] = [
   },
 ];
 
+/*
+ * There is no "any market" option any more.
+ *
+ * It used to be the default, and it meant a slip could contain legs no
+ * bookmaker anywhere offered. A parlay is a thing a person intends to place,
+ * so every leg in one is now a leg that can be placed; the model's view on
+ * markets nobody quotes is still shown on the game page, where it is analysis
+ * rather than a bet.
+ */
 const MARKETS: { id: string; label: string }[] = [
-  { id: 'any', label: 'Any market' },
-  { id: 'available', label: 'Confirmed available only' },
+  { id: 'available', label: 'Every available market' },
   { id: 'main', label: 'Main lines only' },
 ];
 
@@ -213,9 +221,20 @@ export function ParlayView() {
   const [risk, setRisk] = useState<RiskLevel>('low');
   const [sport, setSport] = useState<string>(ALL_SPORTS);
   const [league, setLeague] = useState<string>(ALL_COMPETITIONS);
-  const [markets, setMarkets] = useState('any');
+  const [markets, setMarkets] = useState('available');
   const [type, setType] = useState('multi');
-  const [legs, setLegs] = useState(3);
+  /*
+   * How many legs, recommended by the risk level rather than fixed.
+   *
+   * Each risk profile already carries the count it is built around -- three at
+   * low, four at medium, five at high -- because a longer line of
+   * higher-probability legs and a shorter line of longer-priced ones are the
+   * two halves of the same trade-off. The control used to open at three
+   * whatever the risk, which quietly ignored that. Changing the risk now moves
+   * the count with it, and the reader can still overrule the recommendation.
+   */
+  const [legs, setLegs] = useState(RISK_PROFILES.low.defaultLegs);
+  const recommendedLegs = RISK_PROFILES[risk].defaultLegs;
   const [variant, setVariant] = useState(0);
   const [day, setDay] = useState<string>(ALL_DAYS);
 
@@ -339,6 +358,13 @@ export function ParlayView() {
     (next: string) => {
       setSport(next);
       setLeague(defaultCompetition(catalogue?.find((entry) => entry.id === next)));
+      /*
+       * A same-game line cannot survive a move back to every sport, so the
+       * type goes with it rather than sitting selected-but-disabled and
+       * producing an ordinary parlay the reader did not ask for. The server
+       * enforces the same rule; this keeps the controls honest about it.
+       */
+      if (next === ALL_SPORTS) setType('multi');
       reset();
     },
     [catalogue, reset],
@@ -385,6 +411,9 @@ export function ParlayView() {
                 aria-pressed={risk === option.id}
                 onClick={() => {
                   setRisk(option.id);
+                  // The recommendation travels with the risk level; see the
+                  // note on `legs` above.
+                  setLegs(RISK_PROFILES[option.id].defaultLegs);
                   reset();
                 }}
                 className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
@@ -407,27 +436,47 @@ export function ParlayView() {
             Parlay type
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
-            {TYPES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={type === option.id}
-                onClick={() => {
-                  setType(option.id);
-                  reset();
-                }}
-                className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
-                  type === option.id
-                    ? 'chip-on'
-                    : 'chip-off'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {TYPES.map((option) => {
+              /*
+               * A same-game line needs one sport chosen first.
+               *
+               * Its legs are counted together off one fixture's own
+               * simulations, which is sound within a sport and misleading
+               * across several: asked for every sport, the engine ranks
+               * football against basketball against baseball and then stacks
+               * several legs onto whichever fixture happens to come top. That
+               * is a bet about one match wearing the label of a survey of the
+               * evening.
+               */
+              const needsOneSport = option.id === 'same' && sport === ALL_SPORTS;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={type === option.id}
+                  disabled={needsOneSport}
+                  title={needsOneSport ? 'Choose a single sport to build a same-game line.' : undefined}
+                  onClick={() => {
+                    setType(option.id);
+                    reset();
+                  }}
+                  className={`min-h-10 rounded-xl border px-4 text-xs font-medium transition focus-ring ${
+                    needsOneSport
+                      ? 'cursor-not-allowed border-line bg-surface-1 text-ink-disabled'
+                      : type === option.id
+                        ? 'chip-on'
+                        : 'chip-off'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
           <p className="mt-2 text-2xs leading-5 text-ink-faint">
-            {TYPES.find((option) => option.id === type)?.note}
+            {sport === ALL_SPORTS
+              ? 'Several legs from one match need a single sport chosen first — across sports the engine would rank every competition against every other and then stack the legs onto whichever fixture came top.'
+              : TYPES.find((option) => option.id === type)?.note}
           </p>
         </fieldset>
 
@@ -691,6 +740,9 @@ export function ParlayView() {
                     }`}
                   >
                     {count}
+                    {count === recommendedLegs && (
+                      <span className="sr-only"> (recommended for this risk level)</span>
+                    )}
                   </button>
                 );
               },
@@ -796,13 +848,13 @@ export function ParlayView() {
                   This selection is used exactly as chosen — no leg is taken from outside it.
                 </p>
               )}
-              {markets === 'available' && (
-                <p className="mt-2 text-sm leading-6 text-status-warn">
-                  You have asked for confirmed markets only. Bookmaker prices are not published
-                  for every competition — try &ldquo;Any market&rdquo; to include the model&rsquo;s
-                  own lines, which are labelled as unverified.
-                </p>
-              )}
+              <p className="mt-2 text-sm leading-6 text-status-warn">
+                Parlays only ever contain bets a bookmaker is actually offering, and prices are
+                not published for every competition this far ahead. Try a different sport, a
+                nearer date, or a lower risk level. The model&rsquo;s view on markets nobody is
+                quoting is still on each game&rsquo;s own page, where it is analysis rather than
+                a bet.
+              </p>
               {type === 'same' && (
                 <p className="mt-2 text-sm leading-6 text-ink-faint">
                   A same-game line needs several selections from one fixture to clear the risk
