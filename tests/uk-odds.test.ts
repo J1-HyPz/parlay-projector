@@ -2,11 +2,19 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  creditsFor,
   joinToFixtures,
+  marketsFor,
+  oddsQuota,
   pricesLeague,
+  recordQuota,
+  resetOddsQuota,
   sportKeyFor,
   tournamentKeysFor,
 } from '../lib/odds/uk-books.ts';
+import { findLeague } from '../lib/leagues/registry.ts';
+import { MAX_QUOTE_AGE_MS } from '../lib/markets/types.ts';
+import { oddsApiConfig } from '../lib/config.ts';
 import type { RawUkEvent } from '../lib/odds/uk-books.ts';
 import { eligible } from '../lib/projections/optimiser.ts';
 import { RISK_PROFILES } from '../lib/projections/config.ts';
@@ -234,6 +242,109 @@ describe('finding this week’s tennis tournaments', () => {
 
   it('gives nothing for a competition priced by a single key', () => {
     assert.deepEqual(tournamentKeysFor('epl', sports), []);
+  });
+});
+
+describe('paying only for markets the model can use', () => {
+  /*
+   * This provider bills markets × regions per call, so every market asked for
+   * is paid for whether or not anything reads it.
+   */
+  it('buys the winner alone for a fight or a tennis match', () => {
+    // `boutSelections` reads h2h quotes and ignores every other kind, so
+    // handicaps and totals there were two thirds of each call, thrown away.
+    for (const id of ['ufc', 'atp', 'wta']) {
+      const league = findLeague(id)!;
+      assert.equal(marketsFor(league), 'h2h');
+      assert.equal(creditsFor(league), 1);
+    }
+  });
+
+  it('still buys all three where the scoring model prices all three', () => {
+    for (const id of ['epl', 'nfl', 'mlb']) {
+      const league = findLeague(id)!;
+      assert.equal(marketsFor(league), 'h2h,spreads,totals');
+      assert.equal(creditsFor(league), 3);
+    }
+  });
+
+  it('makes a tour three times cheaper, where it costs the most', () => {
+    /*
+     * A tour is several tournament keys at once, so the saving compounds
+     * exactly where the bill was largest.
+     */
+    const atp = findLeague('atp')!;
+    const epl = findLeague('epl')!;
+    assert.equal(creditsFor(epl) / creditsFor(atp), 3);
+  });
+});
+
+describe('knowing what is left', () => {
+  /*
+   * A quota nobody can see is one that runs out mid-month without warning.
+   * These figures come from headers the provider sends on every priced call,
+   * and the accounting should not be checkable only against a live key.
+   */
+  const headers = (entries: Record<string, string>) => new Headers(entries);
+
+  it('reads the budget the provider reports', () => {
+    resetOddsQuota();
+    recordQuota(
+      headers({
+        'x-requests-remaining': '19946',
+        'x-requests-used': '54',
+        'x-requests-last': '3',
+      }),
+    );
+
+    const quota = oddsQuota();
+    assert.equal(quota.remaining, 19946);
+    assert.equal(quota.used, 54);
+    assert.equal(quota.lastCost, 3);
+    assert.equal(quota.exhausted, false);
+    assert.ok(quota.at);
+  });
+
+  it('notices when there is nothing left to spend', () => {
+    resetOddsQuota();
+    recordQuota(headers({ 'x-requests-remaining': '0', 'x-requests-used': '20000' }));
+    assert.equal(oddsQuota().exhausted, true);
+  });
+
+  it('keeps the last known figure when a response omits the headers', () => {
+    // Losing the number because one response was shaped differently would
+    // report the budget as unknown rather than as what it last was.
+    resetOddsQuota();
+    recordQuota(headers({ 'x-requests-remaining': '500' }));
+    recordQuota(headers({}));
+    assert.equal(oddsQuota().remaining, 500);
+  });
+
+  it('survives a header that is not a number', () => {
+    resetOddsQuota();
+    recordQuota(headers({ 'x-requests-remaining': 'unlimited' }));
+    assert.equal(oddsQuota().remaining, null);
+    assert.equal(oddsQuota().exhausted, false);
+  });
+});
+
+describe('a cached price does not pretend to be a fresh one', () => {
+  it('leaves room for a quote to still be verified when it is read', () => {
+    /*
+     * Two caches sit between a fetch and a reader: the odds cache, and the
+     * five-minute candidate build in front of it. So the oldest a served quote
+     * can be is one lifetime plus five minutes, and past MAX_QUOTE_AGE_MS it
+     * stops counting as verified — bought, then discarded for being stale.
+     *
+     * This asserts the relationship rather than the number, so changing the
+     * lifetime cannot quietly push it past the cliff.
+     */
+    const candidateCacheMs = 5 * 60_000;
+    assert.ok(
+      oddsApiConfig.cacheTtlMs + candidateCacheMs < MAX_QUOTE_AGE_MS,
+      `a quote could reach ${(oddsApiConfig.cacheTtlMs + candidateCacheMs) / 60_000} minutes old, ` +
+        `past the ${MAX_QUOTE_AGE_MS / 60_000}-minute freshness limit`,
+    );
   });
 });
 

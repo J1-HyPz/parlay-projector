@@ -36,7 +36,7 @@
 import { cached } from '../cache.ts';
 import { oddsApiConfig } from '../config.ts';
 import { logger } from '../logger.ts';
-import { getJson, ProviderError } from '../http.ts';
+import { getJson, getJsonWithHeaders, ProviderError } from '../http.ts';
 import { findMatchingGame, sameTeam } from '../providers/matching.ts';
 import { priceFromDecimal } from '../markets/price.ts';
 import type { GameMarkets, QuotedMarket, Side } from '../markets/types.ts';
@@ -96,6 +96,117 @@ const TOUR_PREFIXES: Readonly<Record<string, string>> = {
 /** Whether this provider prices the competition at all, by either route. */
 export function pricesLeague(leagueId: string): boolean {
   return leagueId in SPORT_KEYS || leagueId in TOUR_PREFIXES;
+}
+
+// ---------------------------------------------------------------------------
+// What to ask for
+// ---------------------------------------------------------------------------
+
+/**
+ * The markets worth buying for a competition.
+ *
+ * **This provider bills markets × regions per call, so every market named here
+ * is paid for whether or not anything reads it.** Three markets against one
+ * region is three credits; one market is one.
+ *
+ * A fight and a tennis match are priced on the winner alone, because that is
+ * the only market their model produces a probability for — `boutSelections`
+ * reads `h2h` quotes and ignores every other kind, by design. Asking for
+ * handicaps and totals there bought two thirds of each call to throw away,
+ * and it was worst exactly where it cost most: a tour is several tournament
+ * keys at once, so tennis was paying triple on every one of them.
+ *
+ * Everything else takes all three. The scoring model prices handicaps and
+ * totals off the same simulations as the winner, and a football handicap is
+ * read from a quote even though the model declines to derive one itself.
+ */
+export function marketsFor(league: League): string {
+  const winnerOnly = league.format === 'bout' || league.format === 'match';
+  return winnerOnly ? 'h2h' : 'h2h,spreads,totals';
+}
+
+/** What one call for this competition costs, in the provider's own credits. */
+export function creditsFor(league: League): number {
+  // markets × regions, and the region is always exactly one — see oddsApiConfig.
+  return marketsFor(league).split(',').length;
+}
+
+// ---------------------------------------------------------------------------
+// The budget
+// ---------------------------------------------------------------------------
+
+/**
+ * What the provider says is left, from the headers it returns on every call.
+ *
+ * A quota nobody can see is one that runs out mid-month without warning, and
+ * this field existed on the result type for a while returning `null` forever.
+ * It is read from `x-requests-remaining`, which this provider sends on every
+ * priced response.
+ */
+export interface OddsQuota {
+  remaining: number | null;
+  used: number | null;
+  /** Credits the last call cost, as the provider counted it. */
+  lastCost: number | null;
+  /** When these figures were last refreshed. */
+  at: string | null;
+  /** True while calls are being skipped because the quota is spent. */
+  exhausted: boolean;
+}
+
+let quota: OddsQuota = {
+  remaining: null,
+  used: null,
+  lastCost: null,
+  at: null,
+  exhausted: false,
+};
+
+/** The current budget, for diagnostics. Contains no credential. */
+export function oddsQuota(): OddsQuota {
+  return { ...quota };
+}
+
+/** Reset, for tests. */
+export function resetOddsQuota(): void {
+  quota = { remaining: null, used: null, lastCost: null, at: null, exhausted: false };
+}
+
+function readNumber(headers: Headers, name: string): number | null {
+  const raw = headers.get(name);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Record what a call cost and what is left.
+ *
+ * Exported for the test: the accounting is the point of this work, and it
+ * should not be verifiable only against a live key.
+ */
+export function recordQuota(headers: Headers): OddsQuota {
+  const remaining = readNumber(headers, 'x-requests-remaining');
+  const used = readNumber(headers, 'x-requests-used');
+  const lastCost = readNumber(headers, 'x-requests-last');
+
+  quota = {
+    remaining: remaining ?? quota.remaining,
+    used: used ?? quota.used,
+    lastCost: lastCost ?? quota.lastCost,
+    at: new Date().toISOString(),
+    /*
+     * Nothing left to spend.
+     *
+     * Recorded so the next refresh skips the request rather than making one
+     * that is certain to be refused. It does not change what a reader sees --
+     * a fixture with no price reports as unverified either way -- it just
+     * stops the application asking a question it already knows the answer to.
+     */
+    exhausted: remaining !== null && remaining <= 0,
+  };
+
+  return { ...quota };
 }
 
 /** One entry of the provider's sports list, as it arrives. */
@@ -403,6 +514,17 @@ export interface UkOddsResult {
 const EMPTY: UkOddsResult = { markets: new Map(), remaining: null };
 
 /**
+ * One cached payload, with the instant it was actually read.
+ *
+ * The timestamp is cached alongside the events rather than taken when the
+ * cache is *read*, so a quote's stated age is its real age.
+ */
+interface CachedOdds {
+  events: RawUkEvent[];
+  fetchedAt: string;
+}
+
+/**
  * Prices for one competition's fixtures.
  *
  * Takes the fixtures rather than a date range, because this provider has no
@@ -415,52 +537,89 @@ export async function ukMarketsForLeague(
 ): Promise<UkOddsResult> {
   if (!oddsApiConfig.key || !pricesLeague(league.id) || fixtures.length === 0) return EMPTY;
 
+  /*
+   * Spent out. Skipping costs a reader nothing they were not already going to
+   * get -- an unpriced fixture reports as unverified either way -- and saves
+   * making a request whose answer is already known.
+   */
+  if (quota.exhausted) return { markets: new Map(), remaining: quota.remaining };
+
   try {
     const keys = await sportKeysFor(league.id);
     if (keys.length === 0) return EMPTY;
 
+    const markets = marketsFor(league);
+
     /*
-     * One request per key, three markets, one region.
+     * One request per key, one region, and only the markets this competition's
+     * model can actually price.
      *
-     * The provider charges markets x regions per call, so each key is three
-     * credits. Asking for more regions to "see more books" would multiply the
-     * bill for prices a UK reader cannot use anyway.
+     * The provider charges markets × regions per call. The region is always
+     * one: adding more to "see more books" would multiply the bill for prices
+     * a UK reader cannot take anyway. The markets vary — see `marketsFor`,
+     * which is what stops a fight or a tennis match buying handicaps and
+     * totals nothing will ever read.
      *
-     * A tour is several keys — one per tournament in play, typically two to
-     * four — so a week of tennis costs a few times what a football league
-     * does. Stated here rather than hidden: on the free tier that is the
-     * difference between a month's quota lasting and not, and the cache
-     * lifetime in `oddsApiConfig` is the lever.
+     * A tour is several keys at once, one per tournament in play, so it is the
+     * most expensive thing here and the place that saving matters most.
      */
     const payloads = await Promise.all(
       keys.map(async (sport) => {
-        const { value } = await cached(
-          `uk-odds:${sport}:${oddsApiConfig.region}`,
+        const { value } = await cached<CachedOdds>(
+          `uk-odds:${sport}:${markets}:${oddsApiConfig.region}`,
           oddsApiConfig.cacheTtlMs,
           async () => {
             const url =
               `${BASE}/sports/${sport}/odds?apiKey=${encodeURIComponent(oddsApiConfig.key)}` +
-              `&regions=${oddsApiConfig.region}&markets=h2h,spreads,totals` +
+              `&regions=${oddsApiConfig.region}&markets=${markets}` +
               `&oddsFormat=decimal&dateFormat=iso`;
-            return getJson<RawUkEvent[]>(url, { timeoutMs: oddsApiConfig.timeoutMs });
+            const { value: body, headers } = await getJsonWithHeaders<RawUkEvent[]>(url, {
+              timeoutMs: oddsApiConfig.timeoutMs,
+              redactSecret: oddsApiConfig.key,
+            });
+            recordQuota(headers);
+            /*
+             * The instant travels with the payload, and that is the whole
+             * point of caching it this way.
+             *
+             * It used to be stamped when the *join* ran, which happens on
+             * every request whether or not anything was fetched -- so a price
+             * read twenty-nine minutes ago was handed to the reader labelled
+             * as read just now, and `MAX_QUOTE_AGE_MS` could never fire for
+             * this source at all. A quote presented as current has to
+             * actually be current; that is the one thing this field is for.
+             */
+            return { events: Array.isArray(body) ? body : [], fetchedAt: new Date().toISOString() };
           },
         );
-        return Array.isArray(value) ? value : [];
+        return value;
       }),
     );
 
-    const events = payloads.flat();
-    const markets = joinToFixtures(events, fixtures, new Date().toISOString());
+    const events = payloads.flatMap((payload) => payload.events);
+    /*
+     * The oldest of the payloads that contributed. A tour reads several
+     * tournament keys whose caches expire at different moments, and claiming
+     * the newest of them would describe the others as fresher than they are.
+     */
+    const fetchedAt = payloads
+      .map((payload) => payload.fetchedAt)
+      .sort()[0] ?? new Date().toISOString();
+
+    const joined = joinToFixtures(events, fixtures, fetchedAt);
 
     logger.info('uk_odds_refreshed', {
       league: league.id,
       keys: keys.length,
+      markets,
       events: events.length,
       fixtures: fixtures.length,
-      matched: markets.size,
+      matched: joined.size,
+      // The budget, so burn rate is visible without a live console.
+      remaining: quota.remaining,
     });
 
-    return { markets, remaining: null };
+    return { markets: joined, remaining: quota.remaining };
   } catch (error) {
     /*
      * Swallowed to nothing, deliberately.
@@ -470,6 +629,16 @@ export async function ukMarketsForLeague(
      * reports as unverified, exactly as it does for a fixture no book has
      * priced yet. The key is never included in what is logged.
      */
+    /*
+     * A 401 from this provider means the key is spent or invalid, and either
+     * way every further call this month is doomed. Recorded so the next one is
+     * not made -- the same reasoning as the header-driven guard above, for the
+     * case where the quota ran out between one call and the next.
+     */
+    if (error instanceof ProviderError && error.status === 401) {
+      quota = { ...quota, remaining: 0, exhausted: true, at: new Date().toISOString() };
+    }
+
     logger.warn('uk_odds_failed', {
       league: league.id,
       reason: error instanceof ProviderError ? `status ${error.status}` : 'unknown',

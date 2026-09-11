@@ -49,7 +49,13 @@ interface FetchOptions {
   maxBytes?: number;
 }
 
-async function fetchText(url: string, options: FetchOptions): Promise<string> {
+/** A response body, with the headers a caller asked to keep. */
+export interface FetchedText {
+  text: string;
+  headers: Headers;
+}
+
+async function fetchText(url: string, options: FetchOptions): Promise<FetchedText> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs);
 
@@ -80,7 +86,7 @@ async function fetchText(url: string, options: FetchOptions): Promise<string> {
     if (text.length > ceiling) {
       throw new ProviderError('provider response too large', response.status, true);
     }
-    return text;
+    return { text, headers: response.headers };
   } catch (error) {
     if (error instanceof ProviderError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
@@ -94,7 +100,7 @@ async function fetchText(url: string, options: FetchOptions): Promise<string> {
   }
 }
 
-export async function getText(url: string, options: FetchOptions): Promise<string> {
+async function fetchLogged(url: string, options: FetchOptions): Promise<FetchedText> {
   try {
     return await fetchText(url, options);
   } catch (error) {
@@ -108,8 +114,11 @@ export async function getText(url: string, options: FetchOptions): Promise<strin
   }
 }
 
-export async function getJson<T>(url: string, options: FetchOptions): Promise<T> {
-  const text = await getText(url, options);
+export async function getText(url: string, options: FetchOptions): Promise<string> {
+  return (await fetchLogged(url, options)).text;
+}
+
+function parseJson<T>(text: string, url: string, options: FetchOptions): T {
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -118,4 +127,26 @@ export async function getJson<T>(url: string, options: FetchOptions): Promise<T>
     });
     throw new ProviderError('provider returned invalid JSON');
   }
+}
+
+export async function getJson<T>(url: string, options: FetchOptions): Promise<T> {
+  const { text } = await fetchLogged(url, options);
+  return parseJson<T>(text, url, options);
+}
+
+/**
+ * The same, keeping the response headers.
+ *
+ * For the one provider that reports something in them worth acting on: The
+ * Odds API returns the account's remaining quota on every priced call, and a
+ * budget nobody can see is one that runs out without warning. Every other
+ * caller wants `getJson` — headers are a detail, and this exists so they stay
+ * one everywhere else.
+ */
+export async function getJsonWithHeaders<T>(
+  url: string,
+  options: FetchOptions,
+): Promise<{ value: T; headers: Headers }> {
+  const { text, headers } = await fetchLogged(url, options);
+  return { value: parseJson<T>(text, url, options), headers };
 }

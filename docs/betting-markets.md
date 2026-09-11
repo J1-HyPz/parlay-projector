@@ -53,10 +53,56 @@ price the ATP for a fortnight and then quietly stop. Inactive keys and
 outrights are skipped: the first returns nothing, and the second is a
 tournament-winner market with no match prices to join to a fixture.
 
-That costs more. A competition with one key is three credits per refresh;
-a tour is three per tournament in play, typically two to four at once.
-`ODDS_API_CACHE_TTL_SECONDS` is the lever, and on the free tier's 500 credits a
-month it is not a small one.
+### The budget
+
+This provider bills **markets × regions per call**, so every market asked for
+is paid for whether or not anything reads it. The region is always exactly
+one — adding more to "see more books" would multiply the bill for prices a UK
+reader cannot take anyway — so the markets are the whole of the cost.
+
+**Only the markets a competition's model can price are requested.** A fight and
+a tennis match are priced on the winner alone, because that is the only market
+their model produces a probability for; asking for handicaps and totals there
+bought two thirds of every call to throw away. It was worst exactly where it
+cost most, since a tour is several tournament keys at once.
+
+| | Keys | Markets | Credits |
+| --- | --- | --- | --- |
+| Each of 15 team competitions | 1 | `h2h,spreads,totals` | 3 |
+| UFC | 1 | `h2h` | 1 |
+| ATP / WTA | ~4 each, in play | `h2h` | 1 each |
+
+A full cold refresh of everything in season is **54 credits**, down from 72.
+On a 20,000-credit month that is about **370 full builds**, or a dozen a day —
+and a build that reuses the cache costs nothing at all.
+
+Two things bound the spend more than the cache lifetime does:
+
+- **An out-of-season competition is free.** No scheduled fixture means no
+  request, so nothing is spent asking a bookmaker about a league that is not
+  playing.
+- **Scope is the real lever.** A parlay built across "all sports" touches every
+  competition in season at once; one built for a single competition touches
+  one. The cache lifetime only decides how often a *repeat* costs anything.
+
+There is no cache lifetime that would survive every competition being
+refreshed continuously around the clock — even hourly would be 39,000 credits a
+month. The lifetime is therefore set for freshness rather than for cost, and
+the budget is kept by not asking for what will not be read.
+
+### Knowing what is left
+
+The provider reports the account's remaining quota in the headers of every
+priced call, and those figures are recorded and surfaced at
+`GET /api/internal/providers` under `odds_budget`, alongside every refresh in
+the logs. A quota nobody can see is one that runs out mid-month without
+warning.
+
+When it does run out — `x-requests-remaining` reaching zero, or a `401` — the
+application stops calling until the process restarts rather than making
+requests it already knows will be refused. Nothing about what a reader sees
+changes: a fixture with no price reports as an unverified model projection,
+exactly as it does for one no book has quoted yet.
 
 This does not undo the betting-data strip in the fixtures adapter. That
 boundary still holds: a `Game` has no odds on it and never will. Prices live in
@@ -99,6 +145,23 @@ A quote is only evidence of availability while it is current. Past
 `MAX_QUOTE_AGE_MS` (30 minutes) a market stops being treated as verified and
 falls back to being described as a model projection. Every verified badge
 carries the time the price was read, so the reader can judge for themselves.
+
+**The time it carries is when the call was made, not when the cache was read.**
+That distinction was wrong for a while and the consequence was quiet: the
+timestamp was stamped as each request assembled its answer, so a price fetched
+twenty-nine minutes earlier was handed over labelled as read just now, and the
+thirty-minute limit could never fire for this source at all. The instant is now
+cached with the payload it belongs to.
+
+That makes the cache lifetime mean something, and it has to be set against the
+limit rather than against the bill. Two caches sit between a fetch and a
+reader — the odds cache and the five-minute candidate build in front of it — so
+the oldest a served quote can be is one lifetime plus five minutes.
+`ODDS_API_CACHE_TTL_SECONDS` defaults to 1200, putting that at twenty-five
+minutes, inside the limit with five to spare. Raising it past twenty-five is
+not a saving: it makes quotes arrive already unverified, which costs exactly
+the same and delivers nothing. A test asserts the relationship, so the default
+cannot drift past the cliff unnoticed.
 
 ## Two states, never blurred
 
@@ -240,8 +303,8 @@ fixtures feed, where several books appear, the first is taken.
 ODDS_ENABLED=true              # false reports every selection as model_only
 ODDS_CACHE_TTL_SECONDS=600
 ODDS_API_KEY=                  # empty means off: no request, no UK prices
-ODDS_API_REGION=uk
-ODDS_API_CACHE_TTL_SECONDS=1800
+ODDS_API_REGION=uk             # one region; more multiplies the bill
+ODDS_API_CACHE_TTL_SECONDS=1200  # freshness-bound, not cost-bound. See above.
 ```
 
 `ODDS_API_KEY` is a credential: anyone holding it can spend the account's

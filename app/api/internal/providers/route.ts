@@ -10,8 +10,9 @@
  * it needs credentials, and a coarse health state.
  */
 
-import { sportsConfig } from '@/lib/config';
+import { oddsApiConfig, sportsConfig } from '@/lib/config';
 import { json } from '@/lib/home/api';
+import { oddsQuota } from '@/lib/odds/uk-books';
 import { bootstrapProviders, listProviders, providerHealth } from '@/lib/providers';
 
 export const dynamic = 'force-dynamic';
@@ -42,5 +43,27 @@ export async function GET(): Promise<Response> {
       schedule_cache_seconds: Math.round(sportsConfig.scheduleTtlMs / 1000),
       today_cache_seconds: Math.round(sportsConfig.cacheTtlMs / 1000),
     },
+    /*
+     * The bookmaker quota, as the provider itself reports it.
+     *
+     * Whether a key is configured, never which key — the same rule the rest of
+     * this endpoint follows. `remaining` stays null until the first priced call
+     * of the process, because it is read from that call's response headers
+     * rather than asked for separately.
+     */
+    odds_budget: (() => {
+      // snake_case, like every other field this application serves.
+      const { remaining, used, lastCost, at, exhausted } = oddsQuota();
+      return {
+        configured: oddsApiConfig.key.length > 0,
+        region: oddsApiConfig.region,
+        cache_seconds: Math.round(oddsApiConfig.cacheTtlMs / 1000),
+        remaining,
+        used,
+        last_cost: lastCost,
+        measured_at: at,
+        exhausted,
+      };
+    })(),
   });
 }
