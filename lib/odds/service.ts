@@ -1,6 +1,19 @@
 /**
  * Fetching bookmaker prices for the fixtures on screen.
  *
+ * **Two sources, and which one answers depends on configuration.** With
+ * `ODDS_API_KEY` set, prices come from UK bookmakers via `uk-books.ts` — Sky
+ * Bet, William Hill, Paddy Power and the rest of that region. Without it, the
+ * fallback is the prices the sports feed carries alongside its fixtures, which
+ * an audit found to be DraftKings and nothing else: real prices, quoted in a
+ * country most of this application's readers are not in.
+ *
+ * The fallback is kept rather than deleted because it is better than nothing
+ * for a reader who *is* in the United States, and because removing the only
+ * source before the replacement is configured would leave the application with
+ * no prices at all. But it is second, and what it is gets said out loud rather
+ * than presented as simply "the odds".
+ *
  * One request per competition covers its whole schedule window, the same shape
  * the fixtures adapter uses, and the result is cached for minutes rather than
  * hours: a price presented as current has to be current.
@@ -21,12 +34,14 @@
  */
 
 import { cached } from '../cache';
-import { espnConfig, oddsConfig } from '../config';
+import { espnConfig, oddsApiConfig, oddsConfig } from '../config';
 import { logger } from '../logger';
 import { fetchEspn } from '../providers/espn/client';
 import { compactDate, espnGameId } from '../providers/espn/fixtures';
 import type { League } from '../leagues/registry';
 import type { GameMarkets } from '../markets/types';
+import { getLeagueGames } from '../leagues/games.ts';
+import { sportKeyFor, ukMarketsForLeague } from './uk-books.ts';
 import { normaliseOddsResponse } from './normalise.ts';
 import type { RawOddsResponse } from './normalise.ts';
 
@@ -45,7 +60,35 @@ export async function marketsForLeague(
   startDate: string,
   endDate: string,
 ): Promise<ReadonlyMap<string, GameMarkets>> {
-  if (!oddsConfig.enabled || !espnConfig.enabled) return NONE;
+  if (!oddsConfig.enabled) return NONE;
+
+  /*
+   * UK books first, when a key is configured.
+   *
+   * That provider shares no identifiers with the fixtures feed, so it needs
+   * the fixtures themselves to join on. They come from the same cached
+   * accessor the hubs use, so this is a cache hit rather than another
+   * provider call in all but the coldest case.
+   *
+   * A key that returns nothing -- exhausted quota, an outage, a competition
+   * this provider does not price -- falls through to the feed's own prices
+   * rather than leaving the reader with none.
+   */
+  if (oddsApiConfig.key && sportKeyFor(league.id)) {
+    try {
+      const { games } = await getLeagueGames([league]);
+      const upcoming = games.filter((game) => game.status === 'scheduled');
+      const { markets } = await ukMarketsForLeague(league, upcoming);
+      if (markets.size > 0) return markets;
+    } catch (error) {
+      logger.warn('uk_odds_lookup_failed', {
+        league: league.id,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+    }
+  }
+
+  if (!espnConfig.enabled) return NONE;
   if (league.provider !== 'espn' || !league.espnPath) return NONE;
 
   const range = `${compactDate(startDate)}-${compactDate(endDate)}`;
@@ -116,7 +159,16 @@ export async function marketsForLeagues(
   const merged = new Map<string, GameMarkets>();
   if (!oddsConfig.enabled) return merged;
 
-  const queue = leagues.filter((league) => league.provider === 'espn' && league.espnPath);
+  /*
+   * A competition qualifies if either source could price it. The ESPN filter
+   * alone would have skipped anything the UK provider covers but the fixtures
+   * feed does not, which is the wrong way round now that the UK source leads.
+   */
+  const queue = leagues.filter(
+    (league) =>
+      (league.provider === 'espn' && league.espnPath) ||
+      (Boolean(oddsApiConfig.key) && sportKeyFor(league.id) !== null),
+  );
 
   let next = 0;
   const workers = Array.from(

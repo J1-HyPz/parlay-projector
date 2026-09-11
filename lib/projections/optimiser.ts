@@ -37,11 +37,21 @@ import { combinedDecimal, decimalToAmerican, decimalToFractional } from '../mark
 /**
  * Which markets a reader wants to see.
  *
- *   any        everything the model has an opinion on
- *   available  only markets a bookmaker was confirmed to be offering
- *   main       the headline markets: winner, handicap, total
+ *   available  every market a bookmaker was confirmed to be offering
+ *   main       the headline three of those: winner, handicap, total
+ *
+ * **Availability is not one of the choices any more.** There used to be an
+ * `any` setting, it was the default, and it meant a slip could contain legs no
+ * bookmaker anywhere offered — the model's opinion on a market that does not
+ * exist to be taken. A parlay is a thing a person intends to place, so every
+ * leg in one must be placeable; an estimate about an unofferable market is
+ * analysis, and it still appears as analysis on the game page.
+ *
+ * This is not a filter that removes a few edge cases. Of the seven market
+ * types this application can produce, the price source carries three, so the
+ * other four were only ever model estimates dressed as bets.
  */
-export type MarketFilter = 'any' | 'available' | 'main';
+export type MarketFilter = 'available' | 'main';
 
 const MAIN_MARKETS: readonly string[] = ['winner', 'spread', 'total'];
 
@@ -62,7 +72,7 @@ export interface OptimiseOptions {
 export function eligible(
   selections: readonly Selection[],
   profile: RiskProfile,
-  markets: MarketFilter = 'any',
+  markets: MarketFilter = 'available',
 ): Selection[] {
   return selections.filter((selection) => {
     if (selection.probability < profile.minProbability) return false;
@@ -71,7 +81,12 @@ export function eligible(
     if (selection.confidence < profile.minConfidence) return false;
     if (!profile.allowedTypes.includes(selection.type)) return false;
 
-    if (markets === 'available' && selection.market.availability !== 'verified') return false;
+    /*
+     * Unconditional, and it is the point of this filter rather than an option
+     * within it. A leg nobody quotes cannot be put on a betting slip, so it has
+     * no business in a parlay whatever else is asked for.
+     */
+    if (selection.market.availability !== 'verified') return false;
     if (markets === 'main' && !MAIN_MARKETS.includes(selection.type)) return false;
 
     return true;
@@ -246,7 +261,7 @@ export function optimise(
   const profile = RISK_PROFILES[options.risk];
   const requested = clamp(options.legs ?? profile.defaultLegs, MIN_LEGS, MAX_LEGS);
 
-  const qualified = eligible(selections, profile, options.markets ?? 'any');
+  const qualified = eligible(selections, profile, options.markets ?? 'available');
   const perGame = bestPerGame(qualified);
 
   if (perGame.length < MIN_LEGS) {
@@ -349,7 +364,7 @@ export function availableDays(
   dates: readonly string[],
   risk: RiskLevel,
   timezone: string,
-  markets: MarketFilter = 'any',
+  markets: MarketFilter = 'available',
 ): DayAvailability[] {
   const profile = RISK_PROFILES[risk];
   const qualified = eligible(selections, profile, markets);

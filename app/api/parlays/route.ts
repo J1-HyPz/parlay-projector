@@ -38,7 +38,7 @@
  */
 
 import { json } from '@/lib/home/api';
-import { describeScope, resolveScope } from '@/lib/leagues/catalogue';
+import { ALL_SPORTS, describeScope, resolveScope } from '@/lib/leagues/catalogue';
 import { logger } from '@/lib/logger';
 import { invalidateAccuracy } from '@/lib/projections/accuracy';
 import { APP_TIMEZONE } from '@/lib/config';
@@ -72,7 +72,7 @@ interface LegTracking {
 }
 
 const RISKS: readonly RiskLevel[] = ['low', 'medium', 'high'];
-const MARKET_FILTERS: readonly MarketFilter[] = ['any', 'available', 'main'];
+const MARKET_FILTERS: readonly MarketFilter[] = ['available', 'main'];
 
 /**
  * The strongest same-game line across the eligible fixtures.
@@ -214,16 +214,43 @@ export async function GET(request: Request): Promise<Response> {
   const rawVariant = Number.parseInt(params.get('variant') ?? '', 10);
   const variant = Number.isFinite(rawVariant) ? Math.abs(rawVariant) : 0;
 
-  const requestedMarkets = (params.get('markets') ?? 'any').toLowerCase();
-  if (!(MARKET_FILTERS as readonly string[]).includes(requestedMarkets)) {
+  /*
+   * `any` used to mean "include markets nobody offers" and was the default.
+   * It is accepted and read as `available` rather than rejected, so a saved
+   * link or a bookmarked slip keeps working -- it simply no longer returns
+   * legs that cannot be placed.
+   */
+  const requestedMarkets = (params.get('markets') ?? 'available').toLowerCase();
+  const normalisedMarkets = requestedMarkets === 'any' ? 'available' : requestedMarkets;
+  if (!(MARKET_FILTERS as readonly string[]).includes(normalisedMarkets)) {
     return json(
-      { error: 'invalid_markets', message: 'Markets must be any, available or main.' },
+      { error: 'invalid_markets', message: 'Markets must be available or main.' },
       400,
     );
   }
-  const markets = requestedMarkets as MarketFilter;
+  const markets = normalisedMarkets as MarketFilter;
 
-  const sameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
+  /*
+   * Several legs from one match need a single sport selected, and this is
+   * enforced here rather than only offered in the interface.
+   *
+   * A same-game line is built from one fixture's own simulations, so its legs
+   * are counted together rather than multiplied. That reasoning is sound
+   * within a sport and misleading across several: asked for "all sports", the
+   * engine ranks candidates from football, basketball and baseball against one
+   * another and then stacks several legs onto whichever single fixture happens
+   * to rank highest, which is a bet about one match wearing the label of a
+   * survey of the evening. Narrowing to a sport first is what makes the
+   * request mean what it says.
+   *
+   * A request for several-per-game across every sport is quietly served as one
+   * leg per fixture rather than refused, and the response says so, because the
+   * honest answer to it is the ordinary parlay.
+   */
+  const singleSport = sport !== ALL_SPORTS;
+
+  const askedSameGame = (params.get('type') ?? 'multi').toLowerCase() === 'same';
+  const sameGame = askedSameGame && singleSport;
 
   /*
    * How many bets one match may contribute.
@@ -234,9 +261,13 @@ export async function GET(request: Request): Promise<Response> {
    * between them.
    */
   const rawPerGame = Number.parseInt(params.get('per_game') ?? '', 10);
-  const perGame = Number.isFinite(rawPerGame)
+  const askedPerGame = Number.isFinite(rawPerGame)
     ? Math.min(Math.max(rawPerGame, 1), MAX_PER_GAME)
     : 1;
+  const perGame = singleSport ? askedPerGame : 1;
+
+  /** Whether a several-per-game request was reduced for want of a single sport. */
+  const multiGameNarrowed = (askedSameGame || askedPerGame > 1) && !singleSport;
 
   /*
    * Fixtures the reader picked, if any.
@@ -373,6 +404,9 @@ export async function GET(request: Request): Promise<Response> {
       scope: scopeBlock,
       chosen: chosenBlock,
       per_game: perGame,
+      // True when several-per-game was asked for without a single sport, so
+      // the interface can say why it served an ordinary parlay instead.
+      multi_per_game_needs_one_sport: multiGameNarrowed,
       max_legs: maxLegs,
       date,
       dates: window.dates,
@@ -456,6 +490,9 @@ export async function GET(request: Request): Promise<Response> {
     scope: scopeBlock,
     chosen: chosenBlock,
     per_game: perGame,
+    // True when several-per-game was asked for without a single sport, so the
+    // interface can say why it served an ordinary parlay instead.
+    multi_per_game_needs_one_sport: multiGameNarrowed,
     max_legs: maxLegs,
     date,
     dates: window.dates,

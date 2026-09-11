@@ -103,6 +103,38 @@ export const oddsConfig = {
   cacheTtlMs: envInt('ODDS_CACHE_TTL_SECONDS', 600) * 1000,
 };
 
+/**
+ * UK bookmaker prices, from The Odds API.
+ *
+ * The key is a credential: anyone holding it can spend this account's quota.
+ * It is read from the environment only, never committed, never logged and
+ * never sent to the browser -- the odds module logs the competition and the
+ * outcome of a call, never its URL, because the key travels in the query
+ * string as that API requires.
+ *
+ * Empty means off: no key, no request, no prices, and every selection reports
+ * as unverified exactly as it does for a fixture no book has quoted yet.
+ *
+ * The region is `uk` and is not meant to be changed casually. This provider
+ * bills per market per region, so adding regions multiplies the cost to show
+ * prices a UK reader cannot take anyway.
+ */
+export const oddsApiConfig = {
+  key: env('ODDS_API_KEY'),
+  region: env('ODDS_API_REGION', 'uk') || 'uk',
+  timeoutMs: envInt('ODDS_API_TIMEOUT_MS', 8000),
+  /*
+   * Longer than the old source's ten minutes, and deliberately.
+   *
+   * The free tier is 500 credits a month and one refresh of one competition
+   * costs three, so an uncached request every ten minutes would exhaust a
+   * month's quota in under a day. Half an hour is a compromise between a price
+   * being current and there being any prices left by the end of the month;
+   * raise it on a paid plan.
+   */
+  cacheTtlMs: envInt('ODDS_API_CACHE_TTL_SECONDS', 1800) * 1000,
+};
+
 export const liveConfig = {
   /**
    * Server-side cache for the live scoreboard.
