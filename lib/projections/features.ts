@@ -23,6 +23,7 @@ import {
   weightedMean,
 } from './math.ts';
 import { sidesOf } from '../home/types.ts';
+import { MIN_DATA_QUALITY } from './types.ts';
 import type { SportModelConfig } from './config.ts';
 import type { Game } from '../home/types';
 import { isAbsent, isInDoubt } from '../games/availability-normalise.ts';
@@ -336,6 +337,26 @@ export function dataQuality(
   const h2h = extras.hasHeadToHead ? 0.05 : 0;
 
   return clamp(history + bothSplits + standings + h2h, 0, 1);
+}
+
+/**
+ * Completed games the weaker side needs before a projection is possible.
+ *
+ * The inverse of the function above, at the point where it crosses
+ * `MIN_DATA_QUALITY`. History carries three quarters of the score and the two
+ * corroborating terms are worth a tenth each, so this is deliberately computed
+ * from history alone: it is the count that always clears the floor, rather than
+ * the smaller one a fixture might get away with if a standings table happens to
+ * be published for it.
+ *
+ * Exists so an unavailable projection can say what is missing. "Not enough
+ * history" leaves a reader unable to tell a competition that is out of season
+ * from one that will start answering in a fortnight; "Michigan have four of the
+ * five needed" tells them which.
+ */
+export function gamesNeeded(config: SportModelConfig): number {
+  const fromQuality = Math.ceil((MIN_DATA_QUALITY / 0.75) * config.targetGames);
+  return Math.max(config.minGames, fromQuality);
 }
 
 /**

@@ -7,7 +7,8 @@
  * scheduled game never renders a 0-0.
  */
 
-import { CalendarDays, Clock3, MapPin } from 'lucide-react';
+import { CalendarDays, Clock3, Flag, MapPin, Trophy } from 'lucide-react';
+import { detailSides } from '@/lib/games/types';
 import type { GameDetail, TeamDetail } from '@/lib/games/types';
 import { formatDate, formatTime, hasScore } from './game-data';
 import { Crest } from '@/components/ui/crest';
@@ -63,10 +64,48 @@ export function TeamIdentity({
 function contestResult(game: GameDetail): string | null {
   if (game.winner === undefined || game.status !== 'finished') return null;
   if (game.completion === 'walkover') return 'Walkover';
+  const sides = detailSides(game);
   const winner =
-    game.winner === 'home' ? game.home_team.name : game.winner === 'away' ? game.away_team.name : null;
+    game.winner === 'home' ? (sides?.home.name ?? null) : game.winner === 'away' ? (sides?.away.name ?? null) : null;
   if (!winner) return 'Draw / no contest';
   return game.completion === 'retired' ? `${winner} won by retirement` : `${winner} won`;
+}
+
+/**
+ * The middle of the header, for a session contested by a field.
+ *
+ * There is no matchup to draw, so the event and the session take that space.
+ * Once it has run, the winner goes there instead — the equivalent of the
+ * scoreline every other fixture shows, and the one fact a reader opening a
+ * finished session wants first.
+ */
+function RaceIdentity({ game }: { game: GameDetail }) {
+  const winner = (game.entrants ?? []).find((entrant) => entrant.position === 1);
+  const time = formatTime(game.start_time);
+
+  return (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl border border-violet-400/15 bg-violet-500/[.08] text-violet-300">
+        <Flag className="size-5" aria-hidden="true" />
+      </span>
+      <p className="text-base font-semibold text-ink-strong md:text-lg">
+        {game.title ?? game.league ?? 'Event'}
+      </p>
+      {game.session && (
+        <p className="text-2xs uppercase tracking-wider text-violet-300/80">{game.session}</p>
+      )}
+      {winner ? (
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-ink">
+          <Trophy className="size-3.5 text-amber-200/80" aria-hidden="true" />
+          {winner.name}
+          <span className="sr-only">finished first</span>
+        </p>
+      ) : (
+        game.status === 'scheduled' &&
+        time && <p className="mt-1 text-sm font-medium text-ink-muted">{time}</p>
+      )}
+    </div>
+  );
 }
 
 export function GameHeader({ game }: { game: GameDetail }) {
@@ -80,8 +119,13 @@ export function GameHeader({ game }: { game: GameDetail }) {
    * rather than shown about people it does not describe.
    */
   const contest = game.winner !== undefined;
-  const left = contest ? game.home_team : game.away_team;
-  const right = contest ? game.away_team : game.home_team;
+  /*
+   * A race session has a field rather than two sides, so the matchup block is
+   * replaced wholesale rather than filled with placeholder names.
+   */
+  const sides = detailSides(game);
+  const left = contest ? sides?.home : sides?.away;
+  const right = contest ? sides?.away : sides?.home;
   const result = contestResult(game);
 
   return (
@@ -116,40 +160,48 @@ export function GameHeader({ game }: { game: GameDetail }) {
         <WatchButton game={game} />
       </div>
 
-      {/* Matchup */}
-      <div className="mt-7 flex items-center justify-between gap-4 md:gap-8">
-        <TeamIdentity team={left} align="left" />
+      {/* Matchup, or the event itself where there is no matchup */}
+      {!left || !right ? (
+        <div className="mt-7">
+          <RaceIdentity game={game} />
+        </div>
+      ) : (
+        <>
+        <div className="mt-7 flex items-center justify-between gap-4 md:gap-8">
+          <TeamIdentity team={left} align="left" />
 
-        <div className="shrink-0 text-center">
-          {result ? (
-            <p className="max-w-40 text-sm font-semibold leading-snug text-ink-strong">{result}</p>
-          ) : showScore ? (
-            <div className="flex items-center gap-3 text-3xl font-semibold tabular-nums text-ink-strong md:gap-5 md:text-4xl">
-              <span>{game.score?.away ?? '--'}</span>
-              <span className="text-lg text-ink-faint md:text-xl">-</span>
-              <span>{game.score?.home ?? '--'}</span>
-            </div>
-          ) : (
-            <span className="text-sm font-medium uppercase tracking-[.2em] text-ink-faint">VS</span>
-          )}
-          {!showScore && !result && time && (
-            <p className="mt-2 text-sm font-medium text-ink-muted">{time}</p>
-          )}
+          <div className="shrink-0 text-center">
+            {result ? (
+              <p className="max-w-40 text-sm font-semibold leading-snug text-ink-strong">{result}</p>
+            ) : showScore ? (
+              <div className="flex items-center gap-3 text-3xl font-semibold tabular-nums text-ink-strong md:gap-5 md:text-4xl">
+                <span>{game.score?.away ?? '--'}</span>
+                <span className="text-lg text-ink-faint md:text-xl">-</span>
+                <span>{game.score?.home ?? '--'}</span>
+              </div>
+            ) : (
+              <span className="text-sm font-medium uppercase tracking-[.2em] text-ink-faint">VS</span>
+            )}
+            {!showScore && !result && time && (
+              <p className="mt-2 text-sm font-medium text-ink-muted">{time}</p>
+            )}
+          </div>
+
+          <TeamIdentity team={right} align="right" />
         </div>
 
-        <TeamIdentity team={right} align="right" />
-      </div>
-
-      {contest ? (
-        (game.division || game.title) && (
+        {contest ? (
+          (game.division || game.title) && (
+            <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
+              {[game.title, game.division].filter(Boolean).join(' · ')}
+            </p>
+          )
+        ) : (
           <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
-            {[game.title, game.division].filter(Boolean).join(' · ')}
+            Away · Home
           </p>
-        )
-      ) : (
-        <p className="mt-2 text-center text-2xs uppercase tracking-wider text-ink-faint">
-          Away · Home
-        </p>
+        )}
+        </>
       )}
 
       {/* When and where */}

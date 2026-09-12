@@ -20,6 +20,7 @@
 import { APP_TIMEZONE } from '../config';
 import { logger } from '../logger';
 import { gameDate } from '../schedule/range';
+import { detailSides } from '../games/types';
 import type { GameDetail, TeamStanding } from '../games/types';
 import { headToHeadFor, scoreboardFor } from './espn/adapter';
 import type { EspnGame, EspnTeamSide } from './espn/normalise';
@@ -63,6 +64,14 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
   const date = gameDate(game.start_time, APP_TIMEZONE);
   if (!date) return { game, sources };
 
+  /*
+   * Enrichment is matching against a scoreboard by the two team names, so a
+   * fixture without two has nothing to match on. The caller already declines to
+   * enrich a race session; this is the type saying the same thing.
+   */
+  const sides = detailSides(game);
+  if (!sides) return { game, sources };
+
   // One scoreboard request covers records, form, venue and broadcast, and is
   // cached per competition-day so sibling fixtures reuse it.
   const scoreboard = await withFallback('team_records', async (descriptor) =>
@@ -72,7 +81,7 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
   if (!scoreboard) return { game, sources };
 
   const match = findMatchingGame(
-    { date, homeTeam: game.home_team.name, awayTeam: game.away_team.name },
+    { date, homeTeam: sides.home.name, awayTeam: sides.away.name },
     scoreboard.value.map((event: EspnGame) => ({
       date: event.matchDate,
       homeTeam: event.home?.name ?? null,
@@ -93,7 +102,7 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
 
   const matchedEvent = match.event;
   // Neutral-site feeds can reverse home/away. Enrich by team, not by feed slot.
-  const reversed = !sameTeam(matchedEvent.home?.name, game.home_team.name);
+  const reversed = !sameTeam(matchedEvent.home?.name, sides.home.name);
   const event = reversed ? { ...matchedEvent, home: matchedEvent.away, away: matchedEvent.home } : matchedEvent;
   const enriched: GameDetail = { ...game };
 
@@ -126,12 +135,12 @@ export async function enrichGameDetail(game: GameDetail): Promise<EnrichmentResu
   }
 
   // Team abbreviations, where the primary provider left them blank.
-  if (!enriched.home_team.abbreviation && event.home?.abbreviation) {
-    enriched.home_team = { ...enriched.home_team, abbreviation: event.home.abbreviation };
+  if (!sides.home.abbreviation && event.home?.abbreviation) {
+    enriched.home_team = { ...sides.home, abbreviation: event.home.abbreviation };
     sources.home_abbreviation = scoreboard.providerId;
   }
-  if (!enriched.away_team.abbreviation && event.away?.abbreviation) {
-    enriched.away_team = { ...enriched.away_team, abbreviation: event.away.abbreviation };
+  if (!sides.away.abbreviation && event.away?.abbreviation) {
+    enriched.away_team = { ...sides.away, abbreviation: event.away.abbreviation };
     sources.away_abbreviation = scoreboard.providerId;
   }
 

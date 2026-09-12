@@ -28,6 +28,7 @@ import type {
   ProbableStarter,
   TeamAvailability,
 } from '@/lib/games/availability-normalise';
+import { detailSides } from '@/lib/games/types';
 import type { GameDetail } from '@/lib/games/types';
 import { EmptyNote } from '@/components/ui/states';
 import { Section } from './game-sections';
@@ -166,6 +167,10 @@ function TeamColumn({
 }
 
 export function Availability({ game }: { game: GameDetail }) {
+  // A field event has no two squads to report on, and none is reported.
+  const two = detailSides(game);
+  if (!two) return null;
+
   const availability = game.availability;
 
   return (
@@ -184,12 +189,12 @@ export function Availability({ game }: { game: GameDetail }) {
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             <TeamColumn
-              name={game.home_team.name}
+              name={two.home.name}
               team={availability.home}
               probables={availability.probables.home}
             />
             <TeamColumn
-              name={game.away_team.name}
+              name={two.away.name}
               team={availability.away}
               probables={availability.probables.away}
             />

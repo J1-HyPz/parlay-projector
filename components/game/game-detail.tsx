@@ -23,6 +23,8 @@ import { GameHeader } from './game-header';
 import { useGameDetail } from './game-data';
 import { MarketExplorer } from './market-explorer';
 import { ProjectorAnalysis } from './projector-analysis';
+import { RaceField, RaceWeekend } from './race-sections';
+import { isFieldDetail } from '@/lib/games/types';
 
 /**
  * Back control.
@@ -150,23 +152,43 @@ export function GameDetail({ gameId }: { gameId: string }) {
         <div className="space-y-6">
           <GameHeader game={game} />
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="min-w-0 space-y-6">
-              <GameInformation game={game} />
-              {/* Above the historical sections: who is playing is the most
-                  time-sensitive thing on this page, and the only part of it
-                  that can change between opening the page and kick-off. */}
-              <Availability game={game} />
-              <TeamComparison game={game} />
-              <RecentGames game={game} />
-            </div>
+          {/*
+            Two columns of two-sided sections, or the field.
 
-            <div className="min-w-0 space-y-6">
-              <MatchupOverview game={game} />
-              <RecentForm game={game} />
-              <HeadToHead game={game} />
+            A race session has no league table, no head-to-head and no squad
+            news; those sections stand down on their own, and putting the field
+            where they would have been keeps the page from being a header above
+            four empty panels.
+          */}
+          {isFieldDetail(game) ? (
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 space-y-6">
+                <RaceField game={game} />
+              </div>
+              <div className="min-w-0 space-y-6">
+                <GameInformation game={game} />
+                <RaceWeekend game={game} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0 space-y-6">
+                <GameInformation game={game} />
+                {/* Above the historical sections: who is playing is the most
+                    time-sensitive thing on this page, and the only part of it
+                    that can change between opening the page and kick-off. */}
+                <Availability game={game} />
+                <TeamComparison game={game} />
+                <RecentGames game={game} />
+              </div>
+
+              <div className="min-w-0 space-y-6">
+                <MatchupOverview game={game} />
+                <RecentForm game={game} />
+                <HeadToHead game={game} />
+              </div>
+            </div>
+          )}
 
           <ProjectorAnalysis gameId={game.id} />
 

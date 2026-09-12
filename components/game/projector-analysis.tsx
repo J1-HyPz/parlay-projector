@@ -7,20 +7,28 @@
  * numbers here and in a generated line are the same numbers — one model, one
  * cache, one answer.
  *
- * Two shapes arrive on it. A team fixture's projection has an expected score
+ * Three shapes arrive on it. A team fixture's projection has an expected score
  * and a scoreline it could finish on; a fight's or a tennis match's has a
  * winner probability and the two records it rests on, and nothing that looks
- * like a score, because the contest has none. The panel shows whichever it
- * was given and never dresses one up as the other.
+ * like a score, because the contest has none; a Grand Prix's has a finishing
+ * order across the field. The panel shows whichever it was given and never
+ * dresses one up as another.
  *
  * States "Projection unavailable" rather than filling the panel when the model
- * has too little to work with. That is a real outcome, not a failure.
+ * has too little to work with — with the endpoint's own sentence saying what
+ * was missing, because "unavailable" alone cannot tell a competition nothing
+ * models from one whose sides are two games short of the threshold.
  */
 
 import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { qualityLabel } from '@/lib/projections/types';
-import type { BoutProjection, BoutRecord, GameProjection } from '@/lib/projections/types';
+import type {
+  BoutProjection,
+  BoutRecord,
+  GameProjection,
+  RaceProjection,
+} from '@/lib/projections/types';
 import type { ProjectionFactor } from '@/lib/projections/factors';
 import { ProjectedScore } from '@/components/parlays/market-ui';
 
@@ -217,10 +225,93 @@ function BoutPanel({ bout }: { bout: BoutProjection }) {
   );
 }
 
+/**
+ * How the field is expected to finish.
+ *
+ * A race has no two-sided outcome to draw as a pair of bars, so the strongest
+ * few drivers are listed with the probabilities the same simulations produced
+ * — win, podium and points, which cannot contradict one another because they
+ * were counted off one set of finishing orders.
+ */
+function RacePanel({ race }: { race: RaceProjection }) {
+  // Enough to see the shape of the front of the field without turning the
+  // panel into a twenty-row table; the full field is on the page above.
+  const shown = race.entrants.slice(0, 6);
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-80 border-collapse text-xs">
+          <thead>
+            <tr className="text-2xs uppercase tracking-wider text-ink-faint">
+              <th scope="col" className="pb-2 text-left font-normal">Driver</th>
+              <th scope="col" className="pb-2 text-right font-normal">Win</th>
+              <th scope="col" className="pb-2 text-right font-normal">Podium</th>
+              <th scope="col" className="pb-2 text-right font-normal">Points</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {shown.map((entrant) => (
+              <tr key={entrant.driver}>
+                <td className="max-w-40 truncate py-2 pr-3 text-ink">
+                  {entrant.driver}
+                  {entrant.grid !== null && (
+                    <span className="ml-2 text-2xs text-ink-faint">P{entrant.grid}</span>
+                  )}
+                </td>
+                <td className="py-2 text-right tabular-nums text-ink">{percent(entrant.win)}</td>
+                <td className="py-2 text-right tabular-nums text-ink-muted">
+                  {percent(entrant.podium)}
+                </td>
+                <td className="py-2 text-right tabular-nums text-ink-muted">
+                  {percent(entrant.points)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <dl className="grid grid-cols-3 gap-3 border-t border-line pt-4 text-xs">
+        <div>
+          <dt className="text-2xs uppercase tracking-wider text-ink-faint">Field</dt>
+          <dd className="mt-1 font-medium tabular-nums text-ink">{race.field_size}</dd>
+        </div>
+        <div>
+          <dt className="text-2xs uppercase tracking-wider text-ink-faint">Confidence</dt>
+          <dd className="mt-1 font-medium tabular-nums text-ink">{percent(race.confidence)}</dd>
+        </div>
+        <div>
+          <dt className="text-2xs uppercase tracking-wider text-ink-faint">Data quality</dt>
+          <dd className="mt-1 font-medium text-ink">{qualityLabel(race.data_quality)}</dd>
+        </div>
+      </dl>
+
+      {/* Where the field came from and whether the grid was known. Both change
+          what the projection could see, so neither is left implicit. */}
+      {race.quality_reasons.length > 0 && (
+        <ul className="space-y-1.5 border-t border-line pt-4">
+          {race.quality_reasons.slice(0, 3).map((reason) => (
+            <li key={reason} className="text-2xs leading-5 text-ink-subtle">
+              {reason}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Factors factors={race.factors} />
+      <Footer modelVersion={race.model_version} />
+    </div>
+  );
+}
+
 export function ProjectorAnalysis({ gameId }: { gameId: string }) {
   const [state, setState] = useState<State>('loading');
   const [projection, setProjection] = useState<GameProjection | null>(null);
   const [bout, setBout] = useState<BoutProjection | null>(null);
+  const [race, setRace] = useState<RaceProjection | null>(null);
+  /** The endpoint's own sentence about what was missing. */
+  const [gap, setGap] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -236,6 +327,8 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
         const body = (await response.json()) as {
           projection?: GameProjection | null;
           bout?: BoutProjection | null;
+          race?: RaceProjection | null;
+          reason_detail?: string;
         };
         if (controller.signal.aborted) return;
 
@@ -245,7 +338,11 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
         } else if (body.bout) {
           setBout(body.bout);
           setState('ready');
+        } else if (body.race) {
+          setRace(body.race);
+          setState('ready');
         } else {
+          setGap(body.reason_detail ?? null);
           setState('unavailable');
         }
       } catch {
@@ -274,13 +371,23 @@ export function ProjectorAnalysis({ gameId }: { gameId: string }) {
           <p className="mt-1.5 text-2xs leading-5 text-ink-faint">
             {state === 'error'
               ? 'The projection could not be loaded right now.'
-              : 'There is not enough completed history for these sides to support a projection. Nothing is estimated until there is.'}
+              : /*
+                   The endpoint's own sentence, which names the shortfall for
+                   this fixture. The general one is the fallback for a reason it
+                   could not be specific about, and it carries its own "nothing
+                   is estimated" clause rather than that clause being appended to
+                   all of them — which produced "Practice 3 has no finishing
+                   order worth predicting. Nothing is estimated until there is."
+                 */
+                (gap ??
+                  'There is not enough completed history behind this fixture to support a projection, and nothing is estimated until there is.')}
           </p>
         </div>
       )}
 
       {state === 'ready' && projection && <TeamPanel projection={projection} />}
       {state === 'ready' && bout && <BoutPanel bout={bout} />}
+      {state === 'ready' && race && <RacePanel race={race} />}
     </section>
   );
 }

@@ -245,7 +245,14 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
         <p className="mt-2 text-xs leading-5 text-ink-subtle">
           {state === 'error'
             ? 'Markets could not be loaded right now.'
-            : 'No markets for this fixture. Either it is already under way, or there is not enough completed match history behind these sides to project it.'}
+            : /*
+                Points at the panel above rather than restating its reason.
+                Every market here comes off a projection, so the two are never
+                unavailable for different reasons — and the sentence this used
+                to carry named "these sides", which a race session does not
+                have.
+              */
+              'Every market here comes off a projection, and this fixture has none. The panel above says why.'}
         </p>
       </section>
     );

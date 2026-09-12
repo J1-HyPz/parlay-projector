@@ -102,6 +102,8 @@ interface ParlayResponse {
   error?: string;
   eligible?: number;
   games_available?: number;
+  /** Fixtures the model projected, before the risk gate was applied. */
+  projected_games?: number;
   /** Legs this filter can actually support, so impossible counts are greyed out. */
   max_legs?: number;
   scope?: ScopeBlock;
@@ -384,6 +386,9 @@ export function ParlayView() {
    */
   const maxLegs = data?.max_legs ?? MAX_LEGS;
   const eligibleGames = data?.games_available ?? null;
+  /* Fixtures the model projected. Never fewer than `eligibleGames`: the
+     risk gate is what narrows one into the other. */
+  const projectedGames = data?.projected_games ?? 0;
 
   /*
    * Which count to show as chosen.
@@ -825,11 +830,23 @@ export function ParlayView() {
                   : ''}
               </p>
               <p className="mt-1.5 text-sm leading-6">
-                {data?.games_available === 0
+                {/*
+                  Three different answers, and they were two.
+
+                  "Nothing has enough history" was printed whenever nothing
+                  cleared the risk gate, which is a different fact and often a
+                  false one: a competition can have every fixture projected and
+                  none of them confident enough to stake. Saying so is the
+                  difference between a model that knows nothing and a model
+                  being careful, and a reader is entitled to tell them apart.
+                */}
+                {projectedGames === 0
                   ? day === ALL_DAYS
                     ? 'No upcoming event in this selection has enough completed history to project.'
                     : 'No event on this day in this selection has enough completed history to project.'
-                  : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${data?.games_available ?? 0} eligible ${data?.games_available === 1 ? 'event' : 'events'}. Nothing is padded to fill the requested number.`}
+                  : eligibleGames === 0
+                    ? `${projectedGames} event${projectedGames === 1 ? ' was' : 's were'} projected${day === ALL_DAYS ? '' : ' on this day'}, but nothing in ${projectedGames === 1 ? 'it' : 'them'} met the ${risk} risk thresholds — the model has a view and not enough behind it to stake. Every one of those views is on the game's own page, where it is analysis rather than a bet.`
+                    : `Only ${data?.eligible ?? 0} selection${data?.eligible === 1 ? '' : 's'} met the ${risk} risk thresholds${day === ALL_DAYS ? '' : ' on this day'}, across ${eligibleGames} eligible ${eligibleGames === 1 ? 'event' : 'events'}. Nothing is padded to fill the requested number.`}
               </p>
 
               {/*
@@ -848,13 +865,24 @@ export function ParlayView() {
                   This selection is used exactly as chosen — no leg is taken from outside it.
                 </p>
               )}
-              <p className="mt-2 text-sm leading-6 text-status-warn">
-                Parlays only ever contain bets a bookmaker is actually offering, and prices are
-                not published for every competition this far ahead. Try a different sport, a
-                nearer date, or a lower risk level. The model&rsquo;s view on markets nobody is
-                quoting is still on each game&rsquo;s own page, where it is analysis rather than
-                a bet.
-              </p>
+              {/*
+                Only when it is the actual reason.
+
+                This was unconditional, so a card where a bookmaker was quoting
+                two dozen fixtures still blamed missing prices — a wrong
+                diagnosis printed in warning amber directly beneath the right
+                one. It stays for the case it does describe, which is real and
+                common.
+              */}
+              {data?.priced_games === 0 && (
+                <p className="mt-2 text-sm leading-6 text-status-warn">
+                  Parlays only ever contain bets a bookmaker is actually offering, and no price
+                  was published for any fixture in this selection. Try a different sport, a
+                  nearer date, or a lower risk level. The model&rsquo;s view on markets nobody
+                  is quoting is still on each game&rsquo;s own page, where it is analysis rather
+                  than a bet.
+                </p>
+              )}
               {type === 'same' && (
                 <p className="mt-2 text-sm leading-6 text-ink-faint">
                   A same-game line needs several selections from one fixture to clear the risk

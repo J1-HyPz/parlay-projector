@@ -21,6 +21,7 @@ import { fixturesForRange } from '../providers/fixtures';
 import { getLeagueGames } from '../leagues/games';
 import { addDays } from '../schedule/range';
 import { contestDetailFrom } from './contest-detail';
+import { raceDetailFrom } from './race-detail';
 import { normaliseSeasonSeries, parseForm, overallRecord } from '../providers/espn/normalise';
 import { meetingsToRecentGames, recordToStanding, standingFromForm } from '../providers/merge';
 import { findLeague } from '../leagues/registry';
@@ -32,6 +33,7 @@ import { venueIsRoofed } from '../providers/espn/venues';
 import { meetingsBetween, summariseMeetings } from '../history/head-to-head';
 import type { Meeting } from '../history/head-to-head';
 import type { League } from '../leagues/registry';
+import type { Game } from '../home/types';
 import type { GameDetail, RecentGame, TeamStanding } from './types';
 
 interface RawCompetitor {
@@ -164,18 +166,25 @@ const CONTEST_SETTLED_TTL_MS = 7 * 24 * 60 * 60_000;
 const CONTEST_CURRENT_TTL_MS = 60 * 60_000;
 
 /**
- * Detail for a fight or a tennis match, from the scoreboard.
+ * One fixture and its competition-mates, from the scoreboard.
  *
- * The summary endpoint does not serve these — see `contest-detail.ts` — so the
- * contest is found among the fixtures already fetched for its competition.
- * The hub window first, because it is what every other page has already
- * loaded and so is a cache hit; then a longer settled range, so a leg on a
- * fight from last month still opens rather than 404ing.
+ * The summary endpoint serves neither a contest nor a race session — see
+ * `contest-detail.ts` and `race-detail.ts` — so both are found among the
+ * fixtures already fetched for their competition. The hub window first,
+ * because it is what every other page has already loaded and so is a cache
+ * hit; then a longer settled range, so a leg on a fight from last month or a
+ * Grand Prix from the spring still opens rather than 404ing.
+ *
+ * The siblings come back with it because a race weekend needs them: they are
+ * the other sessions, and they are free once this fetch has happened.
  */
-async function contestDetail(league: League, gameId: string): Promise<GameDetail | null> {
+async function fromScoreboard(
+  league: League,
+  gameId: string,
+): Promise<{ game: Game; siblings: Game[] } | null> {
   const { games } = await getLeagueGames([league]);
   const recent = games.find((game) => game.id === gameId);
-  if (recent) return contestDetailFrom(recent);
+  if (recent) return { game: recent, siblings: games };
 
   const today = todayInAppTimezone();
   const older = await fixturesForRange(
@@ -189,7 +198,7 @@ async function contestDetail(league: League, gameId: string): Promise<GameDetail
     logger.info('espn_detail_not_found', { league: league.id, event: gameId });
     return null;
   }
-  return contestDetailFrom(found);
+  return { game: found, siblings: older };
 }
 
 /** Detail for one ESPN fixture. Returns null when ESPN has no such event. */
@@ -205,9 +214,14 @@ export async function espnGameDetail(gameId: string): Promise<GameDetail | null>
   const espnPath = league?.espnPath;
   if (!league || !espnPath) return null;
 
-  // A fight or a match is not an event the summary endpoint serves.
-  if (league.format === 'bout' || league.format === 'match') {
-    return contestDetail(league, gameId);
+  // Neither a contest between two people nor a race session is an event the
+  // summary endpoint serves; both are read off the scoreboard instead.
+  if (league.format === 'bout' || league.format === 'match' || league.format === 'race') {
+    const found = await fromScoreboard(league, gameId);
+    if (!found) return null;
+    return league.format === 'race'
+      ? raceDetailFrom(found.game, found.siblings)
+      : contestDetailFrom(found.game);
   }
 
   const { value } = await cached(

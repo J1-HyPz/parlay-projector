@@ -38,7 +38,7 @@ import { fixturesForRange } from '../providers/fixtures';
 import { addDays } from '../schedule/range';
 import { modelConfigFor, modelConfigForLeague } from './config';
 import type { SportModelConfig } from './config';
-import { buildRatings, toResults } from './features';
+import { buildRatings, gamesNeeded, toResults } from './features';
 import type { RatingSet } from './features';
 import { candidateSelections, projectGame } from './project';
 import type { ProjectionOutcome } from './project';
@@ -53,12 +53,15 @@ import type { FixtureConditions } from './weather';
 import type { SquadNews } from './features';
 import type { FixturePitchers } from './pitchers';
 import { buildRaceRatings, RACE_CONFIG, toRaceResults } from './race-model';
+import type { RaceRatings } from './race-model';
 import { gridFrom, projectRace, raceSelections } from './race-selections';
+import type { RaceOutcome } from './race-selections';
 import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-model';
 import type { BoutRatings } from './bout-model';
 import { boutSelections, projectContest } from './bout-selections';
 import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
+import { sidesOf } from '../home/types';
 import type { Game, ConcreteSportId } from '../home/types';
 import type { GameProjection, Selection } from './types';
 
@@ -114,7 +117,7 @@ function poolFor(league: League, config: SportModelConfig): League[] {
   if (!config.ratingPool) return [league];
 
   return LEAGUES.filter((candidate) => {
-    const other = modelConfigFor(candidate.sport);
+    const other = modelConfigForLeague(candidate.id, candidate.sport);
     return other?.ratingPool === config.ratingPool;
   });
 }
@@ -239,7 +242,9 @@ export function scopeFor(filter: CandidateFilter): ParlayScope {
 
 /** Competitions in scope that the scoring model can project. */
 function fixtureLeagues(scope: ParlayScope): League[] {
-  return scope.leagues.filter((league) => modelConfigFor(league.sport) !== null);
+  return scope.leagues.filter(
+    (league) => modelConfigForLeague(league.id, league.sport) !== null,
+  );
 }
 
 /**
@@ -374,7 +379,7 @@ async function computeCandidates(
   // One entry per pool, so competitions sharing ratings are loaded once.
   const pools = new Map<string, League>();
   for (const league of leagues) {
-    const config = modelConfigFor(league.sport);
+    const config = modelConfigForLeague(league.id, league.sport);
     if (!config) continue;
     const key = config.ratingPool ?? league.id;
     if (!pools.has(key)) pools.set(key, league);
@@ -690,11 +695,13 @@ export async function boutProjectionForGame(
  * A fixture is projected by exactly one engine, and which one is a property
  * of its competition. Callers that only hold a game — the detail page, the
  * market explorer — ask here rather than guessing, and get the scoring
- * projection or the bout projection, never both and never the wrong one.
+ * projection, the bout projection or the race projection, never two of them and
+ * never the wrong one.
  */
 export interface FixtureProjection {
   game: ProjectionOutcome | null;
   bout: BoutOutcome | null;
+  race: RaceOutcome | null;
 }
 
 export async function fixtureProjection(
@@ -702,10 +709,129 @@ export async function fixtureProjection(
   asOf: number = Date.now(),
 ): Promise<FixtureProjection> {
   const league = LEAGUES.find((entry) => entry.label === game.league);
-  if (league && boutConfigForLeague(league.id)) {
-    return { game: null, bout: await boutProjectionForGame(game, asOf) };
+  if (league?.format === 'race') {
+    return { game: null, bout: null, race: await raceProjectionForGame(game, asOf) };
   }
-  return { game: await projectionForGame(game, asOf), bout: null };
+  if (league && boutConfigForLeague(league.id)) {
+    return { game: null, bout: await boutProjectionForGame(game, asOf), race: null };
+  }
+  return { game: await projectionForGame(game, asOf), bout: null, race: null };
+}
+
+// ---------------------------------------------------------------------------
+// Why there is no projection
+// ---------------------------------------------------------------------------
+
+/**
+ * What a fixture is missing, when it produced nothing.
+ *
+ * "Projection unavailable" is an honest answer and an unhelpful one: it does not
+ * separate a competition the engine cannot model at all from one whose teams are
+ * three games short of the threshold and will start answering in a fortnight. A
+ * reader who cannot tell those apart reasonably reads either as the application
+ * being broken — which is exactly what happened with college football, dark for
+ * the opening weeks of every season with nothing on the page to say why.
+ *
+ * Never a guess: every sentence here names counts the model actually holds.
+ */
+export interface ProjectionGap {
+  reason: 'no_model' | 'wrong_session' | 'unrated_sides' | 'insufficient_history';
+  /** One sentence naming the specific shortfall. */
+  detail: string;
+}
+
+function historyGap(game: Game, set: RatingSet, config: SportModelConfig): ProjectionGap {
+  const sides = sidesOf(game);
+  const home = sides ? set.ratings.get(sides.home.name) : undefined;
+  const away = sides ? set.ratings.get(sides.away.name) : undefined;
+
+  if (!sides || !home || !away) {
+    const unknown = [
+      !home ? (sides?.home.name ?? 'the home side') : null,
+      !away ? (sides?.away.name ?? 'the away side') : null,
+    ].filter((name): name is string => name !== null);
+
+    return {
+      reason: 'unrated_sides',
+      detail:
+        `${unknown.join(' and ')} ${unknown.length === 1 ? 'has' : 'have'} no completed ` +
+        `games inside the model's ${config.historyDays}-day window.`,
+    };
+  }
+
+  return {
+    reason: 'insufficient_history',
+    detail:
+      `${sides.home.name} have ${home.games} completed ${home.games === 1 ? 'game' : 'games'} ` +
+      `and ${sides.away.name} ${away.games}, inside the model's ${config.historyDays}-day ` +
+      `window. Both sides need at least ${gamesNeeded(config)}.`,
+  };
+}
+
+/**
+ * Why this fixture produced no projection.
+ *
+ * Called only after one came back empty. Everything it reads is already cached
+ * by the attempt that failed, so describing the gap costs no further provider
+ * call.
+ */
+export async function projectionGap(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<ProjectionGap> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (!league) {
+    return {
+      reason: 'no_model',
+      detail: 'This competition is not one the projection engine models.',
+    };
+  }
+
+  if (league.format === 'race') {
+    if (!isProjectableSession(game)) {
+      return {
+        reason: 'wrong_session',
+        detail:
+          `The model projects the race itself. ${game.session ?? 'This session'} has no ` +
+          'finishing order worth predicting, and nothing is estimated for it.',
+      };
+    }
+    return {
+      reason: 'insufficient_history',
+      detail:
+        'Too few drivers in this field have completed races inside the rating window to ' +
+        'support a projection.',
+    };
+  }
+
+  if (boutConfigForLeague(league.id)) {
+    return {
+      reason: 'insufficient_history',
+      detail:
+        'One or both of these competitors has too short a record inside the rating window ' +
+        'to support a projection.',
+    };
+  }
+
+  const config = modelConfigForLeague(league.id, league.sport);
+  if (!config) {
+    return {
+      reason: 'no_model',
+      detail: 'This competition is not one the projection engine models.',
+    };
+  }
+
+  const model = await buildPoolModel(league, asOf);
+  if (!model) {
+    return {
+      reason: 'unrated_sides',
+      detail:
+        `No completed results are available for ${league.label} inside the model's ` +
+        `${config.historyDays}-day window.`,
+    };
+  }
+
+  return historyGap(game, model.ratings, config);
 }
 
 /**
@@ -716,87 +842,132 @@ export async function fixtureProjection(
  * two meet again at `Selection`, which is what lets a race leg travel through
  * the optimiser, the store and the accuracy figures like any other.
  */
+export interface RaceModel {
+  /** Every session in the window, practice and qualifying included. */
+  sessions: Game[];
+  ratings: RaceRatings;
+}
+
+/**
+ * Every session of a motorsport competition's window, with the ratings built
+ * from the ones that had already been run.
+ *
+ * The race counterpart to `buildPoolModel`. There is no pool: a driver is rated
+ * across a championship and no championship shares results with another. `asOf`
+ * is the same look-ahead boundary — `toRaceResults` filters on it, so the
+ * ratings cannot see the result of the race being projected.
+ */
+export async function buildRaceModel(
+  league: League,
+  asOf: number = Date.now(),
+): Promise<RaceModel> {
+  const today = todayInAppTimezone();
+  const sessions = await fixturesForRange(
+    league,
+    addDays(today, -RACE_CONFIG.historyDays),
+    addDays(today, 14),
+    { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
+  );
+
+  const { value: ratings } = await cached(
+    `projection:race-ratings:${league.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => buildRaceRatings(toRaceResults(sessions, asOf)),
+  );
+
+  return { sessions, ratings };
+}
+
+/**
+ * What the model is allowed to know about one race when it projects it.
+ *
+ * Derived here rather than at each call site, because the session page and the
+ * parlay build must reach the same answer for the same race: two pages
+ * disagreeing about who is on the grid would be two different projections
+ * wearing one model version.
+ */
+function raceOptions(
+  sessions: readonly Game[],
+  race: Game,
+  asOf: number,
+): { grid: ReadonlyMap<string, number> | null; field: string[]; fieldSource: 'weekend' | 'recent' } {
+  const weekend = sessions.filter((session) => session.title === race.title);
+
+  /*
+   * The grid is only visible once qualifying has genuinely been run and has
+   * already started. Anything else would let a projection see a session that
+   * had not happened when it was made.
+   */
+  const grid = gridFrom(weekend, asOf);
+
+  const ran = (session: Game): boolean =>
+    session.status === 'finished' &&
+    (session.entrants?.length ?? 0) > 0 &&
+    session.start_time !== null &&
+    Date.parse(session.start_time) < asOf;
+
+  // This weekend's own running is the better field: it is the actual entry
+  // list, and it reflects any driver change.
+  const thisWeekend = weekend
+    .filter(ran)
+    .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
+  const field = (thisWeekend?.entrants ?? []).map((entrant) => entrant.name);
+  if (field.length > 0) return { grid, field, fieldSource: 'weekend' };
+
+  /*
+   * Failing that, the field from the last race actually run.
+   *
+   * The provider publishes an entry list only once a session has taken place,
+   * so a race weeks away arrives with nobody in it. Taking the most recent
+   * classified field is an assumption — that broadly the same drivers turn up —
+   * but it is an assumption about observed people rather than an invented list,
+   * and the projection records that it made it.
+   */
+  const lastRace = [...sessions]
+    .filter((session) => session.session === 'Race' && ran(session))
+    .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
+
+  return {
+    grid,
+    field: (lastRace?.entrants ?? []).map((entrant) => entrant.name),
+    fieldSource: 'recent',
+  };
+}
+
+/**
+ * Whether the race model has an opinion about this session.
+ *
+ * Only the Grand Prix itself. Practice has no result worth predicting, and
+ * qualifying would need a pace model rather than the race model with a
+ * different label on it — so a qualifying page says that plainly instead of
+ * showing race probabilities against the wrong session.
+ */
+export function isProjectableSession(game: Game): boolean {
+  return game.session === 'Race';
+}
+
 async function raceCandidates(scope: ParlayScope, asOf: number): Promise<Selection[]> {
   const leagues = scope.leagues.filter((league) => league.format === 'race');
   if (leagues.length === 0) return [];
 
-  const today = todayInAppTimezone();
   const selections: Selection[] = [];
 
   for (const league of leagues) {
     try {
-      const sessions = await fixturesForRange(
-        league,
-        addDays(today, -RACE_CONFIG.historyDays),
-        addDays(today, 14),
-        { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
-      );
+      const { sessions, ratings } = await buildRaceModel(league, asOf);
 
-      const ratings = buildRaceRatings(toRaceResults(sessions, asOf));
-
-      /*
-       * Only the Grand Prix itself is projected. Practice has no result worth
-       * predicting, and qualifying would need a separate pace model rather
-       * than the race model with a different label on it.
-       */
       const upcoming = sessions.filter(
         (session) =>
-          session.session === 'Race' &&
+          isProjectableSession(session) &&
           session.status === 'scheduled' &&
           session.start_time !== null &&
           Date.parse(session.start_time) > asOf,
       );
 
-      /*
-       * The field, from the last race actually run.
-       *
-       * The provider publishes an entry list only once a session has taken
-       * place, so every upcoming race arrives with nobody in it. Taking the
-       * most recent classified field is an assumption — that broadly the same
-       * drivers turn up — but it is an assumption about observed people rather
-       * than an invented list, and the projection records that it made it.
-       */
-      const lastRace = [...sessions]
-        .filter(
-          (session) =>
-            session.session === 'Race' &&
-            session.status === 'finished' &&
-            (session.entrants?.length ?? 0) > 0 &&
-            session.start_time !== null &&
-            Date.parse(session.start_time) < asOf,
-        )
-        .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
-      const recentField = (lastRace?.entrants ?? []).map((entrant) => entrant.name);
-
       for (const race of upcoming) {
-        const weekend = sessions.filter((session) => session.title === race.title);
-
-        /*
-         * The grid is only visible once qualifying has genuinely been run and
-         * has already started. Anything else would let a projection see a
-         * session that had not happened when it was made.
-         */
-        const grid = gridFrom(weekend, asOf);
-
-        // This weekend's own running is a better field than the last race's:
-        // it is the actual entry list, and it reflects any driver change.
-        const thisWeekend = weekend
-          .filter(
-            (session) =>
-              session.status === 'finished' &&
-              (session.entrants?.length ?? 0) > 0 &&
-              session.start_time !== null &&
-              Date.parse(session.start_time) < asOf,
-          )
-          .sort((a, b) => Date.parse(b.start_time ?? '') - Date.parse(a.start_time ?? ''))[0];
-
-        const field = (thisWeekend?.entrants ?? []).map((entrant) => entrant.name);
-
         const outcome = projectRace(race, ratings, {
           simulations: projectionConfig.simulations,
-          grid,
-          field: field.length > 0 ? field : recentField,
-          fieldSource: field.length > 0 ? 'weekend' : 'recent',
+          ...raceOptions(sessions, race, asOf),
           now: new Date(asOf),
         });
         if (!outcome) continue;
@@ -829,6 +1000,37 @@ async function raceCandidates(scope: ParlayScope, asOf: number): Promise<Selecti
 }
 
 /**
+ * Projection for one race, for the session detail page.
+ *
+ * Null for anything that is not a Grand Prix — a practice or a qualifying page
+ * reaches here and is told the model has nothing for it, which is the truth
+ * rather than a race projection under another session's name.
+ */
+export async function raceProjectionForGame(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<RaceOutcome | null> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (!league || league.format !== 'race') return null;
+  if (!isProjectableSession(game)) return null;
+
+  const { value } = await cached(
+    `projection:race:${game.id}:${projectionConfig.modelVersion}`,
+    projectionTtlFor(game.start_time, asOf),
+    async () => {
+      const { sessions, ratings } = await buildRaceModel(league, asOf);
+      return projectRace(game, ratings, {
+        simulations: projectionConfig.simulations,
+        ...raceOptions(sessions, game, asOf),
+        now: new Date(asOf),
+      });
+    },
+  );
+
+  return value;
+}
+
+/**
  * Projection for one fixture, for the game detail page.
  *
  * Uses the fixture's own pool, so a Champions League tie is rated from the
@@ -838,12 +1040,24 @@ export async function projectionForGame(
   game: Game,
   asOf: number = Date.now(),
 ): Promise<ProjectionOutcome | null> {
-  const config = modelConfigFor(game.sport);
-  if (!config) return null;
-
   // The catalogue label is what a game carries, so match on that.
   const league = LEAGUES.find((entry) => entry.label === game.league);
   if (!league) return null;
+
+  /*
+   * The competition's model, not its sport's.
+   *
+   * This read `modelConfigFor(game.sport)`, which is the one lookup that cannot
+   * tell NCAA football from the NFL — they share a sport id, and the whole
+   * reason NCAAF carries its own configuration is that they do not score alike.
+   * So the parlay build, which asks by competition, projected a college fixture
+   * at a 53.6-point baseline with a 4-point home edge, while this page
+   * projected the same fixture at the NFL's 44 and 1.8. Two different
+   * scorelines for one game, under one model version. The CFL and the two
+   * European leagues were in the same position.
+   */
+  const config = modelConfigForLeague(league.id, league.sport);
+  if (!config) return null;
 
   const { value } = await cached(
     `projection:game:${game.id}:${projectionConfig.modelVersion}`,
@@ -896,13 +1110,16 @@ export interface GameCandidates {
   /**
    * The scoring projection and its simulations.
    *
-   * Null for a fight or a tennis match, which has no distribution: a single
-   * winner probability is the whole of the model's claim, so nothing can be
-   * counted jointly and a same-game line cannot be built from one. `bout`
-   * carries that projection instead. Exactly one of the two is present.
+   * Null for a fight, a tennis match or a race. A contest between two people has
+   * no distribution at all: a single winner probability is the whole of the
+   * model's claim. A race has one, but of finishing orders rather than
+   * scorelines, which the same-game counter cannot read — so both are held to a
+   * single leg rather than multiplied. `bout` and `race` carry those projections
+   * instead, and exactly one of the three is ever present.
    */
   outcome: ProjectionOutcome | null;
   bout: BoutOutcome | null;
+  race: RaceOutcome | null;
   selections: Selection[];
   markets: GameMarkets | null;
 }
@@ -914,12 +1131,13 @@ export async function gameCandidates(
   const league = LEAGUES.find((entry) => entry.label === game.league);
   if (!league) return null;
 
+  const isRace = league.format === 'race';
   const boutConfig = boutConfigForLeague(league.id);
-  const config = boutConfig ? null : modelConfigForLeague(league.id, league.sport);
-  if (!boutConfig && !config) return null;
+  const config = isRace || boutConfig ? null : modelConfigForLeague(league.id, league.sport);
+  if (!isRace && !boutConfig && !config) return null;
 
   const projected = await fixtureProjection(game, asOf);
-  if (!projected.game && !projected.bout) return null;
+  if (!projected.game && !projected.bout && !projected.race) return null;
 
   const today = todayInAppTimezone();
   let markets: GameMarkets | null = null;
@@ -934,17 +1152,19 @@ export async function gameCandidates(
     });
   }
 
-  const selections =
-    projected.bout || !config
-      ? projected.bout
-        ? boutSelections(game, projected.bout, markets, asOf)
-        : []
-      : candidateSelections(game, projected.game!, config, markets, asOf);
+  const selections = projected.race
+    ? raceSelections(game, projected.race, (await buildRaceModel(league, asOf)).ratings)
+    : projected.bout
+      ? boutSelections(game, projected.bout, markets, asOf)
+      : config && projected.game
+        ? candidateSelections(game, projected.game, config, markets, asOf)
+        : [];
 
   return {
     game,
     outcome: projected.game,
     bout: projected.bout,
+    race: projected.race,
     selections: selections.map((selection) => ({ ...selection, league_id: league.id })),
     markets,
   };

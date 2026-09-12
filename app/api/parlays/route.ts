@@ -329,6 +329,19 @@ export async function GET(request: Request): Promise<Response> {
   const missingGames = chosenGames.filter((id) => !usableGames.has(id));
 
   /*
+   * Fixtures the model actually had an opinion about, before any risk gate.
+   *
+   * Reported beside `games_available`, which counts only the ones whose
+   * selections then cleared the reader's risk level, because the difference
+   * between the two is a different answer and the page was giving the wrong
+   * one. "No event has enough completed history to project" was printed
+   * whenever nothing cleared the gate — so a college football card with
+   * nineteen projected fixtures, none of them confident enough to stake, read
+   * as a competition the model knew nothing about.
+   */
+  const projectedGames = usableGames.size;
+
+  /*
    * A same-game line needs the fixture's simulations, which the bulk candidate
    * build does not keep — so it re-projects a handful of fixtures rather than
    * holding ten thousand simulated games each for every fixture on the card.
@@ -419,6 +432,7 @@ export async function GET(request: Request): Promise<Response> {
       error: 'insufficient_candidates' as const,
       eligible: result.eligibleCount,
       games_available: result.gamesAvailable,
+      projected_games: projectedGames,
       markets,
       type: sameGame ? ('same_game' as const) : ('multi_game' as const),
       priced_games: pricedGames,
@@ -505,6 +519,7 @@ export async function GET(request: Request): Promise<Response> {
     tracking,
     eligible: result.eligibleCount,
     games_available: result.gamesAvailable,
+    projected_games: projectedGames,
     markets,
     type: sameGame ? ('same_game' as const) : ('multi_game' as const),
     priced_games: pricedGames,

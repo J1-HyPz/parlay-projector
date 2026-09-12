@@ -29,7 +29,7 @@
 import { CalendarDays, CalendarX2, Clock3, Search, Trophy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { sidesOf } from '@/lib/home/types';
-import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game } from '@/lib/home/types';
 import {
   ALL_LEAGUES,
@@ -89,7 +89,7 @@ function DesktopRow({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative border-b border-line last:border-b-0">
       <a
-        href={eventHref(game)}
+        href={`/games/${game.id}`}
         aria-label={linkLabel(game)}
         className={`focus-ring-inset grid min-h-[78px] ${ROW_GRID} items-center gap-4 px-4 py-3 transition hover:bg-violet-500/[.06]`}
       >
@@ -153,7 +153,7 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   return (
     <div className="relative min-w-0">
       <a
-        href={eventHref(game)}
+        href={`/games/${game.id}`}
         aria-label={linkLabel(game)}
         className="panel-interactive focus-ring block h-full min-w-0 p-4"
       >

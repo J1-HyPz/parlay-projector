@@ -576,7 +576,7 @@ describe('a contest’s detail page', () => {
     // makes these fixtures openable at all.
     assert.ok(detail);
     assert.equal(detail.id, 'espn-ufc-1');
-    assert.equal(detail.home_team.name, 'Alexandre Pantoja');
+    assert.equal(detail.home_team?.name, 'Alexandre Pantoja');
   });
 
   it('shows no score, and says who won instead', () => {

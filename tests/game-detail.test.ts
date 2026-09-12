@@ -92,8 +92,8 @@ describe('game detail normalisation', () => {
     assert.equal(game.round, '7');
     assert.equal(game.status, 'scheduled');
     assert.equal(game.start_time, '2026-09-01T00:15:00.000Z');
-    assert.equal(game.home_team.name, 'Instituto');
-    assert.equal(game.away_team.name, 'San Lorenzo');
+    assert.equal(game.home_team?.name, 'Instituto');
+    assert.equal(game.away_team?.name, 'San Lorenzo');
     assert.equal(game.venue.name, 'Estadio Juan Domingo Peron');
   });
 
@@ -210,7 +210,7 @@ describe('teams', () => {
   it('keeps event badges when the team lookup gave none', () => {
     const game = normaliseGameDetail(build({ homeTeam: { strTeam: 'Instituto' } }));
     assert.ok(game);
-    assert.equal(game.home_team.logo, 'https://example.test/home.png');
+    assert.equal(game.home_team?.logo, 'https://example.test/home.png');
   });
 });
 
