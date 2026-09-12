@@ -53,6 +53,40 @@ of 506 with the margin error unchanged, and removed 50 confident, wrong
 projections from the opening fortnight. On the live card it takes NCAA Football
 from 86 projected fixtures to 2, with 84 skipped.
 
+### Then the threshold has to match the window
+
+Refusing to project is a result; refusing for a third of the season is a
+different one, and that is what shipped. `targetGames` — where a side stops
+gaining data quality for playing more — was still the NFL's 12, and a 300-day
+window never reaches 12 until December. A college team holds four in-window
+games in September and six in October, because the window's tail is bowl
+season rather than a full previous campaign. Quality tops out at 0.25 and
+0.375 against a floor of 0.35, so the competition produced **nothing at all**
+until late October and looked broken rather than cautious.
+
+Two numbers have to agree: how far back the model looks, and how much it
+expects to find there. Replaying the 2025 season and stratifying by the weaker
+side's history says the thin end is not the weak end:
+
+| Weaker side's history | n | Winner | Brier | Margin error |
+| --- | --- | --- | --- | --- |
+| 4 games | 154 | 72.7% | 0.185 | 14.7 |
+| 5 games | 123 | 62.6% | 0.228 | 14.2 |
+| 12+ games | 55 | 65.5% | 0.216 | 12.0 |
+
+A projection resting on four college games is a little wider on the margin and
+no worse on the outcome than one resting on twelve. So `targetGames` is 8 —
+the sample the window actually holds from late October — and season coverage
+goes from 485 of 958 to 761. Six was measured too and rejected: it reads a
+six-game side as "High" quality, which overstates what six college games are
+worth.
+
+The risk gates are untouched and do the rest. A four-game fixture reports 0.375
+quality, below even the high-risk profile's 0.45, so it is **shown on its own
+page with its quality stated and cannot enter a parlay** until the sample
+grows. Analysis and leg selection are separate decisions, and this is where
+that separation earns itself.
+
 ## What the data actually supports
 
 This was checked before anything was built, and it shapes the whole design.
@@ -213,6 +247,15 @@ results.
 
 **Below 0.35 data quality, no projection is produced at all.** "Projection
 unavailable" is the output — never a fabricated percentage.
+
+And it says which. `GET /api/projections/games/:id` returns `reason` with a
+`reason_detail` sentence naming the shortfall — "Kennesaw State Owls have 3
+completed games and Indiana Hoosiers 4, inside the model's 300-day window.
+Both sides need at least 4." — and the game page prints it. "Unavailable"
+alone cannot separate a competition nothing models from one that will start
+answering in a fortnight, and a reader who cannot tell those apart reasonably
+reads either as a fault. Every count in the sentence is one the model holds;
+none is estimated.
 
 ---
 

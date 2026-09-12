@@ -23,17 +23,17 @@ function finishers(game: Game): Entrant[] {
   return placed.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
-/**
- * Where an event card should point.
+/*
+ * There is no `eventHref` any more, and its absence is the point.
  *
- * A race has no detail page: the provider serves no summary endpoint for
- * motorsport, so `/games/:id` would load nothing and show an error. The hub is
- * where a Grand Prix weekend actually lives, so that is where the card goes —
- * a working destination rather than a broken one.
+ * A race card used to link to `/sports/:sport` rather than to the session,
+ * because `/games/:id` could not serve one: the provider has no summary
+ * endpoint for motorsport, so the detail request threw and every practice,
+ * qualifying and race page showed "temporarily unavailable". Now that a
+ * session's page is built from the scoreboard — see `lib/games/race-detail.ts`
+ * — every card links to its own fixture, and the branch that decided otherwise
+ * is gone rather than left returning one answer.
  */
-export function eventHref(game: Game): string {
-  return Array.isArray(game.entrants) ? `/sports/${game.sport}` : `/games/${game.id}`;
-}
 
 /**
  * A label describing the event, for a card's `aria-label`.

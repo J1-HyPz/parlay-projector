@@ -11,7 +11,7 @@
 
 import type { ReactNode } from 'react';
 import { sidesOf } from '@/lib/home/types';
-import { EventBody, eventHref, eventLabel } from '@/components/sports/event-body';
+import { EventBody, eventLabel } from '@/components/sports/event-body';
 import type { Game, NewsArticle } from '@/lib/home/types';
 import { badgeLabel, formatKickoff, separatorFor } from '@/lib/schedule/filters';
 import { Crest } from '@/components/ui/crest';
@@ -100,7 +100,7 @@ export function HubGameRow({ game, timezone }: { game: Game; timezone: string })
   return (
     <div className="relative">
       <a
-        href={eventHref(game)}
+        href={`/games/${game.id}`}
         aria-label={
           sides
             ? `${sides.away.name} ${separatorFor(game.sport)} ${sides.home.name}, view game details`

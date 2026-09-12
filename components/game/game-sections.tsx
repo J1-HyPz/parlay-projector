@@ -10,6 +10,7 @@
 
 import { Info, LineChart, Swords, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { detailSides } from '@/lib/games/types';
 import type { GameDetail, FormResult, RecentGame, TeamStanding } from '@/lib/games/types';
 import { formatDate, formatRecord, formatTime, ordinal, scoreNoun, sidesNoun } from './game-data';
 import { EmptyNote } from '@/components/ui/states';
@@ -97,9 +98,12 @@ function standingSummary(
 }
 
 export function MatchupOverview({ game }: { game: GameDetail }) {
+  const two = detailSides(game);
+  if (!two) return null;
+
   const sides = [
-    { team: game.away_team, standing: game.standings.away, label: 'Away' },
-    { team: game.home_team, standing: game.standings.home, label: 'Home' },
+    { team: two.away, standing: game.standings.away, label: 'Away' },
+    { team: two.home, standing: game.standings.home, label: 'Home' },
   ];
   const anyData = sides.some((side) => side.standing !== null);
 
@@ -168,9 +172,12 @@ export function FormRun({ form }: { form: FormResult[] }) {
 }
 
 export function RecentForm({ game }: { game: GameDetail }) {
+  const two = detailSides(game);
+  if (!two) return null;
+
   const sides = [
-    { team: game.away_team, form: game.standings.away?.form ?? [] },
-    { team: game.home_team, form: game.standings.home?.form ?? [] },
+    { team: two.away, form: game.standings.away?.form ?? [] },
+    { team: two.home, form: game.standings.home?.form ?? [] },
   ];
   const anyForm = sides.some((side) => side.form.length > 0);
 
@@ -209,6 +216,9 @@ export function RecentForm({ game }: { game: GameDetail }) {
  * rather than invented.
  */
 export function TeamComparison({ game }: { game: GameDetail }) {
+  const two = detailSides(game);
+  if (!two) return null;
+
   const away = game.standings.away;
   const home = game.standings.home;
   const nouns = scoreNoun(game.sport);
@@ -262,9 +272,9 @@ export function TeamComparison({ game }: { game: GameDetail }) {
       {/* Header: away | stat | home. Stacks safely because it is a 3-column
           grid rather than a table, so it never scrolls horizontally. */}
       <div className="grid grid-cols-[1fr_auto_1fr] gap-3 border-b border-line pb-3 text-2xs uppercase tracking-wider text-ink-faint">
-        <span className="truncate text-left">{game.away_team.abbreviation ?? game.away_team.name}</span>
+        <span className="truncate text-left">{two.away.abbreviation ?? two.away.name}</span>
         <span className="text-center">Stat</span>
-        <span className="truncate text-right">{game.home_team.abbreviation ?? game.home_team.name}</span>
+        <span className="truncate text-right">{two.home.abbreviation ?? two.home.name}</span>
       </div>
 
       <div className="divide-y divide-line">
@@ -314,9 +324,12 @@ function RecentGameRow({ game }: { game: RecentGame }) {
 }
 
 export function RecentGames({ game }: { game: GameDetail }) {
+  const two = detailSides(game);
+  if (!two) return null;
+
   const sides = [
-    { team: game.away_team, games: game.recent_games.away },
-    { team: game.home_team, games: game.recent_games.home },
+    { team: two.away, games: game.recent_games.away },
+    { team: two.home, games: game.recent_games.home },
   ];
   const anyGames = sides.some((side) => side.games.length > 0);
 
@@ -351,6 +364,9 @@ export function RecentGames({ game }: { game: GameDetail }) {
 // ---------------------------------------------------------------------------
 
 export function HeadToHead({ game }: { game: GameDetail }) {
+  const two = detailSides(game);
+  if (!two) return null;
+
   const record = game.head_to_head_record;
   // Only worth a line when there is something to tally. A record of one
   // meeting says nothing a reader cannot see in the row beneath it.
@@ -376,7 +392,7 @@ export function HeadToHead({ game }: { game: GameDetail }) {
                 sport without them never shows a nought.
               */}
               <span className="font-medium text-ink">
-                {game.home_team.name} {summary.wins}, {game.away_team.name} {summary.losses}
+                {two.home.name} {summary.wins}, {two.away.name} {summary.losses}
                 {summary.draws > 0 ? `, ${summary.draws} drawn` : ''}
               </span>{' '}
               over {summary.played} meeting{summary.played === 1 ? '' : 's'}

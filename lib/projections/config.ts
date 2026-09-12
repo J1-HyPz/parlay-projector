@@ -595,6 +595,37 @@ const NCAAF: SportModelConfig = {
    * wrong projections to none.
    */
   historyDays: 300,
+  /*
+   * The sample this competition's own window can actually deliver.
+   *
+   * `targetGames` is where a side stops gaining data quality for playing more,
+   * and the NFL's 12 was inherited without asking whether a 300-day window ever
+   * reaches it. It does not until December: a college team holds four in-window
+   * games in September, six in October and ten in November, because the
+   * window's tail is bowl season rather than a full previous campaign.
+   *
+   * The effect was a competition that went dark for a third of its season. At
+   * 12, quality tops out at 0.375 for a side with six games and 0.25 for one
+   * with four — and 0.35 is the floor below which nothing is projected at all.
+   * Replayed across 2025, that is 485 of 958 fixtures projected, with the first
+   * five weekends producing nothing.
+   *
+   * Eight is the sample the window holds from late October onward, and the
+   * fixtures it unlocks measure no worse than the ones already shipping.
+   * Stratified by the weaker side's history over the same replay:
+   *
+   *   history   n     winner   Brier   margin error
+   *   4 games   154   72.7%    0.185   14.7
+   *   5 games   123   62.6%    0.228   14.2
+   *   12+       55    65.5%    0.216   12.0
+   *
+   * So a projection resting on four games is not the weak one — it is a little
+   * wider on the margin and no worse on the outcome. Coverage goes from 485 to
+   * 761 of 958. Lower than eight was measured too and rejected: at six, a side
+   * with six games reads "High" quality, which overstates what six college
+   * games are worth however the fixtures happen to land.
+   */
+  targetGames: 8,
 };
 
 /**

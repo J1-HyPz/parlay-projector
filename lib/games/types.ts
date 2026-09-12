@@ -10,7 +10,7 @@
  * bookmakers or markets anywhere in this contract.
  */
 
-import type { ConcreteSportId, GameStatus, Venue } from '../home/types';
+import type { ConcreteSportId, Entrant, GameStatus, Venue } from '../home/types';
 import type { FixtureAvailability } from './availability-normalise';
 import type { HeadToHeadRecord } from '../history/head-to-head';
 
@@ -72,8 +72,17 @@ export interface GameDetail {
   start_time: string | null;
   status: GameStatus;
   provider_status: string | null;
-  home_team: TeamDetail;
-  away_team: TeamDetail;
+  /*
+   * The two sides, for a fixture that has two.
+   *
+   * Absent for an event contested by a field — a race session — exactly as they
+   * are on `Game`. Optional rather than filled with a placeholder, because a
+   * placeholder is a name, and a name leaks: it reaches the slip, the watchlist
+   * and every heading that expects a real one. `detailSides` below is how a
+   * caller asks, and the type makes it say what it does without them.
+   */
+  home_team?: TeamDetail;
+  away_team?: TeamDetail;
   venue: Venue;
   /** Null for scheduled games — never a fabricated 0-0. */
   score: ScoreLine | null;
@@ -136,6 +145,52 @@ export interface GameDetail {
   winner?: 'home' | 'away' | null;
   completion?: 'played' | 'retired' | 'walkover';
   setGames?: { home: number[]; away: number[] };
+
+  /*
+   * The fields a race session carries, and no fixture with two sides does.
+   *
+   * A Grand Prix weekend is several sessions, each contested by the whole
+   * field. `entrants` is that field — the entry list before it runs and the
+   * classified order after — and its presence is what says this detail has no
+   * home side and no away side. Named exactly as `Game` names them, because the
+   * projection routes hand a detail to the engine as a `Game`.
+   */
+  entrants?: Entrant[];
+  /** Which part of the weekend this is: `Race`, `Qualifying`, `Practice 1`. */
+  session?: string | null;
+  /**
+   * The weekend's other sessions.
+   *
+   * Not part of the fixture, but part of reading one: a page showing Saturday
+   * qualifying with no way through to Sunday's race is a dead end, and the
+   * sessions are already in hand from the same fetch that found this one.
+   */
+  weekend?: SessionLink[];
+}
+
+/** One session of a race weekend, as a destination. */
+export interface SessionLink {
+  id: string;
+  session: string | null;
+  start_time: string | null;
+  status: GameStatus;
+}
+
+/**
+ * The two sides of a detail, where it has two.
+ *
+ * The detail-page counterpart to `sidesOf`, and the one place the shape is
+ * decided. Null for a race session, so a section built around two teams is made
+ * to say what it does instead of reading `undefined.name`.
+ */
+export function detailSides(game: GameDetail): { home: TeamDetail; away: TeamDetail } | null {
+  if (!game.home_team || !game.away_team) return null;
+  return { home: game.home_team, away: game.away_team };
+}
+
+/** True for a detail contested by a field rather than two sides. */
+export function isFieldDetail(game: GameDetail): boolean {
+  return Array.isArray(game.entrants);
 }
 
 export interface GameDetailResponse {
