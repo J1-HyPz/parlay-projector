@@ -203,21 +203,41 @@ export async function fixturesForLeague(
   if (!espnConfig.enabled || !espnPath) return [];
 
   const dates = datesBetween(startDate, endDate);
-  const { games, failed } = await fixturesForDates(league, dates, () => ttlMs);
 
-  // Every date failing is an outage rather than an empty week, and the
-  // schedule's error state depends on being able to tell them apart.
-  if (failed === dates.length && dates.length > 0) {
-    throw new ProviderError(`fixtures unavailable for ${league.id}`, null);
+  /*
+   * The merged window, memoised over the per-date entries beneath it.
+   *
+   * Asking per date made a *warm* read cost a cache lookup per day plus a
+   * merge across every game in the window, where it used to cost one lookup.
+   * That is fine once and expensive on every rebuild — and the candidate set
+   * rebuilds on a five-minute bucket, so it is paid often. The dates below
+   * still hold the provider's answers; this holds the answer to the question
+   * that was actually asked.
+   */
+  const { value, hit } = await cached(
+    `espn:window:${league.id}:${compactDate(startDate)}:${compactDate(endDate)}`,
+    ttlMs,
+    async () => {
+      const { games, failed } = await fixturesForDates(league, dates, () => ttlMs);
+
+      // Every date failing is an outage rather than an empty week, and the
+      // schedule's error state depends on being able to tell them apart.
+      if (failed === dates.length && dates.length > 0) {
+        throw new ProviderError(`fixtures unavailable for ${league.id}`, null);
+      }
+      return { games, failed };
+    },
+  );
+
+  if (!hit) {
+    logger.info('espn_fixtures_refreshed', {
+      league: league.id,
+      dates: dates.length,
+      failed: value.failed,
+      games: value.games.length,
+    });
   }
-
-  logger.info('espn_fixtures_refreshed', {
-    league: league.id,
-    dates: dates.length,
-    failed,
-    games: games.length,
-  });
-  return games;
+  return value.games;
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +302,7 @@ export async function fixturesForRange(
 
   const dates = datesBetween(startDate, endDate);
   const today = compactDate(options.today);
+  const key = `espn:history:${league.id}:${compactDate(startDate)}:${compactDate(endDate)}`;
 
   /*
    * One date failing must not discard the league.
@@ -292,22 +313,34 @@ export async function fixturesForRange(
    * far better than losing sixteen months, and the gap shows up as lower data
    * quality rather than as silence.
    */
-  const { games, failed } = await fixturesForDates(league, dates, (date) =>
-    date < today ? options.settledTtlMs : options.currentTtlMs,
-  );
+  /*
+   * Memoised over the dates, for the reason in `fixturesForLeague`: a season
+   * is four hundred cache reads and a merge of several thousand fixtures, and
+   * a rebuild should not pay that to learn what it already knows. Held for the
+   * current window's lifetime, which is the shortest of the two -- the settled
+   * dates underneath outlive it and make the refresh cheap.
+   */
+  const { value, hit } = await cached(key, options.currentTtlMs, async () => {
+    const { games, failed } = await fixturesForDates(league, dates, (date) =>
+      date < today ? options.settledTtlMs : options.currentTtlMs,
+    );
 
-  // Every date failing is a genuine outage for this competition, and the
-  // caller should see it as one rather than as an empty season.
-  if (failed === dates.length && dates.length > 0) {
-    throw new ProviderError(`history unavailable for ${league.id}`, null);
-  }
-
-  logger.info('espn_history_loaded', {
-    league: league.id,
-    dates: dates.length,
-    failed,
-    games: games.length,
+    // Every date failing is a genuine outage for this competition, and the
+    // caller should see it as one rather than as an empty season.
+    if (failed === dates.length && dates.length > 0) {
+      throw new ProviderError(`history unavailable for ${league.id}`, null);
+    }
+    return { games, failed };
   });
-  return games;
+
+  if (!hit) {
+    logger.info('espn_history_loaded', {
+      league: league.id,
+      dates: dates.length,
+      failed: value.failed,
+      games: value.games.length,
+    });
+  }
+  return value.games;
 }
 
