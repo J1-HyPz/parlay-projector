@@ -5,9 +5,27 @@
  * only NCAA Division 1 and CFL appear under "American Football" — so an NFL
  * filter correctly matched nothing and the league looked empty. ESPN has them.
  *
- * It is also cheaper. ESPN accepts `dates=YYYYMMDD-YYYYMMDD`, so one request
- * covers a league's whole eight-day window. Fifteen leagues cost fifteen
- * requests, against the forty-eight the per-sport-per-day approach needed.
+ * Fixtures are fetched **one date at a time**, and that is not the cheap way.
+ * It is the way that returns the fixtures.
+ *
+ * This used to send `dates=YYYYMMDD-YYYYMMDD`, one request per league per
+ * window, which the provider answered for years and now answers with zero
+ * events for every team competition — verified 2026-09-20 across the NFL, NCAA
+ * football, the NBA, MLB and two soccer competitions, while the same dates
+ * asked for singly return their games. Nothing failed: a range simply comes
+ * back empty, so the schedule, the hubs and every projection went quiet
+ * without a single error to show for it.
+ *
+ * The bulk forms that still work were measured and rejected. `dates=YYYYMM`
+ * is complete for the NFL (48 of 48) and MLB (369 of 369) and returns 25 of
+ * college football's 139; `dates=YYYY` is capped at the earliest events, so
+ * MLB's season query misses September entirely. A form that is complete for
+ * some competitions and quietly lossy for others is worse than an expensive
+ * one, because nothing downstream can tell which it got.
+ *
+ * So: one request per league per date, deduplicated, with every past date
+ * cached for a week because it can never change again. A cold season of
+ * history costs far more requests than it did; a warm one costs almost none.
  *
  * Normalisation and the game-id helpers live in `fixture-normalise.ts`, which
  * has no runtime imports so it can be unit-tested directly.
@@ -20,7 +38,7 @@ import type { Game } from '../../home/types';
 import type { League } from '../../leagues/registry';
 import { ProviderError } from '../../http.ts';
 import { fetchEspn } from './client.ts';
-import { compactDate, halveRange, normaliseFixtures, splitRange } from './fixture-normalise.ts';
+import { compactDate, normaliseFixtures } from './fixture-normalise.ts';
 import type { RawFixtureResponse } from './fixture-normalise';
 import { normaliseRaceFixtures } from './racing.ts';
 import type { RawRaceResponse } from './racing';
@@ -79,6 +97,102 @@ export type {
  * One request per league for the whole range, cached, so a schedule refresh
  * costs one call per competition rather than one per competition per day.
  */
+/** Every date from `start` to `end` inclusive, as `YYYYMMDD`. */
+export function datesBetween(start: string, end: string): string[] {
+  const dates: string[] = [];
+  const last = Date.parse(`${end}T00:00:00Z`);
+  let cursor = Date.parse(`${start}T00:00:00Z`);
+  if (!Number.isFinite(cursor) || !Number.isFinite(last)) return dates;
+
+  // A long history window is hundreds of dates; a runaway loop would be worse
+  // than a short answer, so the span is bounded rather than trusted.
+  while (cursor <= last && dates.length < MAX_DATES) {
+    dates.push(compactDate(new Date(cursor).toISOString().slice(0, 10)));
+    cursor += 86_400_000;
+  }
+  return dates;
+}
+
+/** Roughly three years, which is longer than anything here asks for. */
+const MAX_DATES = 1100;
+
+/**
+ * One league on one date.
+ *
+ * Cached per league and date, which is a better key than the range it
+ * replaced: a date in the past can never gain or lose a fixture, so its entry
+ * stays valid for as long as it is held.
+ */
+async function fixturesOnDate(
+  league: League,
+  date: string,
+  ttlMs: number,
+): Promise<Game[]> {
+  const espnPath = league.espnPath;
+  if (!espnPath) return [];
+
+  const { value } = await cached(`espn:fixtures:${league.id}:${date}`, ttlMs, async () => {
+    try {
+      const payload = await fetchEspn<
+        RawFixtureResponse & RawRaceResponse & RawBoutResponse & RawTennisResponse
+      >(`${espnPath}/scoreboard`, `dates=${date}&limit=${EVENT_LIMIT}`);
+      return normalisePayload(payload, league);
+    } catch (error) {
+      // An out-of-season competition 404s — NCAA basketball does this all
+      // summer. That is "no fixtures", not a provider failure, so it must not
+      // count towards the schedule's error state.
+      if (error instanceof ProviderError && error.status === 404) return [] as Game[];
+      throw error;
+    }
+  });
+
+  return value;
+}
+
+/**
+ * Fetch a set of dates and merge them.
+ *
+ * Shared by the schedule window and the history walk, so both ask the provider
+ * the same way and neither can drift into a form the other has disproved.
+ *
+ * One date failing does not discard the rest: a burst can draw a rate limit,
+ * and losing a day of a season is far better than losing the season. The
+ * caller is told how many failed so a total outage still reads as one.
+ */
+async function fixturesForDates(
+  league: League,
+  dates: readonly string[],
+  ttlFor: (date: string) => number,
+): Promise<{ games: Game[]; failed: number }> {
+  let failed = 0;
+
+  const results = await mapWithConcurrency(dates, DATE_CONCURRENCY, async (date) => {
+    try {
+      return await fixturesOnDate(league, date, ttlFor(date));
+    } catch (error) {
+      failed += 1;
+      logger.warn('espn_fixtures_date_failed', {
+        league: league.id,
+        date,
+        reason: error instanceof Error ? error.message : 'unknown',
+      });
+      return [] as Game[];
+    }
+  });
+
+  /*
+   * De-duplicate on the fixture id.
+   *
+   * A fixture near midnight is returned by the provider on both of the dates
+   * it straddles in different timezones, and counting one twice would distort
+   * every rating built from it.
+   */
+  const seen = new Map<string, Game>();
+  for (const game of results.flat()) seen.set(game.id, game);
+
+  return { games: [...seen.values()], failed };
+}
+
 export async function fixturesForLeague(
   league: League,
   startDate: string,
@@ -88,39 +202,22 @@ export async function fixturesForLeague(
   const espnPath = league.espnPath;
   if (!espnConfig.enabled || !espnPath) return [];
 
-  const range = `${compactDate(startDate)}-${compactDate(endDate)}`;
+  const dates = datesBetween(startDate, endDate);
+  const { games, failed } = await fixturesForDates(league, dates, () => ttlMs);
 
-  const { value, hit } = await cached(
-    `espn:fixtures:${league.id}:${range}`,
-    ttlMs,
-    async () => {
-      try {
-        const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse & RawBoutResponse & RawTennisResponse>(
-          `${espnPath}/scoreboard`,
-          `dates=${range}&limit=200`,
-        );
-        return normalisePayload(payload, league);
-      } catch (error) {
-        // An out-of-season competition 404s on a date range — NCAA basketball
-        // does this all summer. That is "no fixtures", not a provider failure,
-        // so it must not count towards the schedule's error state.
-        if (error instanceof ProviderError && error.status === 404) {
-          logger.info('espn_fixtures_out_of_season', { league: league.id, range });
-          return [] as Game[];
-        }
-        throw error;
-      }
-    },
-  );
-
-  if (!hit) {
-    logger.info('espn_fixtures_refreshed', {
-      league: league.id,
-      range,
-      games: value.length,
-    });
+  // Every date failing is an outage rather than an empty week, and the
+  // schedule's error state depends on being able to tell them apart.
+  if (failed === dates.length && dates.length > 0) {
+    throw new ProviderError(`fixtures unavailable for ${league.id}`, null);
   }
-  return value;
+
+  logger.info('espn_fixtures_refreshed', {
+    league: league.id,
+    dates: dates.length,
+    failed,
+    games: games.length,
+  });
+  return games;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,36 +227,21 @@ export async function fixturesForLeague(
 /**
  * Per-request event cap.
  *
- * The provider returns the *earliest* events when a range exceeds this, so a
- * capped response is silently missing everything recent. `fixturesForRange`
- * detects that and splits rather than accepting the truncation.
+ * One date never approaches this — the busiest day here is a college football
+ * Saturday — so it is a guard rather than a mechanism. The splitting this used
+ * to drive is gone with the ranges that needed it.
  */
 const EVENT_LIMIT = 1000;
 
 /**
- * Default window per request.
+ * Dates fetched at once.
  *
- * Deliberately large. Comfortably inside the provider's ~1-year span limit, and
- * for most competitions one window returns a whole half-season well under the
- * event cap -- a football league plays ~380 games a season, so a 180-day
- * request is nowhere near 1000.
- *
- * High-volume competitions do exceed it, and the split-on-cap retry below
- * handles them automatically. Starting small instead would have made every
- * low-volume league pay for the few that are busy: nine football competitions
- * cost 27 requests this way against 90 at 45-day windows.
+ * A season of history is now hundreds of requests rather than two, so this
+ * matters more than it did. Four keeps a cold warm-up off the provider's rate
+ * limit while staying fast enough that a page does not look broken; every
+ * settled date is then cached for a week and never asked for again.
  */
-const DEFAULT_CHUNK_DAYS = 180;
-
-/**
- * Windows fetched at once.
- *
- * A whole pool warming at once was issuing ninety simultaneous requests, which
- * invites rate limiting and makes the first page load slow enough to look
- * broken. Bounded, results are cached, and after warm-up only the current
- * window is refetched.
- */
-const WINDOW_CONCURRENCY = 4;
+const DATE_CONCURRENCY = 4;
 
 /** Run tasks with a bounded number in flight. */
 async function mapWithConcurrency<T, R>(
@@ -182,75 +264,13 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-/** Guard against a pathological split loop; six halvings is well under a day. */
-const MAX_SPLIT_DEPTH = 6;
-
-async function fetchWindow(
-  league: League,
-  window: { start: string; end: string },
-  ttlMs: number,
-  depth: number,
-): Promise<Game[]> {
-  const espnPath = league.espnPath;
-  if (!espnPath) return [];
-
-  const range = `${compactDate(window.start)}-${compactDate(window.end)}`;
-
-  const { value } = await cached(`espn:history:${league.id}:${range}`, ttlMs, async () => {
-    try {
-      const payload = await fetchEspn<RawFixtureResponse & RawRaceResponse & RawBoutResponse & RawTennisResponse>(
-        `${espnPath}/scoreboard`,
-        `dates=${range}&limit=${EVENT_LIMIT}`,
-      );
-      const games = normalisePayload(payload, league);
-      return { games, capped: (payload?.events?.length ?? 0) >= EVENT_LIMIT };
-    } catch (error) {
-      // Out of season for this window. Empty, not a failure.
-      if (error instanceof ProviderError && error.status === 404) {
-        return { games: [] as Game[], capped: false };
-      }
-
-      /*
-       * Too much data for one request.
-       *
-       * A busy competition over a long window exceeds the response size cap
-       * before it ever reaches the event cap, and that arrives as a thrown
-       * error rather than a truncated payload — so the split below has to be
-       * driven by it as well. Without this, a whole season of NBA, MLB, NHL
-       * and college football history simply failed.
-       */
-      if (error instanceof ProviderError && error.tooLarge) {
-        return { games: [] as Game[], capped: true };
-      }
-
-      throw error;
-    }
-  });
-
-  if (!value.capped || depth >= MAX_SPLIT_DEPTH) return value.games;
-
-  // The response hit the cap, so it is missing the later part of this window.
-  logger.info('espn_history_split', { league: league.id, range, depth });
-  const halves = halveRange(window);
-  if (halves.length < 2) return value.games;
-
-  const parts = await mapWithConcurrency(halves, WINDOW_CONCURRENCY, (half) =>
-    fetchWindow(league, half, ttlMs, depth + 1),
-  );
-  return parts.flat();
-}
-
 /**
  * Every fixture for a league across an arbitrarily long range.
  *
- * Chunked, because the provider fails silently in two ways on a long request:
- * a range beyond about a year returns nothing at all, and any range is capped
- * at the earliest N events. Neither surfaces as an error, so a naive request
- * for a season of history returns a fortnight of it and looks fine.
- *
- * Windows entirely in the past are cached far longer than the one containing
- * today: a settled result never changes, so after the first warm-up only the
- * current window is refetched.
+ * Asked one date at a time, for the reason in the module header: the provider
+ * answers a date range with zero events. Dates before today are cached for far
+ * longer than today's, because a settled day can never gain a fixture — so a
+ * warm history costs a handful of requests however long the window is.
  */
 export async function fixturesForRange(
   league: League,
@@ -260,55 +280,34 @@ export async function fixturesForRange(
 ): Promise<Game[]> {
   if (!espnConfig.enabled) return [];
 
-  const windows = splitRange(startDate, endDate, DEFAULT_CHUNK_DAYS);
+  const dates = datesBetween(startDate, endDate);
+  const today = compactDate(options.today);
 
   /*
-   * One window failing must not discard the league.
+   * One date failing must not discard the league.
    *
    * A burst of requests can draw a rate limit, and a single 429 in the middle
    * of a season used to reject the whole range — costing a competition its
-   * entire history and every projection with it. Losing four months of results
-   * is far better than losing sixteen, and the gap shows up as lower data
+   * entire history and every projection with it. Losing a day of results is
+   * far better than losing sixteen months, and the gap shows up as lower data
    * quality rather than as silence.
    */
-  let failed = 0;
-  const results = await mapWithConcurrency(windows, WINDOW_CONCURRENCY, async (window) => {
-    try {
-      return await fetchWindow(
-        league,
-        window,
-        // A window that ended before today can never change again.
-        window.end < options.today ? options.settledTtlMs : options.currentTtlMs,
-        0,
-      );
-    } catch (error) {
-      failed += 1;
-      logger.warn('espn_history_window_failed', {
-        league: league.id,
-        window: `${window.start}..${window.end}`,
-        reason: error instanceof Error ? error.message : 'unknown',
-      });
-      return [] as Game[];
-    }
-  });
+  const { games, failed } = await fixturesForDates(league, dates, (date) =>
+    date < today ? options.settledTtlMs : options.currentTtlMs,
+  );
 
-  // Every window failing is a genuine outage for this competition, and the
+  // Every date failing is a genuine outage for this competition, and the
   // caller should see it as one rather than as an empty season.
-  if (failed === windows.length && windows.length > 0) {
+  if (failed === dates.length && dates.length > 0) {
     throw new ProviderError(`history unavailable for ${league.id}`, null);
   }
 
-  // De-duplicate: overlapping windows and split retries can return a fixture
-  // more than once, and a doubled result would distort every rating.
-  const seen = new Map<string, Game>();
-  for (const game of results.flat()) seen.set(game.id, game);
-
-  const games = [...seen.values()];
   logger.info('espn_history_loaded', {
     league: league.id,
-    windows: windows.length,
+    dates: dates.length,
     failed,
     games: games.length,
   });
   return games;
 }
+
