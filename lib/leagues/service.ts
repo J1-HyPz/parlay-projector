@@ -42,16 +42,42 @@ function currentSeason(now: Date = new Date()): number {
   return now.getUTCFullYear();
 }
 
-export async function getStandings(league: League): Promise<StandingsGroup[] | null> {
-  if (!league.hasStandings) return null;
+/**
+ * What came back, and whether the absence means anything.
+ *
+ * Three states rather than two, because "nobody publishes this" and "the
+ * request did not come back" are different facts and a reader can act on only
+ * one of them. Both used to be `null`, so the UFC, ATP and WTA hubs reported
+ * "unable to load fighters right now" about a list that is never published —
+ * a fault where there was none, and one that would never clear.
+ *
+ * `unsupported` is a property of the competition, recorded in the catalogue
+ * and verified against the provider. `failed` is a property of this request.
+ */
+export type LeagueData<T> =
+  | { state: 'ok'; value: T }
+  | { state: 'unsupported' }
+  | { state: 'failed' };
+
+const UNSUPPORTED = { state: 'unsupported' } as const;
+const FAILED = { state: 'failed' } as const;
+
+/** A list is only an answer when it has something in it. */
+function listed<T>(values: T[]): LeagueData<T[]> {
+  return values.length > 0 ? { state: 'ok', value: values } : FAILED;
+}
+
+export async function getStandings(league: League): Promise<LeagueData<StandingsGroup[]>> {
+  if (!league.hasStandings) return UNSUPPORTED;
 
   // Competitions ESPN does not carry come from their own provider.
   if (league.provider === 'thesportsdb') {
-    return getSportsdbStandings(league, String(currentSeason()));
+    const groups = await getSportsdbStandings(league, String(currentSeason()));
+    return groups ? listed(groups) : FAILED;
   }
 
   const espnPath = league.espnPath;
-  if (!espnConfig.enabled || !espnPath) return null;
+  if (!espnConfig.enabled || !espnPath) return FAILED;
 
   try {
     const { value, hit } = await cached(
@@ -75,13 +101,13 @@ export async function getStandings(league: League): Promise<StandingsGroup[] | n
         groups: value.length,
       });
     }
-    return value.length > 0 ? value : null;
+    return listed(value);
   } catch (error) {
     logger.warn('league_standings_failed', {
       league: league.id,
       reason: error instanceof Error ? error.message : 'unknown',
     });
-    return null;
+    return FAILED;
   }
 }
 
@@ -92,10 +118,11 @@ export async function getStandings(league: League): Promise<StandingsGroup[] | n
  * constructors'; the group is matched by name rather than by position, so a
  * provider reordering them does not turn drivers into constructors.
  */
-async function driversFromStandings(league: League): Promise<TeamProfile[] | null> {
-  const groups = await getStandings(league);
-  if (!groups || groups.length === 0) return null;
+async function driversFromStandings(league: League): Promise<LeagueData<TeamProfile[]>> {
+  const standings = await getStandings(league);
+  if (standings.state !== 'ok') return standings;
 
+  const groups = standings.value;
   const drivers =
     groups.find((group) => /driver/i.test(group.name)) ?? groups[0];
 
@@ -109,11 +136,16 @@ async function driversFromStandings(league: League): Promise<TeamProfile[] | nul
     colour: null,
   }));
 
-  return profiles.length > 0 ? profiles : null;
+  return listed(profiles);
 }
 
-export async function getTeams(league: League): Promise<TeamProfile[] | null> {
-  if (league.provider === 'thesportsdb') return getSportsdbTeams(league);
+export async function getTeams(league: League): Promise<LeagueData<TeamProfile[]>> {
+  if (!league.hasTeams) return UNSUPPORTED;
+
+  if (league.provider === 'thesportsdb') {
+    const teams = await getSportsdbTeams(league);
+    return teams ? listed(teams) : FAILED;
+  }
 
   /*
    * Motorsport has no teams endpoint, and a constructor list would not be what
@@ -127,20 +159,20 @@ export async function getTeams(league: League): Promise<TeamProfile[] | null> {
   if (league.format === 'race') return driversFromStandings(league);
 
   const espnPath = league.espnPath;
-  if (!espnConfig.enabled || !espnPath) return null;
+  if (!espnConfig.enabled || !espnPath) return FAILED;
 
   try {
     const { value } = await cached(`league:teams:${league.id}`, TEAMS_TTL_MS, async () => {
       const payload = await fetchEspn<RawTeamsResponse>(`${espnPath}/teams`);
       return normaliseTeams(payload);
     });
-    return value.length > 0 ? value : null;
+    return listed(value);
   } catch (error) {
     logger.warn('league_teams_failed', {
       league: league.id,
       reason: error instanceof Error ? error.message : 'unknown',
     });
-    return null;
+    return FAILED;
   }
 }
 

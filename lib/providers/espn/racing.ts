@@ -114,11 +114,6 @@ export function sessionName(abbreviation: string | null, fallback: string | null
   return fallback ?? abbreviation;
 }
 
-/** Whether this session is the Grand Prix itself, as opposed to a support session. */
-export function isRaceSession(abbreviation: string | null): boolean {
-  return abbreviation === 'Race';
-}
-
 // ---------------------------------------------------------------------------
 // Normalisation
 // ---------------------------------------------------------------------------
@@ -207,27 +202,6 @@ export function normaliseRaceFixtures(payload: RawRaceResponse, league: League):
 
   for (const event of payload.events ?? []) {
     for (const session of event.competitions ?? []) {
-      const game = normaliseSession(event, session, league);
-      if (game) games.push(game);
-    }
-  }
-
-  return games;
-}
-
-/**
- * The Grand Prix itself, one per weekend.
- *
- * Used where practice and qualifying would be noise — the projection engine
- * only has an opinion about the race, and a homepage list of today's sport does
- * not want three practice sessions.
- */
-export function raceSessionsOnly(payload: RawRaceResponse, league: League): Game[] {
-  const games: Game[] = [];
-
-  for (const event of payload.events ?? []) {
-    for (const session of event.competitions ?? []) {
-      if (!isRaceSession(str(session.type?.abbreviation))) continue;
       const game = normaliseSession(event, session, league);
       if (game) games.push(game);
     }

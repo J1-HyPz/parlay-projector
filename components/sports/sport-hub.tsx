@@ -123,7 +123,16 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
       );
     }
     if (!single.hasStandings) {
-      return <InlineEmpty>No {terminology.standings.toLowerCase()} is published for this competition.</InlineEmpty>;
+      /*
+       * Phrased so it reads for a plural term too. The template was
+       * "No {X} is published", which is right for a Table and a Championship
+       * and wrong for Rankings and Standings.
+       */
+      return (
+        <InlineEmpty>
+          This competition publishes no {terminology.standings.toLowerCase()}.
+        </InlineEmpty>
+      );
     }
     if (standings.state === 'loading') return <SkeletonRows rows={4} />;
     if (standings.state === 'error' || !standings.data) {
@@ -137,6 +146,21 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
       return (
         <InlineEmpty>
           Choose Men&apos;s or Women&apos;s to see {terminology.teams.toLowerCase()}.
+        </InlineEmpty>
+      );
+    }
+    /*
+     * A known absence, before any attempt to load one.
+     *
+     * The UFC and both tennis tours publish no competitor list at all — their
+     * team endpoints answer with an empty array — and this said "unable to
+     * load fighters right now" about it, which reads as a fault that might
+     * clear. It never would.
+     */
+    if (!single.hasTeams) {
+      return (
+        <InlineEmpty>
+          This competition publishes no list of {terminology.teams.toLowerCase()}.
         </InlineEmpty>
       );
     }
@@ -225,9 +249,13 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
               value={sections ? String(sections.today.length + sections.live.length) : '--'}
               icon={CalendarDays}
             />
+            {/* `--` rather than `0`, where no list is published: a zero is a
+                count, and counting something nobody publishes is a claim. */}
             <SummaryCard
               label={terminology.teams}
-              value={teams.data ? String(teams.data.length) : '--'}
+              value={
+                single?.hasTeams && teams.data ? String(teams.data.length) : '--'
+              }
               icon={Users}
             />
             <SummaryCard label="Season" value={season ?? '--'} icon={Trophy} />
@@ -270,13 +298,15 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
                 title={terminology.standings}
                 id="standings-preview-heading"
                 action={
-                  <button
-                    type="button"
-                    onClick={() => setSection('standings')}
-                    className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
-                  >
-                    Full {terminology.standings.toLowerCase()}
-                  </button>
+                  single?.hasStandings ? (
+                    <button
+                      type="button"
+                      onClick={() => setSection('standings')}
+                      className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
+                    >
+                      Full {terminology.standings.toLowerCase()}
+                    </button>
+                  ) : undefined
                 }
               />
               {standingsBody(6)}
@@ -293,13 +323,15 @@ export function SportHub({ hub, initialDivision }: { hub: HubConfig; initialDivi
               title={terminology.teams}
               id="teams-preview-heading"
               action={
-                <button
-                  type="button"
-                  onClick={() => setSection('teams')}
-                  className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
-                >
-                  All {terminology.teams.toLowerCase()}
-                </button>
+                single?.hasTeams ? (
+                  <button
+                    type="button"
+                    onClick={() => setSection('teams')}
+                    className="text-xs text-violet-300 transition hover:text-violet-200 focus-ring"
+                  >
+                    All {terminology.teams.toLowerCase()}
+                  </button>
+                ) : undefined
               }
             />
             {teamsBody(10)}

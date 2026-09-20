@@ -121,7 +121,13 @@ export async function getLeagueTransactions(
           ),
           getTeams(league),
         ]);
-        return normaliseTransactions(payload, league.id, teams ?? []);
+        // Names only, and only to label a row. A competition with no
+        // published team list still has transactions worth showing.
+        return normaliseTransactions(
+          payload,
+          league.id,
+          teams.state === 'ok' ? teams.value : [],
+        );
       },
     );
 
