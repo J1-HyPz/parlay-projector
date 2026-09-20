@@ -27,8 +27,16 @@ These were previously the same list, which conflated two jobs:
 - **Schedule and Live chips filter.** They are unchanged, and each hub links
   back with `?sport=<chip>` applied.
 
-The sidebar stays curated — nine entries, not seventeen. The remaining football
-competitions are reached from the switcher on any football hub.
+The sidebar stays curated, and the curation is *within* a sport: the remaining
+football competitions are reached from the switcher on any football hub, and
+the CFL has a hub without a permanent row.
+
+A whole sport missing is the different thing. The UFC and both tennis tours
+were modelled, priced, projected, settled and given hubs and game pages, and
+then had no sidebar entry at all — two sports the application supported and the
+navigation never mentioned, reachable only by typing the URL. They are listed
+now, and the test asserts the rule (no sport unreachable) rather than pinning
+the list of slugs, which is what let the gap open.
 
 ## NCAA basketball
 
@@ -103,6 +111,31 @@ verbatim and only *classified* — the opening verb decides whether a row is a
 trade, a waiver or a signing, falling back to a neutral label rather than
 guessing.
 
+## Competitor lists
+
+The same question, asked again for the thing the hub calls Teams, Clubs,
+Drivers, Fighters or Players — and for a while it was not asked at all.
+
+| League | Competitor list |
+| --- | --- |
+| Every team competition | Published |
+| Formula 1 | Derived from the drivers' championship |
+| UFC, ATP, WTA | **None** |
+
+The three individual-sport competitions answer their team endpoint with `200`
+and an empty array: the endpoint exists and the roster does not. That was
+indistinguishable from a request that failed, so those hubs reported *"unable
+to load fighters right now"* about a list that is never published and whose
+error would never clear. It is recorded as `hasTeams` and the hub says *"This
+competition publishes no list of fighters"* instead.
+
+Formula 1 is why this is a separate flag rather than a consequence of the
+sport: it has no teams endpoint at all, and its drivers are read off the
+championship table that is already fetched.
+
+The summary card shows `--` rather than `0` where no list is published. A zero
+is a count, and counting something nobody publishes is a claim.
+
 ## Standings
 
 One table component for every competition. Groups come from the provider —
@@ -132,6 +165,13 @@ Transactions  Transfers are not published for this competition.
 
 Empty is distinguished from broken throughout — "No games are currently live" is
 not the same message as "Unable to load fixtures right now".
+
+Three states, not two. `/api/leagues/:id/teams` and `/standings` both report
+`supported`, which separates a competition that publishes none of this from a
+request that did not come back; only the second carries `error`. The CFL is the
+case that keeps the distinction honest — it publishes a table, and on the
+public provider key the request for it fails, so it reports a failure rather
+than being quietly reclassified as a competition without one.
 
 ## Limitations
 

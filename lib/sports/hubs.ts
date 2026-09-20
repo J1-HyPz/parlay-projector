@@ -338,9 +338,15 @@ export function hubGroups(): HubGroup[] {
  * and Live chips continue to filter those pages. The two were previously the
  * same list, which conflated them.
  *
- * Deliberately a subset. Seventeen permanent entries would be an unusable
- * navigation column, so the remaining football competitions are reached from
- * the switcher on any football hub.
+ * Deliberately a subset, and the subset is the *football* competitions:
+ * seventeen permanent entries would be an unusable navigation column, so the
+ * rest are reached from the switcher on any football hub.
+ *
+ * Every other sport is here in full, which is the rule this list broke. The
+ * UFC and the two tennis tours were modelled, priced, projected, settled and
+ * given their own hubs and game pages, and then could not be navigated to —
+ * an eighth sport the application supported and the navigation did not
+ * mention. A reader had to know the URL.
  */
 export interface SidebarHub {
   /** Hub slug: /sports/<slug>. A test asserts every one of these resolves. */
@@ -361,6 +367,9 @@ export const SIDEBAR_HUBS: readonly SidebarHub[] = [
   { slug: 'epl', label: 'Premier League', emoji: EMOJI.football },
   { slug: 'ucl', label: 'Champions League', emoji: EMOJI.football },
   { slug: 'f1', label: 'Formula 1', emoji: EMOJI.motorsport },
+  { slug: 'ufc', label: 'UFC', emoji: EMOJI.combat },
+  { slug: 'atp', label: 'ATP Tour', emoji: EMOJI.racket },
+  { slug: 'wta', label: 'WTA Tour', emoji: EMOJI.racket },
 ];
 
 // ---------------------------------------------------------------------------

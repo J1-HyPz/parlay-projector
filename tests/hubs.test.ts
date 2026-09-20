@@ -167,10 +167,40 @@ describe('navigation', () => {
 
   it('keeps the sidebar curated rather than exhaustive', () => {
     assert.ok(SIDEBAR_HUBS.length < HUBS.length, 'every competition would be unusable');
-    assert.deepEqual(
-      SIDEBAR_HUBS.map((entry) => entry.slug),
-      ['nfl', 'ncaaf', 'nba', 'wnba', 'ncaab', 'mlb', 'nhl', 'epl', 'ucl', 'f1'],
+  });
+
+  it('leaves no sport unreachable', () => {
+    /*
+     * The rule, rather than the list.
+     *
+     * This used to pin the ten slugs it happened to hold, which passes for as
+     * long as nobody adds a sport — and three were added and left out, so MMA
+     * and tennis were modelled, projected and settled while having no entry at
+     * all. Within a sport the list is a curated subset and always has been
+     * (the CFL has a hub and no row); a whole sport missing is the different
+     * thing, and it is what this catches.
+     */
+    const listed = new Set(
+      SIDEBAR_HUBS.flatMap((entry) =>
+        // Null division, so a split hub reports both of its competitions.
+        leaguesForHub(resolveHub(entry.slug)!.hub, null).map((league) => league.sport),
+      ),
     );
+
+    for (const league of LEAGUES) {
+      assert.ok(
+        listed.has(league.sport),
+        `${league.sport} has hubs and no way to reach any of them from the sidebar`,
+      );
+    }
+  });
+
+  it('trims football because seventeen rows would be unusable', () => {
+    const football = LEAGUES.filter((league) => league.group === 'football');
+    const listed = SIDEBAR_HUBS.filter((entry) =>
+      football.some((league) => league.id === entry.slug),
+    );
+    assert.ok(listed.length < football.length, 'football is the one deliberate subset');
   });
 
   it('reaches every football competition from the switcher', () => {

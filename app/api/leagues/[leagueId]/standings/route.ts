@@ -6,6 +6,10 @@
  *
  * 404 for an unknown league; 200 with `groups: []` when the provider publishes
  * no table — never a fabricated one.
+ *
+ * `supported` separates the two ways that list comes back empty: false when no
+ * table is published for this competition, true when one is and this request
+ * did not bring it back. Only the second is a fault.
  */
 
 import { json } from '@/lib/home/api';
@@ -24,10 +28,11 @@ export async function GET(
     return json({ error: 'league_not_found', message: 'No such league.' }, 404);
   }
 
-  const groups = await getStandings(league);
+  const result = await getStandings(league);
   return json({
     league: { id: league.id, label: league.label },
-    groups: groups ?? [],
-    ...(groups ? {} : { error: 'league_data_unavailable' as const }),
+    groups: result.state === 'ok' ? result.value : [],
+    supported: result.state !== 'unsupported',
+    ...(result.state === 'failed' ? { error: 'league_data_unavailable' as const } : {}),
   });
 }

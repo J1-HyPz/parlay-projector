@@ -108,6 +108,22 @@ export interface League {
   /** Whether the provider publishes a standings table for this league. */
   hasStandings: boolean;
   /**
+   * Whether the provider publishes a list of the competitors themselves.
+   *
+   * "Teams" is the provider's word and the route's; a hub translates it into
+   * Drivers, Fighters or Players. Verified the same way the other two flags
+   * were, because the answer is not guessable from the sport: the UFC, ATP and
+   * WTA team endpoints all answer 200 with an empty `teams` array, while
+   * Formula 1 has no such endpoint at all and its drivers come from the
+   * championship table instead.
+   *
+   * Recorded so a hub can say "this competition publishes none" rather than
+   * reporting a fault. Without it, three hubs told a reader their competitor
+   * list could not be loaded right now, about a list that is never published
+   * and never will be.
+   */
+  hasTeams: boolean;
+  /**
    * Whether the provider publishes structured transactions for this league.
    *
    * Verified against ESPN's core API: the five North American professional
@@ -138,6 +154,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'football/nfl',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: true,
     collegiate: false,
   },
@@ -151,6 +168,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'football/college-football',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: true,
   },
@@ -174,6 +192,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: null,
     sportsdbLeagueId: '4405',
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -189,6 +208,7 @@ export const LEAGUES: readonly League[] = [
     // No table published for this competition; the hub says so rather than
     // rendering an empty one.
     hasStandings: false,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -202,6 +222,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: null,
     sportsdbLeagueId: '5876',
     hasStandings: false,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -217,6 +238,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'basketball/nba',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: true,
     collegiate: false,
   },
@@ -230,6 +252,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'basketball/wnba',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: true,
     collegiate: false,
   },
@@ -243,6 +266,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'basketball/mens-college-basketball',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: true,
   },
@@ -256,6 +280,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'basketball/womens-college-basketball',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: true,
   },
@@ -271,6 +296,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'baseball/mlb',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: true,
     collegiate: false,
   },
@@ -286,6 +312,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'hockey/nhl',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: true,
     collegiate: false,
   },
@@ -303,6 +330,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/eng.1',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -316,6 +344,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/eng.2',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -329,6 +358,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/eng.3',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -342,6 +372,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/uefa.champions',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -355,6 +386,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/uefa.europa',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -368,6 +400,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/uefa.europa.conf',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -381,6 +414,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/esp.1',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -394,6 +428,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/ger.1',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -407,6 +442,7 @@ export const LEAGUES: readonly League[] = [
     espnPath: 'soccer/ita.1',
     sportsdbLeagueId: null,
     hasStandings: true,
+    hasTeams: true,
     hasTransactions: false,
     collegiate: false,
   },
@@ -427,6 +463,9 @@ export const LEAGUES: readonly League[] = [
     sportsdbLeagueId: null,
     // Drivers' and Constructors' championships, on the v2 standings path.
     hasStandings: true,
+    // No teams endpoint at all, but the drivers are read off the drivers'
+    // championship, which is already fetched -- see `driversFromStandings`.
+    hasTeams: true,
     // Transactions are a North American professional-league concept; the
     // provider publishes none for motorsport.
     hasTransactions: false,
@@ -457,6 +496,9 @@ export const LEAGUES: readonly League[] = [
     // Divisional rankings exist on the website but not as a standings table on
     // this API, and a ranking is not a league table in any case.
     hasStandings: false,
+    // `mma/ufc/teams` answers 200 with an empty `teams` array -- the endpoint
+    // exists and the roster does not. Verified live 2026-09-20.
+    hasTeams: false,
     // A North American team-league concept; an individual athlete has none.
     hasTransactions: false,
     collegiate: false,
@@ -487,6 +529,9 @@ export const LEAGUES: readonly League[] = [
      * shown as a permanently empty section.
      */
     hasStandings: false,
+    // `tennis/atp/teams` answers 200 with an empty `teams` array, the same as
+    // the UFC's. Verified live 2026-09-20.
+    hasTeams: false,
     hasTransactions: false,
     collegiate: false,
   },
@@ -504,6 +549,8 @@ export const LEAGUES: readonly League[] = [
     format: 'match',
     sportsdbLeagueId: null,
     hasStandings: false,
+    // Same as the ATP entry, verified at the same time.
+    hasTeams: false,
     hasTransactions: false,
     collegiate: false,
   },

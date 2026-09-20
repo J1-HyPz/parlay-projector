@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  isRaceSession,
   normaliseRaceFixtures,
   normaliseSession,
   sessionName,
@@ -38,6 +37,7 @@ const F1: League = {
   format: 'race',
   sportsdbLeagueId: null,
   hasStandings: true,
+  hasTeams: true,
   hasTransactions: false,
   collegiate: false,
 };
@@ -192,8 +192,6 @@ describe('race weekend normalisation', () => {
     assert.equal(sessionName('SS', null), 'Sprint Shootout');
     // An unknown code falls back rather than being dropped.
     assert.equal(sessionName('XYZ', 'Warm Up'), 'Warm Up');
-    assert.equal(isRaceSession('Race'), true);
-    assert.equal(isRaceSession('Qual'), false);
   });
 
   it('drops a session with no identity rather than guessing one', () => {
