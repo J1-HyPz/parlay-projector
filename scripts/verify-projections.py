@@ -311,7 +311,18 @@ def check_builder(game_id, groups):
 
     # Both sides of one market cannot both come in, so one must be dropped
     # rather than the pair being priced as though they could.
-    opposing = next((sel for sel in by_type.values() if len(sel) >= 2), None)
+    #
+    # Grouped by market *and line*, which is what `conflicts` actually tests.
+    # Grouping by type alone was picking pairs that do not oppose each other at
+    # all -- Over 45.5 and Over 48.5 are both totals and can both come in -- so
+    # this failed whenever the fixture it happened to land on offered two lines
+    # of one market before it offered two sides of one.
+    by_market = {}
+    for selection in flat:
+        key = (selection["market"]["type"], selection["market"].get("line"))
+        by_market.setdefault(key, []).append(selection)
+
+    opposing = next((sel for sel in by_market.values() if len(sel) >= 2), None)
     if opposing:
         slip = post(
             f"/api/games/{game_id}/markets",
