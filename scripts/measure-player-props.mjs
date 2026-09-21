@@ -163,7 +163,7 @@ if (marketsSeen.size === 0) {
   console.log('Charged nothing for them: the provider bills markets *returned*.');
 } else {
   console.log(`Player markets returned for region "${regions}":`);
-  for (const [key, outcomes] of [...marketsSeen].sort()) {
+  for (const [key, outcomes] of [...marketsSeen].sort((a, b) => a[0].localeCompare(b[0]))) {
     console.log(`  ${key.padEnd(24)} ${outcomes} outcomes across the fixtures read`);
   }
   console.log(`Bookmakers quoting them: ${[...booksSeen].join(', ')}`);
