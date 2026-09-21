@@ -352,6 +352,44 @@ export interface RaceEntrantProjection {
 }
 
 /**
+ * What the model expects one player to do, for one statistic.
+ *
+ * Deliberately not a selection. This is the analysis half of a player market:
+ * always produced where the record supports it, shown on the fixture's page,
+ * and never by itself a bet — a bet needs a line, and a line has to come from
+ * a bookmaker rather than from this number. See `player-selections.ts`.
+ */
+export interface PlayerProjection {
+  game_id: string;
+  /** The provider's athlete id, which is what settlement matches on. */
+  athlete_id: string;
+  player: string;
+  team_id: string | null;
+  position: string | null;
+  /** Canonical statistic key, e.g. `receiving_yards`. */
+  stat: string;
+  stat_label: string;
+  /** Recency-weighted mean per game. */
+  expected: number;
+  /**
+   * One spread either side of the mean.
+   *
+   * About two games in three for the yardage statistics, and floored at zero
+   * because a normal distribution will happily suggest a player runs for
+   * minus forty yards and nobody ever has.
+   */
+  likely_range: [number, number];
+  /** Games this rests on — of this statistic, not of the player's career. */
+  games: number;
+  /** Most recent values, newest first. */
+  recent: number[];
+  data_quality: DataQuality;
+  quality_reasons: string[];
+  model_version: string;
+  generated_at: string;
+}
+
+/**
  * The model's probability set against the market's.
  *
  * Deliberately not called "value". A gap means the model and the price
@@ -627,6 +665,15 @@ export interface ActualOutcome {
    * Null for a draw or a no-contest. Absent for every fixture that has a score.
    */
   winner?: 'home' | 'away' | null;
+  /**
+   * What the backed player actually recorded, for a player market.
+   *
+   * The equivalent of the scoreline for a market that is not about the score:
+   * the one number the result was judged against. Null means the player took
+   * no part, which voids the selection rather than losing it — so null and
+   * zero are different answers and are kept apart.
+   */
+  player_value?: number | null;
 }
 
 /**

@@ -959,9 +959,17 @@ export function ParlayView() {
 
           <div className="px-1">
             <Note>
-              Player markets are not offered. This application has no player statistics, no
-              lineups and no injury data, and no prices for them — so there is nothing to model
-              and nothing to check against.
+              {/*
+                This said player markets were not offered at all, which stopped
+                being true. What remains true is the part that matters on this
+                page: a player line has to be quoted before it can be staked,
+                and the lines are quoted per fixture rather than per card — so
+                they live on a fixture's own page and not in a generated slate.
+              */}
+              Player projections are on each fixture&rsquo;s own page, for the competitions
+              whose box scores support them. They become bets only where a bookmaker has
+              quoted the line, and nothing here knows whether a player will be selected: no
+              lineup or inactive list is published to this application.
             </Note>
           </div>
         </aside>

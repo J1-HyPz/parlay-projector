@@ -249,13 +249,39 @@ space.
 
 ## What is not offered, and why
 
-**No player markets.** Not points, rebounds, assists, strikeouts, passing
-yards, anytime touchdown or anytime goalscorer.
+**Player markets: NFL only, and the line has to be quoted.**
 
-The application has no player statistics, no lineups, no expected starters and
-no injury feed, and the price feed carries no player markets either. There is
-nothing to model and nothing to verify against. Producing them would be
-invention on both counts.
+This said there were none at all, on the grounds that the application had no
+player statistics and the price feed carried no player markets. The first half
+turned out to be wrong: a finished game's box score carries every player's
+line, and the fixture history is already walked for the team model, so a
+player's record costs one request per game shared by everyone in it. The
+provider's own athlete gamelog does *not* work for this — it serves the current
+season only, so in September it holds one game per player.
+
+What is produced, and the difference between the two:
+
+| | Where it appears | Needs a price |
+| --- | --- | --- |
+| **Projection** — expected passing/rushing/receiving yards, receptions, touchdowns, with the range and the games behind it | Player projections, on the fixture page | No |
+| **Selection** — a bet at a line, scored and parlayable like any other | Markets, on the fixture page | Yes, except anytime touchdown |
+
+The exception is deliberate and narrow. "Anytime touchdown" has one threshold
+everywhere — half a touchdown — because the question is whether he scored at
+all, so the model is not choosing a rung on a ladder. Every other player line
+must come from a bookmaker, for the reason two sections below: a ladder of
+yardage lines nobody offers is the exact failure this work set out to fix.
+
+Three things the model does not know, stated on every projection rather than
+buried here: whether the player is selected (no lineup, depth chart or
+inactive list is published to this application), why a number moved (a change
+of team or scheme looks like noise from here), and anything at all about the
+opposing defence.
+
+A player who does not take part **voids** rather than loses. That is far
+commoner than a tennis retirement, and it is why an unrecorded statistic is
+kept distinct from a recorded zero all the way from the box score to
+settlement.
 
 **No half or quarter markets.** The model simulates whole games. It has no
 notion of a first half, so a first-half line would be a number with nothing

@@ -88,7 +88,18 @@ function logFactorial(k: number): number {
 
 /** P(X = k) for X ~ Poisson(lambda). Computed in logs to stay stable. */
 export function poissonPmf(k: number, lambda: number): number {
-  if (k < 0 || !Number.isInteger(k) || !(lambda > 0)) return 0;
+  if (k < 0 || !Number.isInteger(k)) return 0;
+  /*
+   * A rate of zero is a distribution, not a missing one.
+   *
+   * At lambda 0 the event never happens, so all the mass sits on k = 0. This
+   * returned 0 for every k, which made the cumulative function 0 and so made
+   * `poissonAtLeast(1, 0)` report *one* — a certainty that something happens,
+   * derived from it never having happened. A player who had never scored was
+   * priced at 99.5% to score.
+   */
+  if (lambda === 0) return k === 0 ? 1 : 0;
+  if (!(lambda > 0)) return 0;
   return Math.exp(k * Math.log(lambda) - lambda - logFactorial(k));
 }
 

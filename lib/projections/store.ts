@@ -339,6 +339,15 @@ export interface GameState {
    */
   winner?: 'home' | 'away' | null;
   completion?: 'played' | 'retired' | 'walkover';
+  /**
+   * What each player recorded, for a game carrying a player prediction.
+   *
+   * Read from the box score, and only for a finished game that actually has
+   * one open — see `attachPlayerLines`. Absent means "not looked up", which
+   * leaves the prediction open rather than voiding it; a player missing from
+   * a map that *is* present is the genuine absence, and voids.
+   */
+  players?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 export type GameStates = ReadonlyMap<string, GameState>;

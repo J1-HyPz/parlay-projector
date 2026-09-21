@@ -48,6 +48,7 @@ import type { EdgeAssessment, GameProjection, Selection, SelectionType } from '.
 import type { SportModelConfig } from './config.ts';
 import {
   marketLabel,
+  playerMarketLabel,
   probabilityLabel,
   selectionLabel,
   whatNeedsToHappen,
@@ -570,6 +571,9 @@ export function probabilityFor(
      */
     case 'finish_position':
     case 'head_to_head':
+    // A player market is read off that player's own record, not off a
+    // scoreline distribution, and is built in `player-selections.ts`.
+    case 'player_stat':
       return 0;
   }
 }
@@ -593,6 +597,8 @@ function selectionTypeOf(rule: SettlementRule): SelectionType {
       return 'finish_position';
     case 'head_to_head':
       return 'head_to_head';
+    case 'player_stat':
+      return 'player_performance';
   }
 }
 
@@ -628,7 +634,9 @@ export function marketContextFor(
   const base = {
     type,
     period: 'full_game' as const,
-    label: marketLabel(type, names.sport),
+    // A player market is named by its statistic, which lives on the rule —
+    // the same reason a finishing market is named by how many places it covers.
+    label: rule.kind === 'player_stat' ? playerMarketLabel(rule) : marketLabel(type, names.sport),
     selection: selectionLabel(rule, names),
     line: 'line' in rule ? rule.line : null,
   };

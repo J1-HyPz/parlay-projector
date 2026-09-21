@@ -59,11 +59,15 @@ import type { RaceOutcome } from './race-selections';
 import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-model';
 import type { BoutRatings } from './bout-model';
 import { boutSelections, projectContest } from './bout-selections';
+import { playerGames } from '../players/history';
+import { buildPlayerRatings } from './player-model';
+import type { PlayerRatings } from './player-model';
+import { playerProjections, playerSelections } from './player-selections';
 import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
 import { sidesOf } from '../home/types';
 import type { Game, ConcreteSportId } from '../home/types';
-import type { GameProjection, Selection } from './types';
+import type { GameProjection, PlayerProjection, Selection } from './types';
 
 /** Ratings change only when a game finishes. */
 const RATINGS_TTL_MS = 3 * 60 * 60_000;
@@ -689,6 +693,91 @@ export async function boutProjectionForGame(
   return value;
 }
 
+// ---------------------------------------------------------------------------
+// Players
+// ---------------------------------------------------------------------------
+
+/**
+ * Competitions whose players this model can price.
+ *
+ * One entry, deliberately. The statistics in `player-model.ts` are American
+ * football's, and a receiving yard means nothing in the NBA — so a second
+ * sport is a second statistic table and a second verification, not a flag
+ * flipped here.
+ */
+const PLAYER_LEAGUES = new Set(['nfl']);
+
+export function hasPlayerMarkets(league: League): boolean {
+  return PLAYER_LEAGUES.has(league.id);
+}
+
+/** No players rated, which yields no player selections rather than throwing. */
+function emptyPlayerRatings(): PlayerRatings {
+  return { players: new Map(), sample: 0 };
+}
+
+/**
+ * Per-player ratings for a competition.
+ *
+ * Built from the same fixture history the team model already fetched, so the
+ * only extra cost is one summary request per finished game — see
+ * `players/history.ts`. Cached on the same cadence as every other rating set.
+ */
+export async function buildPlayerModel(
+  league: League,
+  asOf: number = Date.now(),
+): Promise<PlayerRatings | null> {
+  if (!hasPlayerMarkets(league)) return null;
+
+  const config = modelConfigForLeague(league.id, league.sport);
+  if (!config) return null;
+
+  const today = todayInAppTimezone();
+  let games: Game[];
+  try {
+    games = await fixturesForRange(
+      league,
+      addDays(today, -config.historyDays),
+      addDays(today, 7),
+      { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
+    );
+  } catch (error) {
+    logger.warn('player_history_failed', {
+      league: league.id,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+    return null;
+  }
+  if (games.length === 0) return null;
+
+  const { value } = await cached(
+    `projection:player-ratings:${league.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => buildPlayerRatings(await playerGames(league, games, asOf)),
+  );
+
+  return value;
+}
+
+/**
+ * What the model expects this fixture's players to do.
+ *
+ * Analysis rather than bets: see `player-selections.ts` for why a line has to
+ * come from a bookmaker before any of this becomes something to back.
+ */
+export async function playersForGame(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<PlayerProjection[]> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  if (!league || !hasPlayerMarkets(league)) return [];
+
+  const ratings = await buildPlayerModel(league, asOf);
+  if (!ratings) return [];
+
+  return playerProjections(game, ratings, asOf);
+}
+
 /**
  * Whichever projection a fixture has.
  *
@@ -1160,12 +1249,29 @@ export async function gameCandidates(
         ? candidateSelections(game, projected.game, config, markets, asOf)
         : [];
 
+  /*
+   * Player markets, for one fixture at a time.
+   *
+   * Deliberately not part of the slate-wide build. The price provider serves
+   * player props from a per-event endpoint — one request per fixture rather
+   * than one per competition — so pricing a whole card of them costs an order
+   * of magnitude more than every other market on the page put together. Here
+   * the reader has opened a single fixture, and one request for it is
+   * proportionate.
+   */
+  const players = hasPlayerMarkets(league)
+    ? playerSelections(game, (await buildPlayerModel(league, asOf)) ?? emptyPlayerRatings(), markets, asOf)
+    : [];
+
   return {
     game,
     outcome: projected.game,
     bout: projected.bout,
     race: projected.race,
-    selections: selections.map((selection) => ({ ...selection, league_id: league.id })),
+    selections: [...selections, ...players].map((selection) => ({
+      ...selection,
+      league_id: league.id,
+    })),
     markets,
   };
 }

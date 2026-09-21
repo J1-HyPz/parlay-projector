@@ -35,6 +35,14 @@ export interface FinalScore {
   winner?: 'home' | 'away' | null;
   /** Whether a contest ran its course. Tennis publishes the two exceptions. */
   completion?: 'played' | 'retired' | 'walkover';
+  /**
+   * What each player recorded, by provider athlete id and canonical statistic.
+   *
+   * Present only for a fixture carrying player markets. A player absent from
+   * this map did not take part, which is a different answer from having
+   * recorded nothing — see the `player_stat` case in `settle`.
+   */
+  players?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 /** True for a result that is a winner rather than a scoreline. */
@@ -138,6 +146,27 @@ export function settle(rule: SettlementRule, final: FinalScore): PredictionStatu
       return mine < theirs ? 'won' : 'lost';
     }
 
+    case 'player_stat': {
+      const recorded = final.players?.[rule.athleteId]?.[rule.stat];
+
+      /*
+       * A player who did not take part is void, not lost.
+       *
+       * The same principle as a tennis retirement and far commoner: a late
+       * scratch, an inactive list, a benching. The bet was never tested, and
+       * settling it as a loss would count a projection wrong for something it
+       * never claimed. It also means an absence and a genuine zero have to
+       * stay distinguishable all the way from the box score to here — which is
+       * why an unrecorded statistic is omitted rather than written as 0.
+       */
+      if (typeof recorded !== 'number') return 'void';
+
+      // Half-lines cannot land level; a whole one can, and a push is a push.
+      if (recorded === rule.line) return 'push';
+      const over = recorded > rule.line;
+      return over === (rule.direction === 'over') ? 'won' : 'lost';
+    }
+
     default:
       return 'void';
   }
@@ -179,6 +208,15 @@ export interface GameObservation {
   /** For a fight or a match: who won, and whether it ran its course. */
   winner?: 'home' | 'away' | null;
   completion?: 'played' | 'retired' | 'walkover';
+  /**
+   * What each player recorded, by athlete id and canonical statistic.
+   *
+   * Fetched only for a finished game that actually carries a player
+   * prediction — a box score is a request per game, and most games have no
+   * player leg to settle. Absent means "not looked up", which is why
+   * `evidenceFor` refuses to settle a player rule without it.
+   */
+  players?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 /** The two names, so a result can be described rather than merely coded. */
@@ -221,6 +259,24 @@ export function evidenceFor(rule: SettlementRule, state: GameObservation): Final
    * presence, not its value, is what says this is that kind of fixture. Null
    * is a draw or a no-contest and is evidence, not its absence.
    */
+  /*
+   * A player market needs the box score, and only the box score.
+   *
+   * `players` absent is "not looked up yet", not "he did not play" — settling
+   * on the difference would void every player leg the moment its game ended,
+   * before the lines had been read. Present but missing this player is the
+   * real absence, and `settle` voids on that.
+   */
+  if (rule.kind === 'player_stat') {
+    if (!state.players) return null;
+    return {
+      home: state.home ?? 0,
+      away: state.away ?? 0,
+      status: 'finished',
+      players: state.players,
+    };
+  }
+
   if (rule.kind === 'winner' && state.winner !== undefined) {
     return {
       home: 0,
@@ -268,6 +324,34 @@ export function outcomeOf(
   evidence: FinalScore,
   names: SideNames = { home: null, away: null },
 ): { text: string; actual: ActualOutcome } {
+  /*
+   * A player market is judged on one person's number, so that is what is
+   * recorded — alongside the scoreline, which still happened and is still
+   * worth keeping, but is not what this leg was about.
+   *
+   * Null where the player took no part. It is written explicitly rather than
+   * left absent so a settled record says "did not play" rather than "we did
+   * not look".
+   */
+  if (rule.kind === 'player_stat') {
+    const recorded = evidence.players?.[rule.athleteId]?.[rule.stat];
+    const value = typeof recorded === 'number' ? recorded : null;
+
+    return {
+      text:
+        value === null
+          ? `${rule.player} did not record ${rule.statLabel.toLowerCase()} in this game.`
+          : `${rule.player} recorded ${value} ${rule.statLabel.toLowerCase()}.`,
+      actual: {
+        home_score: evidence.home,
+        away_score: evidence.away,
+        margin: evidence.home - evidence.away,
+        total: evidence.home + evidence.away,
+        player_value: value,
+      },
+    };
+  }
+
   if (decidedByWinner(evidence)) {
     return {
       text: describeWinner(evidence, names),

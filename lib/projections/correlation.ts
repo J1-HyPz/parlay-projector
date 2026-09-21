@@ -82,6 +82,18 @@ export function satisfiedBy(
      * combination ever needs both paths at once.
      */
     case 'finish_position':
+    /*
+     * Not answerable from a simulated scoreline.
+     *
+     * Every other rule here asks something about the score; a player market
+     * asks about one person, and the team simulations contain no people. These
+     * never reach this function — a fixture with no usable distribution is held
+     * to a single leg upstream — and false is the honest answer to a question
+     * the simulations cannot address.
+     */
+    case 'player_stat':
+      return false;
+
     case 'head_to_head':
       return false;
   }

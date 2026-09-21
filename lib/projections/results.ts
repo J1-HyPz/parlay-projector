@@ -103,7 +103,9 @@ function backedSide(rule: SettlementRule): 'home' | 'away' | null {
     case 'both_teams_to_score':
     case 'finish_position':
     case 'head_to_head':
-      // A race backs a named competitor rather than a side of the fixture.
+    // A race backs a named competitor rather than a side of the fixture, and
+    // a player market backs one person on one statistic.
+    case 'player_stat':
       return null;
   }
 }
@@ -267,6 +269,19 @@ export function missReason(record: PredictionRecordV2): string | null {
         return `${rule.over} was classified ahead of ${rule.entrant}.`;
       }
       return `${rule.entrant} finished ${place(finished)}, behind ${rule.over}.`;
+    }
+
+    case 'player_stat': {
+      const recorded = actual.player_value;
+      // A player who took no part voids rather than loses, so a miss is never
+      // explained by an absence — there is nothing to explain.
+      if (recorded === null || recorded === undefined) return null;
+
+      const wanted = rule.direction === 'over' ? 'more than' : 'fewer than';
+      return (
+        `${rule.player} was projected for ${wanted} ${rule.line} ` +
+        `${rule.statLabel.toLowerCase()} and recorded ${recorded}.`
+      );
     }
   }
 }

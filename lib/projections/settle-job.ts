@@ -27,6 +27,8 @@ import { invalidateAccuracy } from './accuracy';
 import { readPredictions, settlePredictions, settlementTargets } from './store';
 import type { GameState } from './store';
 import { settlementQueue } from './tracking';
+import { boxscoreFor } from '../players/history';
+import { parseEspnGameId } from '../providers/espn/fixtures';
 
 /**
  * How far back to look for results.
@@ -83,6 +85,47 @@ export function lastSettlementRun(): { at: string; result: TrackerRun } | null {
  * provider is unavailable nothing is settled — predictions stay exactly as they
  * are and the next run tries again.
  */
+/**
+ * Add player lines to the finished games that have a player leg open.
+ *
+ * Silent on failure by design: a box score that cannot be read leaves
+ * `players` absent, `evidenceFor` returns null, and the prediction stays open
+ * to be tried again. The alternative — settling without the evidence — would
+ * void a leg whose game was played perfectly normally.
+ */
+async function attachPlayerLines(states: Map<string, GameState>): Promise<void> {
+  const records = await readPredictions();
+  const open = new Set(
+    records
+      .filter((record) => record.settlement.kind === 'player_stat')
+      .map((record) => record.game_id),
+  );
+  if (open.size === 0) return;
+
+  await Promise.all(
+    [...states.entries()].map(async ([gameId, state]) => {
+      if (state.status !== 'finished' || !open.has(gameId)) return;
+
+      const league = LEAGUES.find((entry) => entry.id === parseEspnGameId(gameId)?.leagueId);
+      if (!league) return;
+
+      try {
+        const lines = await boxscoreFor(league, gameId);
+        if (lines.length === 0) return;
+
+        const players: Record<string, Record<string, number>> = {};
+        for (const line of lines) players[line.athleteId] = line.stats;
+        states.set(gameId, { ...state, players });
+      } catch (error) {
+        logger.warn('settlement_boxscore_failed', {
+          game: gameId,
+          reason: error instanceof Error ? error.message : 'unknown',
+        });
+      }
+    }),
+  );
+}
+
 export async function runSettlement(): Promise<TrackerRun> {
   try {
     const wanted = new Set(await settlementTargets());
@@ -186,6 +229,15 @@ export async function runSettlement(): Promise<TrackerRun> {
       lastRun = { at: new Date().toISOString(), result: failed };
       return failed;
     }
+
+    /*
+     * Box scores, for the games that actually need one.
+     *
+     * A player leg settles on one person's line rather than on the score, and
+     * reading it costs a request per game — so only finished games carrying an
+     * open player prediction are looked up, which on most days is none at all.
+     */
+    await attachPlayerLines(states);
 
     const summary = await settlePredictions(states);
 
