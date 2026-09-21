@@ -60,9 +60,10 @@ import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-mod
 import type { BoutRatings } from './bout-model';
 import { boutSelections, projectContest } from './bout-selections';
 import { playerGames } from '../players/history';
-import { buildPlayerRatings } from './player-model';
+import { buildPlayerRatings, playerResolver } from './player-model';
 import type { PlayerRatings } from './player-model';
 import { playerProjections, playerSelections } from './player-selections';
+import { playerPropsForEvent } from '../odds/player-props';
 import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
 import { sidesOf } from '../home/types';
@@ -1259,9 +1260,30 @@ export async function gameCandidates(
    * the reader has opened a single fixture, and one request for it is
    * proportionate.
    */
-  const players = hasPlayerMarkets(league)
-    ? playerSelections(game, (await buildPlayerModel(league, asOf)) ?? emptyPlayerRatings(), markets, asOf)
-    : [];
+  let players: Selection[] = [];
+  if (hasPlayerMarkets(league)) {
+    const ratings = (await buildPlayerModel(league, asOf)) ?? emptyPlayerRatings();
+
+    /*
+     * Prices for this fixture's players, if any book quotes them.
+     *
+     * One request, for the fixture the reader has open, using the provider's
+     * own event id — which the match-market fetch already matched and carried
+     * here, so finding it costs nothing. A quote for somebody this model has
+     * no record of is dropped by the resolver rather than guessed at.
+     */
+    const priced =
+      markets?.eventId && ratings.players.size > 0
+        ? await playerPropsForEvent(league.id, markets.eventId, playerResolver(ratings))
+        : [];
+
+    const quotes: GameMarkets | null =
+      priced.length > 0 && markets
+        ? { ...markets, markets: [...markets.markets, ...priced] }
+        : markets;
+
+    players = playerSelections(game, ratings, quotes, asOf);
+  }
 
   return {
     game,

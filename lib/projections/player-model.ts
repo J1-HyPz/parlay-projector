@@ -380,3 +380,48 @@ export function playerQualityReasons(
 
   return reasons;
 }
+
+// ---------------------------------------------------------------------------
+// Matching a bookmaker's spelling to a player
+// ---------------------------------------------------------------------------
+
+/**
+ * A name reduced to what two sources can be expected to agree on.
+ *
+ * Books and the statistics provider disagree about punctuation and suffixes —
+ * "Tyrone Tracy Jr." against "Tyrone Tracy", "A.J. Brown" against "AJ Brown" —
+ * and none of that difference is about who the player is.
+ */
+export function normalisePlayerName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    // Strip accents, so "Peñа" and "Pena" are one person.
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, '')
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Look a player up by the name a bookmaker used.
+ *
+ * Exact on the normalised name and nothing looser. A near match is not
+ * resolved and not guessed at: pricing the wrong person would settle a bet
+ * against a record the model never had an opinion about, and nothing
+ * downstream could detect it. Two players who normalise to the same name
+ * resolve to neither, for the same reason.
+ */
+export function playerResolver(ratings: PlayerRatings): (name: string) => string | null {
+  const byName = new Map<string, string | null>();
+
+  for (const profile of ratings.players.values()) {
+    const key = normalisePlayerName(profile.name);
+    if (!key) continue;
+    // Null marks a name two players share, which must stay unresolvable.
+    byName.set(key, byName.has(key) ? null : profile.athleteId);
+  }
+
+  return (name: string) => byName.get(normalisePlayerName(name)) ?? null;
+}

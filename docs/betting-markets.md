@@ -278,6 +278,38 @@ inactive list is published to this application), why a number moved (a change
 of team or scheme looks like noise from here), and anything at all about the
 opposing defence.
 
+### Where a player price comes from
+
+Player props are the one market this provider does not serve per competition.
+They come from `/events/{id}/odds` — **a request per fixture** — so a slate of
+them would cost more than every other market on the page combined. The
+consequence is architectural rather than incidental:
+
+- A reader who opens a fixture gets **one** request for it, using the
+  provider's own event id, which the match-market fetch already matched and
+  carried along. No second lookup is made to find an id we have just held.
+- The slate-wide parlay build never asks for them at all.
+- Billing counts markets *returned* per event, so a region quoting none of
+  them costs nothing beyond the request.
+
+**The region is separately configurable, and it is not a detail.** The
+provider documents prop coverage as "mainly limited to US sports and US
+bookmakers", and its UK bookmaker list states no prop coverage. That is a
+strong hint and not a measurement, so `ODDS_API_PLAYER_REGION` exists to act
+on whatever the answer turns out to be *without* moving the match markets,
+which are correctly UK and should stay there. Empty means "the same region",
+which is the honest default: a UK reader should be shown UK prices.
+
+Run `node scripts/measure-player-props.mjs` to find out what a given key
+actually returns before changing it. It never prints the key.
+
+A quote whose player cannot be matched to a record is **dropped**, not
+guessed. Names are compared with suffixes, punctuation and accents removed —
+"Tyrone Tracy Jr." is "Tyrone Tracy" — and nothing looser: a near miss
+resolves to nobody, and two players sharing a name resolve to neither.
+Pricing the wrong person would settle a bet against a record the model never
+had an opinion about, and nothing downstream could detect it.
+
 A player who does not take part **voids** rather than loses. That is far
 commoner than a tennis retirement, and it is why an unrecorded statistic is
 kept distinct from a recorded zero all the way from the box score to

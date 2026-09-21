@@ -494,6 +494,7 @@ export function joinToFixtures(
       source: sources.length === 1 ? sources[0] : `${sources.length} UK books`,
       fetchedAt,
       markets: quotes,
+      eventId: str(event.id),
     });
   }
 

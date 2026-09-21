@@ -257,6 +257,16 @@ export interface GameMarkets {
   source: string;
   fetchedAt: string;
   markets: QuotedMarket[];
+  /**
+   * The price provider's own id for this fixture.
+   *
+   * Recorded because player props are served per event rather than per
+   * competition, and asking for them needs the provider's id rather than
+   * ours. Carrying it here means the fixture-matching already done for the
+   * match markets is not repeated — and an extra request to find an id we
+   * have just had in our hands is not made.
+   */
+  eventId?: string | null;
 }
 
 /**

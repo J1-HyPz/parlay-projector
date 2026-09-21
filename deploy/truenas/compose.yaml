@@ -65,6 +65,18 @@ services:
       # charges per market per region, so adding one multiplies the cost to
       # show prices a UK reader cannot take anyway.
       # ODDS_API_REGION: "uk"
+      #
+      # Player props are read one fixture at a time, only when a reader opens
+      # that fixture, and billing counts markets actually returned — so a
+      # region quoting none of them costs nothing beyond the request. Set
+      # false to stop asking entirely.
+      # ODDS_API_PLAYER_PROPS: "true"
+      #
+      # The region player props come from, if it has to differ from the one
+      # above. Empty means the same region. Run
+      # `node scripts/measure-player-props.mjs` against your key before
+      # setting this; it reports what is actually quoted.
+      # ODDS_API_PLAYER_REGION: ""
 
       # Persistent data directory (prediction history). Must match the volume
       # mount below, or history is lost on every redeploy.
