@@ -28,6 +28,7 @@ import { readPredictions, settlePredictions, settlementTargets } from './store';
 import type { GameState } from './store';
 import { settlementQueue } from './tracking';
 import { boxscoreFor } from '../players/history';
+import { playerMarketFor } from './service';
 import { parseEspnGameId } from '../providers/espn/fixtures';
 
 /**
@@ -109,12 +110,40 @@ async function attachPlayerLines(states: Map<string, GameState>): Promise<void> 
       const league = LEAGUES.find((entry) => entry.id === parseEspnGameId(gameId)?.leagueId);
       if (!league) return;
 
+      const market = playerMarketFor(league);
+      if (!market) return;
+
       try {
         const lines = await boxscoreFor(league, gameId);
         if (lines.length === 0) return;
 
+        /*
+         * Translated into the model's own statistic names, not handed over raw.
+         *
+         * A settlement rule freezes `stat` as the canonical key —
+         * `pitcher_strikeouts`, `receiving_yards` — while a box score speaks the
+         * provider's, `strikeouts` and `receivingYards`. Passing the raw line
+         * through looked right and settled nothing: `settle` would find no such
+         * statistic and **void every player prediction ever published**, for a
+         * game that was played perfectly normally.
+         *
+         * The same `from()` the model reads its own history through does the
+         * translation, so a prediction is judged against the identical
+         * definition it was made from. A statistic the player did not record is
+         * left out rather than written as zero, because an absence and a zero
+         * settle differently and must stay distinguishable this far down.
+         */
         const players: Record<string, Record<string, number>> = {};
-        for (const line of lines) players[line.athleteId] = line.stats;
+        for (const line of lines) {
+          const stats: Record<string, number> = {};
+          for (const config of market.stats) {
+            const value = config.from(line.stats);
+            if (value !== null) stats[config.key] = value;
+          }
+          if (Object.keys(stats).length > 0) players[line.athleteId] = stats;
+        }
+        if (Object.keys(players).length === 0) return;
+
         states.set(gameId, { ...state, players });
       } catch (error) {
         logger.warn('settlement_boxscore_failed', {

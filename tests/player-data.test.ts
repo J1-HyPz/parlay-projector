@@ -24,6 +24,9 @@ import { normaliseGamelog } from '../lib/providers/espn/gamelog.ts';
 import type { RawGamelogResponse } from '../lib/providers/espn/gamelog.ts';
 import { parseInnings } from '../lib/projections/pitchers.ts';
 import { scoreboardDates } from '../lib/providers/espn/pitchers.ts';
+import { MLB_PITCHER_STATS } from '../lib/projections/player-model.ts';
+import { evidenceFor, settle } from '../lib/projections/settlement.ts';
+import type { SettlementRule } from '../lib/markets/types.ts';
 
 function fixture<T>(name: string): T {
   return JSON.parse(
@@ -273,5 +276,113 @@ describe('finding the scoreboard a baseball fixture is on', () => {
   it('has nothing to ask for without a kick-off', () => {
     assert.deepEqual(scoreboardDates(null), []);
     assert.deepEqual(scoreboardDates('not a date'), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Settling one, against a real box score
+// ---------------------------------------------------------------------------
+
+describe('settling a pitcher market from the game it was about', () => {
+  /*
+   * The gap that let a whole-pipeline break through. Every unit test of
+   * `settle` handed it a `players` map already keyed by the model's canonical
+   * statistic — so the translation from the provider's names was never
+   * exercised, and there was none. A published prediction would have found no
+   * such statistic and **voided**, for a game that was played normally.
+   *
+   * This starts from a real payload and ends at a settled result.
+   */
+  const lines = boxscore('boxscore-mlb');
+
+  /** What the settlement job builds, through the model's own definitions. */
+  function playersFrom(): Record<string, Record<string, number>> {
+    const players: Record<string, Record<string, number>> = {};
+    for (const line of lines) {
+      const stats: Record<string, number> = {};
+      for (const config of MLB_PITCHER_STATS) {
+        const value = config.from(line.stats);
+        if (value !== null) stats[config.key] = value;
+      }
+      if (Object.keys(stats).length > 0) players[line.athleteId] = stats;
+    }
+    return players;
+  }
+
+  const players = playersFrom();
+  const pitcher = lines.find((line) => line.stats['pitching.strikeouts'] !== undefined);
+
+  it('reads the pitcher’s strikeouts under the name the rule froze', () => {
+    assert.ok(pitcher, 'the fixture carries a pitching line');
+    assert.equal(
+      players[pitcher.athleteId]?.pitcher_strikeouts,
+      pitcher.stats['pitching.strikeouts'],
+    );
+  });
+
+  it('takes the pitching strikeouts, never the batting ones', () => {
+    /*
+     * Baseball writes `strikeouts` in both groups meaning opposite things:
+     * batters a pitcher struck out, and times a batter struck out. A position
+     * player finishing a blowout on the mound appears in both, and the bare
+     * name would resolve to whichever was read first.
+     */
+    const bothWays = {
+      'pitching.strikeouts': 7,
+      strikeouts: 2,
+      'batting.strikeouts': 2,
+    };
+    assert.equal(MLB_PITCHER_STATS[0].from(bothWays), 7);
+  });
+
+  it('settles a won bet, a lost bet and a push from the same line', () => {
+    assert.ok(pitcher);
+    const recorded = pitcher.stats['pitching.strikeouts'];
+    const rule = (line: number, direction: 'over' | 'under'): SettlementRule => ({
+      kind: 'player_stat',
+      athleteId: pitcher.athleteId,
+      player: pitcher.name,
+      stat: 'pitcher_strikeouts',
+      statLabel: 'Strikeouts',
+      direction,
+      line,
+    });
+
+    const final = { home: 3, away: 1, status: 'finished' as const, players };
+
+    assert.equal(settle(rule(recorded - 0.5, 'over'), final), 'won');
+    assert.equal(settle(rule(recorded + 0.5, 'over'), final), 'lost');
+    // A whole line can land level, and a push is a push.
+    assert.equal(settle(rule(recorded, 'over'), final), 'push');
+  });
+
+  it('voids for a pitcher who did not take part', () => {
+    // The commonest outcome a player market has that no other market does, and
+    // the reason an unrecorded statistic is never written as a zero.
+    const absent: SettlementRule = {
+      kind: 'player_stat',
+      athleteId: 'someone-who-did-not-play',
+      player: 'Absent Pitcher',
+      stat: 'pitcher_strikeouts',
+      statLabel: 'Strikeouts',
+      direction: 'over',
+      line: 5.5,
+    };
+    assert.equal(settle(absent, { home: 3, away: 1, status: 'finished', players }), 'void');
+  });
+
+  it('leaves the prediction open when the box score has not been read', () => {
+    // Absent is "not looked up", not "he did not play". Settling on the
+    // difference would void every player leg the moment its game ended.
+    const rule: SettlementRule = {
+      kind: 'player_stat',
+      athleteId: pitcher?.athleteId ?? '1',
+      player: 'A Pitcher',
+      stat: 'pitcher_strikeouts',
+      statLabel: 'Strikeouts',
+      direction: 'over',
+      line: 5.5,
+    };
+    assert.equal(evidenceFor(rule, { status: 'finished', home: 3, away: 1 }), null);
   });
 });

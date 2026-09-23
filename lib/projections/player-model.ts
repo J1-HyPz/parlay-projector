@@ -263,7 +263,9 @@ export const MLB_PITCHER_STATS: readonly PlayerStatConfig[] = [
     label: 'Strikeouts',
     noun: 'strikeouts',
     kind: 'count',
-    from: (stats) => only(stats, 'strikeouts'),
+    // Qualified, because baseball's bare `strikeouts` means the opposite thing
+    // in its batting group and a position player who pitches appears in both.
+    from: (stats) => only(stats, 'pitching.strikeouts'),
     minGames: 8,
     targetGames: 20,
     minSpread: 0,

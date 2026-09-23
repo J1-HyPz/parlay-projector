@@ -111,6 +111,18 @@ throughout the application, and player markets for baseball. 1,073 tests.
 
 ### Fixed
 
+**Player bets can actually be settled**
+
+- A published player prediction would have found no result and been written off
+  as unsettleable, for a game that was played perfectly normally. The bet
+  recorded what it was about in the model's own words and the match report
+  answers in the data provider's, and nothing translated between them. Both
+  halves had tests; the join between them did not.
+- Baseball reports a pitcher's strikeouts and a batter's strikeouts under the
+  same name, meaning opposite things. A position player finishing a lost game
+  on the mound appears as both, so a bet on how many batters he struck out
+  could have been settled against how many times he struck out batting.
+
 **Baseball projections find the starting pitcher on the night games too**
 
 - The fixture list is read in UTC and the pitcher announcements are published

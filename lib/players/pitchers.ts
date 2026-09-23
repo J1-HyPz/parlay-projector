@@ -100,7 +100,18 @@ export async function pitcherGames(
     const stats: Record<string, number> = {};
     for (const [name, raw] of Object.entries(row.stats)) {
       const parsed = Number(raw);
-      if (Number.isFinite(parsed)) stats[name] = parsed;
+      if (!Number.isFinite(parsed)) continue;
+      stats[name] = parsed;
+      /*
+       * The same qualified name a box score writes.
+       *
+       * These rows were fetched with `category=pitching`, so this module knows
+       * what they mean where the bare name does not — baseball's `strikeouts`
+       * is a pitcher's in one group and a batter's in the other. Writing both
+       * lets one statistic definition read the projection's source and the
+       * settlement's source without either being ambiguous.
+       */
+      stats[`pitching.${name}`] = parsed;
     }
 
     /*

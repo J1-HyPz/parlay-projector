@@ -58,6 +58,8 @@ interface RawAthleteLine {
 
 interface RawStatGroup {
   name?: unknown;
+  /** Baseball identifies its groups by `type` rather than by `name`. */
+  type?: unknown;
   /** One canonical stat name per column, e.g. `receivingYards`. */
   keys?: unknown[];
   athletes?: RawAthleteLine[];
@@ -158,6 +160,18 @@ export function normaliseBoxscore(
 
     for (const group of team.statistics ?? []) {
       const keys = (group.keys ?? []).map((key) => str(key));
+      /*
+       * Which group a statistic came from, where the provider says.
+       *
+       * Baseball puts `strikeouts` in **both** its groups, meaning opposite
+       * things: batters a pitcher struck out, and times a batter struck out. A
+       * position player finishing a blowout on the mound appears in both, and
+       * whichever group happened to be read first would win — settling a
+       * strikeout market against the wrong number, silently. So every statistic
+       * is also written under `<group>.<name>`, and a caller that cares which it
+       * meant can ask for it unambiguously.
+       */
+      const groupKey = str(group.type) ?? str(group.name);
 
       for (const line of group.athletes ?? []) {
         const athleteId = str(line.athlete?.id);
@@ -192,10 +206,13 @@ export function normaliseBoxscore(
 
           for (const [name_, value] of splitStatColumn(key, raw)) {
             const parsed = statValue(value);
+            if (parsed === null) continue;
             // A statistic already recorded is not overwritten: the same name
             // appearing in two groups would otherwise take whichever came
             // last for no reason.
-            if (parsed !== null && !(name_ in row.stats)) row.stats[name_] = parsed;
+            if (!(name_ in row.stats)) row.stats[name_] = parsed;
+            // The qualified name never collides, so it is always written.
+            if (groupKey) row.stats[`${groupKey}.${name_}`] = parsed;
           }
         });
 
