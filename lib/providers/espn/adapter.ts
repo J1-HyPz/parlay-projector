@@ -35,6 +35,7 @@ export function espnDescriptor(): ProviderDescriptor {
       'broadcasts',
       'standings',
       'player_leaders',
+      'player_gamelogs',
     ],
     notes:
       'Undocumented public API with no published terms of use. Enrichment only; ' +

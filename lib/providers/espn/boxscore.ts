@@ -1,18 +1,34 @@
 /**
  * Per-player statistics for one completed game.
  *
- * This is the only place the application learns what an individual did, and it
- * exists because the obvious source does not work. ESPN publishes an athlete
- * gamelog at `common/v3/.../athletes/<id>/gamelog`, which looks exactly right
- * and carries a single season — the *current* one. Asked for an earlier season
- * it returns nothing, so in September every player in the league has one game
- * on record, which is not a distribution and cannot be made into one.
+ * One of two sources, and the one that answers about *breadth*: a single
+ * request carries every player who appeared, about fifty of them, so rating a
+ * whole squad costs one request per game rather than one per person. The other
+ * is `gamelog.ts`, which answers about depth for one named player and reaches
+ * back several seasons. Which is cheaper depends entirely on how many players
+ * the market is about.
  *
- * A finished game's summary carries the same numbers for everyone who played,
- * and the fixture history is already walked for the team model. So a player's
- * record is assembled from the games themselves rather than fetched per
- * player: one request per completed game, shared by every player in it,
- * against one request per player per season that would not answer anyway.
+ * This file used to claim the gamelog "carries a single season — the current
+ * one. Asked for an earlier season it returns nothing." **That was wrong**, and
+ * measured to be wrong: `?season=YYYY` serves nine seasons for an NFL
+ * quarterback and ten for a pitcher. The claim survived because nobody asked.
+ *
+ * Four things about this payload were also assumed and are not true, each now
+ * handled below and each with a fixture behind it:
+ *
+ *   - Football athletes carry **no position and no `shortName`** — zero of 84
+ *     NFL and zero of 81 NCAAF lines. Baseball carries the position on the
+ *     athlete's line instead of on the athlete, so that is read too.
+ *   - Baseball's innings column is `fullInnings.partInnings`, separated by a
+ *     **dot**. Left unsplit, `"6.1"` reads as 6.1 innings rather than six and a
+ *     third — the exact error `parseInnings` exists to prevent.
+ *   - NCAA football injects **team pseudo-athletes** with negative ids and a
+ *     display name of `" Team"`, carrying the team's own totals. Admitted, they
+ *     would become a player who out-produces everyone.
+ *   - The provider was said to write `-` for a statistic that does not apply.
+ *     Not reproduced on any of 2,243 athlete lines: a player who recorded
+ *     nothing is simply absent from that group. The guard stays, because
+ *     `"--"` does appear in one column, but the real mechanism is absence.
  *
  * Pure. Takes the payload, returns rows; the fetching and caching live in
  * `lib/players/history.ts`.
@@ -28,6 +44,15 @@ interface RawAthleteLine {
     shortName?: unknown;
     position?: { abbreviation?: unknown } | null;
   } | null;
+  /**
+   * Baseball puts the position here rather than on the athlete.
+   *
+   * Read as a fallback because football puts it in neither place, so a single
+   * lookup would silently return null for the one sport already implemented.
+   */
+  position?: { abbreviation?: unknown } | null;
+  /** Basketball marks a player who was available but not used. */
+  didNotPlay?: unknown;
   stats?: unknown[];
 }
 
@@ -77,7 +102,17 @@ function str(value: unknown): string | null {
  * A key with no separator is one statistic and is returned as itself.
  */
 export function splitStatColumn(key: string, value: string): [string, string][] {
-  for (const separator of ['/', '-']) {
+  /*
+   * The dot is the one that matters most and was missing.
+   *
+   * Baseball writes innings as `fullInnings.partInnings` over `"6.1"`, which is
+   * six innings and one out — not 6.1 innings. Split, the two halves are whole
+   * numbers a caller can combine correctly; unsplit, every fractional start is
+   * understated and any rate built on it is overstated. It is safe to add
+   * because only the *key* is tested for a separator, and no other key observed
+   * on any competition contains a dot.
+   */
+  for (const separator of ['/', '-', '.']) {
     if (!key.includes(separator)) continue;
     const names = key.split(separator);
     const values = value.split(separator);
@@ -129,12 +164,24 @@ export function normaliseBoxscore(
         const name = str(line.athlete?.displayName) ?? str(line.athlete?.shortName);
         if (!athleteId || !name) continue;
 
+        /*
+         * A team is not a player.
+         *
+         * NCAA football injects `{"id":"-6315","displayName":" Team"}` carrying
+         * the side's own totals into the passing and fumbles groups. A negative
+         * id is the provider's own marker for that, and it is a far safer test
+         * than the display name, which is a leading space away from a real one.
+         */
+        if (athleteId.startsWith('-')) continue;
+
         const existing = byAthlete.get(athleteId);
         const row: PlayerGameLine = existing ?? {
           athleteId,
           name,
           teamId,
-          position: str(line.athlete?.position?.abbreviation),
+          // Football carries it in neither place and gets null, which is honest.
+          position:
+            str(line.athlete?.position?.abbreviation) ?? str(line.position?.abbreviation),
           stats: {},
         };
 

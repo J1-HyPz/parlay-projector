@@ -47,6 +47,7 @@ const PRIORITY: Record<Capability, readonly string[]> = {
   recent_form: ['espn', 'thesportsdb'],
   head_to_head: ['espn'],
   player_leaders: ['espn'],
+  player_gamelogs: ['espn'],
   broadcasts: ['espn'],
   news: ['rss'],
 };
