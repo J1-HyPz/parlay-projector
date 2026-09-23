@@ -63,9 +63,20 @@ throughout the application, and player markets for baseball. 1,073 tests.
   right. What it genuinely buys is better-shaped odds rather than better
   guesses, and that is the honest way to read it.
 - **It was also over-confident, and that is now fixed.** Of the calls it rated
-  92%, only 88% came in. Strikeouts vary more than the distribution behind them
-  allowed for, so the distribution was widened until the two agreed: of the
-  calls it now rates 92%, 92% come in.
+  92%, only 88% came in. The distribution was widened until the two agreed: of
+  the calls it now rates 92%, 92% come in.
+- **A relief pitcher given a spot start is left alone rather than guessed at.**
+  The data counts every appearance a pitcher makes, and a one-inning outing from
+  the bullpen looks nothing like a start — so a pitcher with no real starts
+  behind him produced an expectation of under one strikeout for a start, which
+  is a confident answer to a question nobody asked. He now gets no projection at
+  all until there is something to project from.
+- **One thing it cannot do, said out loud.** The data counts every appearance a
+  pitcher makes, including the short ones out of the bullpen, and nothing
+  distinguishes those from a start. So a pitcher who has been relieving and is
+  then named to start is **under-estimated**. Two ways of fixing that were tried
+  and both measured worse than leaving it alone, so it is stated rather than
+  papered over.
 - A player market is **withheld from low-risk lines**, deliberately. Nothing
   here knows anything about the opposition a player faces, and that gap does not
   close however long their record is — so the category that reads as most
@@ -99,6 +110,15 @@ throughout the application, and player markets for baseball. 1,073 tests.
   the ATP for a fortnight and then quietly stopped.
 
 ### Fixed
+
+**Baseball projections find the starting pitcher on the night games too**
+
+- The fixture list is read in UTC and the pitcher announcements are published
+  against US dates, so every fixture starting after about nine in the evening
+  Eastern was being looked up under the wrong day and found nothing. That is
+  most of a baseball card. It affected the existing projections too, which have
+  been quietly missing the starting pitcher for night games since that feature
+  shipped.
 
 **The bet builder no longer invents a reason for a number it could not work out**
 

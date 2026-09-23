@@ -50,9 +50,12 @@ import type { ProjectionOutcome } from './project';
 import { marketsForLeagues } from '../odds/service';
 import { leagueAvailability } from '../providers/espn/availability';
 import type { LeagueAvailability } from '../providers/espn/availability';
-import { announcedStarters, pitchersForFixture } from '../providers/espn/pitchers';
+import {
+  announcedStarters,
+  pitchersForFixture,
+  scoreboardDates,
+} from '../providers/espn/pitchers';
 import type { AnnouncedStarters } from '../providers/espn/pitchers';
-import { compactDate } from '../providers/espn/fixture-normalise';
 import { conditionsForGames } from '../providers/weather';
 import type { FixtureConditions } from './weather';
 import type { SquadNews } from './features';
@@ -341,8 +344,10 @@ async function startersFor(
   const dates = new Set<string>();
   for (const game of games) {
     if (game.sport !== 'mlb') continue;
-    const day = game.start_time?.slice(0, 10);
-    if (day) dates.add(compactDate(day));
+    // Both candidate dates: the scoreboard is keyed by US date, so a night game
+    // is listed under the previous one. Asking only for the UTC day found no
+    // starter for nearly every evening fixture -- see `scoreboardDates`.
+    for (const date of scoreboardDates(game.start_time)) dates.add(date);
   }
   if (dates.size === 0) return new Map();
 
@@ -752,8 +757,7 @@ async function pitcherRatings(game: Game, asOf: number): Promise<PlayerRatings |
   const kickoff = Date.parse(game.start_time);
   if (!Number.isFinite(kickoff)) return null;
 
-  const date = game.start_time.slice(0, 10).replace(/-/g, '');
-  const announced = await announcedFor([date]);
+  const announced = await announcedFor(game.start_time);
 
   const sides = sidesOf(game);
   const starters = fixtureStarters(announced.get(game.id), {

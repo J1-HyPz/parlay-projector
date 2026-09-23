@@ -23,8 +23,9 @@
  */
 
 import { logger } from '../logger.ts';
+import { parseInnings } from '../projections/pitchers.ts';
 import { athleteHistory } from '../providers/espn/gamelog.ts';
-import { announcedStarters } from '../providers/espn/pitchers.ts';
+import { announcedStarters, scoreboardDates } from '../providers/espn/pitchers.ts';
 import type { AnnouncedStarters } from '../providers/espn/pitchers.ts';
 import type { PlayerGame } from './history.ts';
 
@@ -39,6 +40,32 @@ const MLB_PATH = 'baseball/mlb';
  * a pitcher costs one or two requests rather than a decade of them.
  */
 const WANT_STARTS = 30;
+
+/**
+ * An appearance of this many innings is a start rather than relief work.
+ *
+ * Three, because an opener goes one or two and a starter pulled early still
+ * goes three. Measured on a live slate: real starters have 88-97% of their
+ * appearances above it, a swing man 14%, and a pure reliever announced as an
+ * opener **none at all**.
+ */
+const START_INNINGS = 3;
+
+/**
+ * Starts a pitcher needs on record before a start is projected at all.
+ *
+ * **An eligibility rule, not a rate rule, and the distinction is measured.**
+ * Filtering the *rate* to starts only was tried and made the model lose to a
+ * plain average — a pitcher's current strikeout level is better read from every
+ * appearance, because the recency weighting is what tracks a change of role.
+ * But "what is his level" and "does the model have any basis for projecting a
+ * six-inning start" are different questions, and the second needs starts.
+ *
+ * Without this, a reliever named as an opener is projected from one-inning
+ * outings: live, one carried an expectation of **0.82 strikeouts** for a start,
+ * which is not a wrong estimate so much as an estimate of a different question.
+ */
+const MIN_STARTS_ON_RECORD = 8;
 
 /** Which side of the fixture a starter is on, and who they are. */
 export interface FixtureStarter {
@@ -66,14 +93,31 @@ export async function pitcherGames(
     category: 'pitching',
   });
 
-  return rows.map((row) => {
+  const games: PlayerGame[] = [];
+  let starts = 0;
+
+  for (const row of rows) {
     const stats: Record<string, number> = {};
     for (const [name, raw] of Object.entries(row.stats)) {
       const parsed = Number(raw);
       if (Number.isFinite(parsed)) stats[name] = parsed;
     }
 
-    return {
+    /*
+     * Innings are thirds after the point, not decimals.
+     *
+     * `Number("6.1")` is 6.1 where the value means six and a third. Harmless for
+     * the threshold below, and a landmine to leave in the record for anything
+     * that later does arithmetic with it — so it is corrected here, through the
+     * same function the team model's pitcher rate uses.
+     */
+    const innings = parseInnings(row.stats.innings);
+    if (innings !== null) {
+      stats.innings = innings;
+      if (innings >= START_INNINGS) starts += 1;
+    }
+
+    games.push({
       athleteId: starter.athleteId,
       name: starter.name,
       teamId: starter.teamId,
@@ -81,8 +125,19 @@ export async function pitcherGames(
       gameId: `espn-mlb-${row.eventId}`,
       date: row.date,
       stats,
-    };
-  });
+    });
+  }
+
+  if (starts < MIN_STARTS_ON_RECORD) {
+    logger.info('pitcher_not_a_starter', {
+      athlete: starter.athleteId,
+      appearances: games.length,
+      starts,
+    });
+    return [];
+  }
+
+  return games;
 }
 
 /**
@@ -113,8 +168,16 @@ export function fixtureStarters(
   return out;
 }
 
-/** Announced starters for a set of fixture dates, `YYYYMMDD`. */
-export async function announcedFor(dates: readonly string[]) {
+/**
+ * Announced starters for one fixture, whichever scoreboard date lists it.
+ *
+ * Takes the fixture's kick-off rather than a date, because deriving the date is
+ * where this goes wrong — see `scoreboardDates`.
+ */
+export async function announcedFor(startTime: string | null) {
+  const dates = scoreboardDates(startTime);
+  if (dates.length === 0) return new Map();
+
   try {
     return await announcedStarters(dates);
   } catch (error) {

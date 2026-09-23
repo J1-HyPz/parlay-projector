@@ -213,26 +213,49 @@ export const NFL_PLAYER_STATS: readonly PlayerStatConfig[] = [
  * rather than its constants. Within player, across 5,841 appearances from the
  * 2024 and 2025 seasons, strikeouts per start measure **1.16**.
  *
- * The value fitted is **1.35**, higher than the measurement, and the gap is the
- * interesting part. Baseball's scoring figure had to be fitted *down* because a
- * pooled variance double-counts how much fixtures differ from one another. This
- * one is measured within player, so it carries no such double-count — but the
- * model's own rate is an *estimate* from eight to thirty starts, and the
- * uncertainty in that estimate adds to the predictive spread on top of the
- * process variance. Order of magnitude, a decayed sample of eight to ten starts
- * contributes roughly another 0.1, which is consistent with 1.35 without
- * establishing it.
+ * **What the dispersion is actually absorbing is a change of role, and that was
+ * nearly recorded wrongly.** The first explanation written here was that a
+ * fitted 1.35 above a measured 1.16 reflected uncertainty in the model's own
+ * rate estimate. It does not. `category=pitching` returns **every** appearance,
+ * relief outings included, and a one-inning relief outing's strikeouts are
+ * nothing like a six-inning start's. Filtered to appearances of three innings or
+ * more — a real start — the measured dispersion is **0.97**. So strikeouts *per
+ * start* are Poisson to within three per cent, exactly as ice hockey and
+ * football's scoring are, and the whole of the overdispersion is the mixture.
  *
  * Swept rather than taken from either figure. Bias crosses zero between 1.35 and
- * 1.5, and Brier and log loss are already flat from 1.25, so 1.35 is where both
- * criteria land — the same reasoning the ballpark weight and MMA's `eloK` used.
+ * 1.5, and Brier and log loss are flat from 1.25, so 1.35 is where both criteria
+ * land — the same reasoning the ballpark weight and MMA's `eloK` used.
  *
  * | dispersion | bias | Brier | log loss | paired t |
  * |---|---|---|---|---|
  * | 1 (Poisson) | +0.0214 | 0.2019 | 0.5906 | -2.11 |
- * | 1.16 (measured) | +0.0104 | 0.2014 | 0.5888 | -2.37 |
+ * | 1.16 (measured, mixed) | +0.0104 | 0.2014 | 0.5888 | -2.37 |
  * | **1.35 (shipped)** | **+0.0012** | **0.2012** | **0.5880** | **-2.60** |
  * | 1.5 | -0.0037 | 0.2012 | 0.5880 | -2.74 |
+ *
+ * **Two cleaner-looking alternatives were measured and both refused.**
+ *
+ * *Filtering to starts only.* The obvious fix, and on that subset the model
+ * **loses to the baseline at every dispersion tried** — paired t of +1.27, +1.09,
+ * +0.92, +0.70 and +0.51 at 1, 1.1, 1.2, 1.35 and 1.5, positive meaning the
+ * plain average is better. So the model's whole measured edge is in absorbing a
+ * change of role, which is what the recency weighting is for, and removing the
+ * role change removes the edge. Worth stating plainly rather than presenting the
+ * headline result as skill at rating a starter.
+ *
+ * *A per-inning rate times expected innings.* Theoretically the right answer to
+ * role mixing, since a rate per inning is invariant to how long an appearance
+ * ran. Decisively worse: paired t of **+7.49** against the per-appearance rate
+ * over 4,703 starts, with Brier 0.1966 against 0.1915. Multiplying two noisy
+ * estimates compounds their error faster than the decomposition removes bias.
+ *
+ * **The consequence a reader can be bitten by**, and it is not fixed: a pitcher
+ * who has been relieving and is then announced as a starter carries a rate built
+ * mostly from one-inning outings, so his strikeouts are **understated**. The
+ * recency weighting narrows the window but cannot see the announcement. Nothing
+ * here distinguishes the two roles, and the two attempts to make it do so both
+ * measured worse than leaving it alone.
  */
 export const MLB_PITCHER_STATS: readonly PlayerStatConfig[] = [
   {

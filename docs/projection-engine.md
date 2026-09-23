@@ -589,6 +589,62 @@ this is calibration at plausible thresholds and not an edge against a real
 market; and 120 of 291 announced starters were read, so the sample is the busiest
 end of the rotation.
 
+**What the dispersion absorbs is a change of role, and this was nearly recorded
+wrongly.** The first explanation written was that a fitted 1.35 above a measured
+1.16 reflected uncertainty in the model's own rate estimate. It does not.
+`category=pitching` returns **every** appearance, relief outings included, and a
+one-inning relief outing's strikeouts are nothing like a six-inning start's.
+Filtered to appearances of three innings or more, the measured dispersion is
+**0.97** — so strikeouts *per start* are Poisson to within three per cent, like
+ice hockey and football's scoring, and the whole of the overdispersion is the
+mixture.
+
+**Two cleaner-looking alternatives, both measured and both refused.**
+
+*Filtering to starts only*, the obvious fix. On that subset the model **loses to
+the baseline at every dispersion tried** — paired t of +1.27, +1.09, +0.92, +0.70
+and +0.51 at 1, 1.1, 1.2, 1.35 and 1.5, positive meaning the plain average wins.
+So the model's entire measured edge is in absorbing a change of role, and removing
+the role change removes the edge. That is a materially different claim from "it
+rates a starter better", and it is the true one.
+
+*A per-inning rate times expected innings*, which is theoretically invariant to
+how long an appearance ran. Decisively worse: paired t of **+7.49** against the
+per-appearance rate over 4,703 starts, Brier 0.1966 against 0.1915. Multiplying
+two noisy estimates compounds error faster than the decomposition removes bias.
+
+**The consequence a reader can be bitten by, unfixed.** A pitcher who has been
+relieving and is then announced as a starter carries a rate built mostly from
+one-inning outings, so his strikeouts are **understated**. Recency weighting
+narrows the window but cannot see the announcement, and both attempts to teach
+the model the difference measured worse than leaving it alone.
+
+**A pitcher needs starts on record before a start is projected.** Eight
+appearances of three innings or more, and this is an *eligibility* rule rather
+than a rate rule — the distinction is measured. Filtering the **rate** to starts
+only makes the model lose to a plain average, because the recency weighting is
+what tracks a change of role. But "what is his strikeout level" and "does the
+model have any basis for projecting a six-inning start" are different questions,
+and only the second needs starts.
+
+Without it, a reliever named as an opener is projected from one-inning outings.
+Live, one carried an expectation of **0.82 strikeouts for a start** — not so much
+a wrong estimate as an estimate of a different question. On a real slate the
+separation is unambiguous: genuine starters had 88–97% of their appearances above
+three innings, a swing man 14%, and the opener **none of 69**.
+
+It is a correctness guard for the page rather than a calibration gain, and the
+measurement says so: applying it removes 4 pitchers of 120 and moves nothing —
+Brier 0.2015 against 0.2012, paired t −2.61 against −2.60, dispersion 1.159
+against 1.160.
+
+**One provider fact this uncovered, which also affected the team model.** The
+scoreboard is keyed by **US date, not UTC**. A fixture starting at 01:40 UTC is
+listed under the *previous* day, so asking only for the UTC date finds no
+announced starter for nearly every night game — measured on event 401817044, and
+`startersFor` had been doing exactly that since the starting-pitcher work
+shipped. Both candidate dates are now asked for, and both are cached per date.
+
 **A player leg cannot be combined with a scoreline leg from the same fixture.**
 A pitcher striking more batters out is a pitcher conceding fewer runs, and the
 simulations cannot count the pair because they contain no people — so the

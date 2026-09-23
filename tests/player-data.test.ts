@@ -23,6 +23,7 @@ import type { RawBoxscoreResponse } from '../lib/providers/espn/boxscore.ts';
 import { normaliseGamelog } from '../lib/providers/espn/gamelog.ts';
 import type { RawGamelogResponse } from '../lib/providers/espn/gamelog.ts';
 import { parseInnings } from '../lib/projections/pitchers.ts';
+import { scoreboardDates } from '../lib/providers/espn/pitchers.ts';
 
 function fixture<T>(name: string): T {
   return JSON.parse(
@@ -245,5 +246,32 @@ describe('an athlete gamelog', () => {
     // Every point-in-time rate filters on the date, so a row without one could
     // only be counted by pretending to know when it happened.
     assert.deepEqual(normaliseGamelog(withoutDate).rows, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Which scoreboard lists a fixture
+// ---------------------------------------------------------------------------
+
+describe('finding the scoreboard a baseball fixture is on', () => {
+  it('asks for the day before as well as the UTC day', () => {
+    /*
+     * The scoreboard is keyed by US date. Event 401817044 starts at
+     * 2026-09-23T01:40Z and is listed under the **22nd**, because 01:40 UTC is
+     * half past nine the previous evening in the east. Asking only for the UTC
+     * date found no announced starter for nearly every night game — which is
+     * most of a baseball card, and had been true of the team model's pitcher
+     * substitution since it shipped.
+     */
+    assert.deepEqual(scoreboardDates('2026-09-23T01:40:00.000Z'), ['20260923', '20260922']);
+  });
+
+  it('covers an afternoon fixture too, at no extra cost worth avoiding', () => {
+    assert.deepEqual(scoreboardDates('2026-09-23T17:10:00.000Z'), ['20260923', '20260922']);
+  });
+
+  it('has nothing to ask for without a kick-off', () => {
+    assert.deepEqual(scoreboardDates(null), []);
+    assert.deepEqual(scoreboardDates('not a date'), []);
   });
 });

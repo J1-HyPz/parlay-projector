@@ -129,6 +129,30 @@ async function fetchAnnounced(date: string): Promise<Map<string, AnnouncedStarte
   return byGame;
 }
 
+/**
+ * The scoreboard dates a fixture could be listed under.
+ *
+ * **The scoreboard is keyed by US date, not UTC**, and getting this wrong loses
+ * most of an evening's card. Measured: event 401817044 starts at
+ * `2026-09-23T01:40Z` and appears on the **22nd's** board, because 01:40 UTC is
+ * half past nine the previous evening in the east. Asking only for the UTC date
+ * therefore finds no announced starter for any fixture beginning before about
+ * four in the morning UTC — which is nearly every night game.
+ *
+ * So both candidates are asked for. Each is cached per date and the slate-wide
+ * build already fetches most of them, so the second one is usually free.
+ */
+export function scoreboardDates(startTime: string | null): string[] {
+  if (!startTime) return [];
+  const at = Date.parse(startTime);
+  if (!Number.isFinite(at)) return [];
+
+  const compact = (ms: number) => new Date(ms).toISOString().slice(0, 10).replace(/-/g, '');
+  // The UTC day, and the one before it. Ordered newest first so a caller
+  // reading the first match gets the more likely one.
+  return [...new Set([compact(at), compact(at - 86_400_000)])];
+}
+
 /** Announced starters across a set of dates, `YYYYMMDD`. */
 export async function announcedStarters(
   dates: readonly string[],

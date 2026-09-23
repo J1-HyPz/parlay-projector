@@ -17,7 +17,6 @@
 import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import type { PlayerProjection } from '@/lib/projections/types';
-import { qualityLabel } from '@/lib/projections/types';
 import { Section } from './game-sections';
 import { EmptyNote } from '@/components/ui/states';
 
@@ -67,10 +66,21 @@ function PlayerRows({ rows }: { rows: PlayerProjection[] }) {
       </dl>
 
       <p className="mt-2 border-t border-line pt-2 text-2xs text-ink-faint">
-        {/* The sample is the whole basis of the estimate, so it is never
-            hidden behind a quality word alone. */}
-        {first.games} game{first.games === 1 ? '' : 's'} on record ·{' '}
-        {qualityLabel(first.data_quality)} data quality
+        {/*
+          The sample, and the quality as a figure rather than a word.
+
+          "High data quality" was shown here, and it overstated. A player
+          estimate is capped at 0.8 — the opposition is not in it and nothing
+          knows why a number moved — so every well-evidenced player reads at the
+          top of a scale it cannot reach the top of. The number carries the
+          ceiling with it where the word hid it.
+
+          "Appearances" rather than "games", because a pitcher's record is
+          counted in appearances and some of them are not starts.
+        */}
+        {first.games} appearance{first.games === 1 ? '' : 's'} on record · data quality{' '}
+        {first.data_quality.toFixed(2)} of a possible{' '}
+        {first.participation === 'announced' ? '0.80' : '0.55'}
         {first.recent.length > 0 && ` · recent ${first.recent.slice(0, 5).join(', ')}`}
       </p>
     </div>
