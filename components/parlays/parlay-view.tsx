@@ -966,10 +966,12 @@ export function ParlayView() {
                 and the lines are quoted per fixture rather than per card — so
                 they live on a fixture's own page and not in a generated slate.
               */}
-              Player projections are on each fixture&rsquo;s own page, for the competitions
-              whose box scores support them. They become bets only where a bookmaker has
-              quoted the line, and nothing here knows whether a player will be selected: no
-              lineup or inactive list is published to this application.
+              Player markets are on each fixture&rsquo;s own page rather than here, because
+              their prices are quoted per fixture rather than per card. Baseball&rsquo;s
+              starting-pitcher strikeouts is the one competition through its backtest; a
+              player leg can join a medium or high line built from fixtures you pick, and
+              cannot be combined with a scoreline leg from the same fixture, because how much
+              the two move together has not been measured.
             </Note>
           </div>
         </aside>

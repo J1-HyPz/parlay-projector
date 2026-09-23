@@ -162,6 +162,35 @@ competition on the card means considerably less.
 Records written before the filter existed carry neither field. They were all
 built across everything, which is what their absence says.
 
+## Player markets
+
+A player leg is a leg like any other once it exists, and two switches decide
+whether it does.
+
+`PLAYER_MARKET_LEAGUES` decides which competitions publish one at all. It holds
+`mlb` — baseball's starting-pitcher strikeouts, the one market through its
+backtest. American football's model is built and deliberately absent from the
+list; that is a gate, not an oversight, and `docs/specs/player-performance.md`
+says what it is waiting for.
+
+The **risk profile** decides whether one can enter a generated line. Medium and
+high accept player markets; **low does not**, and that is about evidence rather
+than shape. A player estimate cannot exceed 0.8 data quality however long the
+record is, because the opposition is not in it and nothing knows why a number
+moved — so the category a reader trusts most is held to markets with no
+structural hole in their evidence.
+
+Two consequences worth knowing before reading a slate:
+
+- **A generated multi-game line never fetches player prices.** They are billed
+  per fixture rather than per competition, so a whole card of them would cost
+  more than every other market on the page combined. Player legs appear on a
+  fixture's own page and in a line built from fixtures a reader picked.
+- **A player leg and a scoreline leg from the same fixture cannot sit together.**
+  A pitcher striking more batters out is a pitcher conceding fewer runs, and the
+  fixture's simulations cannot count the pair because they contain no people. The
+  builder says so rather than dropping one silently.
+
 ## What did not change
 
 Risk profiles, thresholds, the models, correlation handling, one-selection-per-

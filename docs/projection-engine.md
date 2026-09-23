@@ -135,15 +135,18 @@ The American leagues are each rated alone; they share no fixtures with anything.
 
 | Missing | Consequence |
 | --- | --- |
-| Player statistics (rosters carry name, jersey, position, height, weight, age — no stats) | **No player performance selections.** |
-| Injuries, suspensions, expected availability | Not modelled. |
-| Lineups, starting pitchers, starting quarterbacks, goalkeepers | Not modelled. |
-| xG, EPA, pace, offensive/defensive ratings | Not used; scoring rates are derived from results instead. |
+| **Who is selected**, for any sport but two | No player market outside baseball's pitcher and — potentially — ice hockey's goalie. See "Player markets" below |
+| Minutes, snaps or any usage measure outside baseball's innings | A player's *role* cannot be told from a change in his numbers |
+| Any opponent-specific rate for a player | A player estimate carries no view of the defence it faces, and says so |
+| xG, EPA, pace, offensive/defensive ratings | Not used; scoring rates are derived from results instead |
 
-Player props are absent because the inputs they require do not exist, and
-generating them would mean inventing the evidence. `player_performance` exists
-as a selection type and settlement handles it, so a future data source can fill
-it in; nothing currently produces one.
+This table used to read "player statistics — no player performance selections",
+and the first half was simply wrong. Per-player, per-game statistics are
+abundant: a finished game's box score carries every player who appeared, and the
+athlete gamelog serves nine or ten seasons for one person. **What is scarce is
+evidence that a named player will take part**, which a prop needs just as much.
+That inversion is why the pilot market is a baseball pitcher rather than the
+obvious choice — see `docs/specs/player-performance.md` §3.
 
 Tennis was in this table for a long time and is not any more: the ATP and WTA
 tours are tracked, rated and projected — see "Tennis" below.
@@ -490,6 +493,115 @@ metric that separates from noise; the effect is real and small. MLB projections
 are stamped `projection-v1-mlb-sp` via `SportModelConfig.modelVersion`, which
 overrides the global constant for one sport so the rest are not relabelled as
 though they had changed too.
+
+### Player markets
+
+`lib/projections/player-model.ts` and `player-selections.ts`. **Baseball's
+starting-pitcher strikeouts only**, and the reason it is that rather than
+anything else is the most useful thing in this section.
+
+**Statistics are abundant; participation is not.** Measured against live
+responses: five competitions publish a full per-player box score, and the athlete
+gamelog serves nine or ten seasons for one person through `?season=YYYY`. But no
+competition publishes a starting lineup before kick-off, `teams/<id>/depthchart`
+returns an empty object for all four American leagues, and the only individual
+the provider *announces* is a baseball pitcher or an ice hockey goalie:
+
+| | Announced starter, across a full slate |
+| --- | --- |
+| MLB | `probableStartingPitcher` — 7 of 12 fixtures both sides, 5 of 12 one side, **0 with neither** |
+| NHL | `probableStartingGoalie` — **11 of 11**, both sides |
+| NFL | **0 of 14** |
+| NBA | **0 of 1** |
+
+A prop needs both halves, so the sport with the best data is not the sport with
+the best market. American football's model is built and **switched off** at
+`PLAYER_MARKET_LEAGUES`, waiting on its own backtest, because a market resting
+on "he played last week, so presumably he plays Sunday" is resting on evidence
+about a *role* rather than about selection.
+
+**Two sources, for two different questions.** A box score is one request that
+carries fifty players, so it answers about a whole squad. A gamelog is one
+request that carries one player across ten seasons, so it answers about depth.
+Rating both squads of a football fixture is about twenty box scores; rating a
+baseball fixture's two announced starters is **two gamelogs against sixty box
+scores**. Which is cheaper is a property of how many players the market is
+about, not a fact about either endpoint.
+
+**A line comes from a bookmaker.** Nothing stops this model pricing "over 5.5
+strikeouts", and the number would look exactly like a real one — so a strikeout
+market exists only where a book has quoted one. The single exception anywhere is
+a market with one natural threshold everywhere: an anytime touchdown is half a
+touchdown because the question is whether he scored at all, which is a threshold
+the model does not get to choose.
+
+**Data quality cannot reach 1, by construction.** The opposition is not in a
+player estimate and nothing knows why a number moved, and those absences do not
+shrink as the sample grows. An announced starter is capped at 0.8 and everybody
+else at 0.55 — which means an unannounced player cannot clear the low-risk
+profile's 0.60 floor however long his record is. That is deliberate: this scored
+a perfect 1.000 on ten games at first, while the model's own `quality_reasons`
+listed three things it did not know, and the ranking score would have put a
+ten-game player leg above a full-season team leg.
+
+**Strikeouts are not Poisson**, and this was asked before anything shipped
+because it asks what no rate can answer. Within player, variance over mean
+measures 1.16 across 5,841 appearances. Left at Poisson the model was
+over-confident everywhere and worst where it mattered most — the 90–100% band
+claimed 92.5% and delivered 88.2%.
+
+`dispersion` is fitted at **1.35**, above the measurement, and the direction is
+the opposite of baseball's *scoring* dispersion. That one had to be fitted down
+because a pooled variance double-counts how much fixtures differ from one
+another; this one is measured within player and carries no such double-count, but
+the model's rate is itself an estimate from eight to thirty starts and that
+uncertainty adds to the predictive spread. Bias crosses zero between 1.35 and
+1.5 while Brier and log loss are flat from 1.25.
+
+**Gate**, over the 2024 and 2025 seasons — 120 announced starters, 5,841
+appearances, 4,881 evaluated and 960 skipped for too short a record, every
+estimate built from that pitcher's strictly earlier starts:
+
+| | Brier | log loss | bias | accuracy |
+|---|---|---|---|---|
+| **model** | **0.2012** | **0.5880** | **+0.0012** | **0.6920** |
+| baseline (his plain average) | 0.2025 | 0.5948 | +0.0022 | 0.6903 |
+
+Paired Brier difference −0.00223 over 4,659 starts, t = −2.60. **Clustered by
+start**, because each appearance is scored at up to four lines and the 15,664
+pairs are roughly fourfold correlated — treated as independent, almost any
+difference would look established.
+
+| band | n | model says | happened |
+|---|---|---|---|
+| 50–60% | 4,193 | 55.0% | 55.1% |
+| 60–70% | 4,166 | 65.0% | 66.0% |
+| 70–80% | 3,857 | 75.0% | 74.6% |
+| 80–90% | 3,068 | 84.6% | 83.3% |
+| 90–100% | 380 | 92.6% | 91.8% |
+
+**The effect is real and small, and reading it as a win would overstate it.**
+Accuracy differs by less than two tenths of a point. What the model buys over
+"this pitcher averages six, call it six" is better-shaped probabilities, which is
+why the log-loss gap is five times the Brier gap. Two things the gate did not
+establish: the lines are a fixed ladder rather than prices anybody quoted, so
+this is calibration at plausible thresholds and not an edge against a real
+market; and 120 of 291 announced starters were read, so the sample is the busiest
+end of the rotation.
+
+**A player leg cannot be combined with a scoreline leg from the same fixture.**
+A pitcher striking more batters out is a pitcher conceding fewer runs, and the
+simulations cannot count the pair because they contain no people — so the
+combination is refused rather than multiplied until that coupling is measured.
+Several player legs may be combined, and the correlation is then reported as
+unmeasured with no ratio, because multiplying them is an estimate rather than a
+count.
+
+**One dependency no other market has.** Every other market settles from a score,
+and TheSportsDB is primary for scores. A player market can settle only from
+ESPN's box score, which `docs/data-providers.md` calls optional enrichment. An
+ESPN outage inside the finalisation window would void open player legs for a
+reason that has nothing to do with the player.
 
 ### The long-run history archive
 
@@ -1045,7 +1157,8 @@ the model's own probability expressed as a decimal, labelled as such.
 
 ## What this model does not do
 
-- **No player projections**, for the reasons at the top.
+- **No player projections outside baseball's starting pitcher**, and the reason
+  is participation rather than statistics — see "Player markets" above.
 - **No tennis doubles.** A pair is not an individual, and the rating is keyed
   on one person. Singles only, enforced structurally: a doubles competitor has
   no `athlete` at all.

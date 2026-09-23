@@ -55,7 +55,8 @@ function compact(date: Date): string {
 
 function dates(): string[] {
   const out: string[] = [];
-  for (let d = new Date(FIRST); d <= LAST; d.setUTCDate(d.getUTCDate() + STRIDE)) {
+  const d = new Date(FIRST);
+  for (; d <= LAST; d.setUTCDate(d.getUTCDate() + STRIDE)) {
     out.push(compact(d));
   }
   return out;

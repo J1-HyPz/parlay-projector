@@ -228,13 +228,15 @@ history are not projected at all, and published predictions are settled against
 real results to feed the homepage accuracy widget.
 
 There is no stake field and no projected return: without real odds a monetary
-figure would be invented. Player projections are absent because the required
-data does not exist — see the doc.
+figure would be invented.
 
-Three engines sit behind that. Most competitions are scored fixtures; Formula 1
+Four engines sit behind that. Most competitions are scored fixtures; Formula 1
 is a field finishing in order; and the UFC, ATP and WTA are contests between two
 people with no score at all, rated by Elo and answered with a winner
-probability rather than a simulated scoreline.
+probability rather than a simulated scoreline. The fourth answers a single
+question about a single person — will this pitcher pass this number of
+strikeouts — from his own game-by-game record, and only at a line a bookmaker
+is quoting.
 
 A line is built from a chosen sport and competition, and that choice is
 binding: a request for the Premier League that only three matches qualify for

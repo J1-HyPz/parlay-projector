@@ -216,6 +216,7 @@ function projectionFor(
       round(rating.mean + rating.spread, 1),
     ],
     games: rating.games,
+    participation: market.participation,
     recent: [...rating.recent],
     data_quality: round(quality, 3),
     quality_reasons: playerQualityReasons(profile, rating, config, asOf, market.participation),

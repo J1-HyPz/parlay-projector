@@ -249,34 +249,48 @@ space.
 
 ## What is not offered, and why
 
-**Player markets: NFL only, and the line has to be quoted.**
+**Player markets: baseball's starting pitcher, and the line has to be quoted.**
 
 This said there were none at all, on the grounds that the application had no
-player statistics and the price feed carried no player markets. The first half
-turned out to be wrong: a finished game's box score carries every player's
-line, and the fixture history is already walked for the team model, so a
-player's record costs one request per game shared by everyone in it. The
-provider's own athlete gamelog does *not* work for this — it serves the current
-season only, so in September it holds one game per player.
+player statistics. That was wrong twice over. A finished game's box score
+carries every player's line; and the athlete gamelog, which a comment here once
+described as serving the current season only, serves **nine or ten seasons per
+athlete** through `?season=YYYY`. Both were measured rather than reasoned about.
+
+What is actually scarce is evidence that a named player will take part. No
+competition publishes a starting lineup before kick-off and the depth chart
+returns an empty object, so the only individual the provider announces is a
+baseball pitcher or an ice hockey goalie — measured, every baseball fixture on a
+full slate had at least one named starter against none at all across fourteen
+American football fixtures. **That is why the market is a pitcher's strikeouts
+and not a receiver's yards.** American football's model is built and switched
+off at `PLAYER_MARKET_LEAGUES` pending its own backtest.
 
 What is produced, and the difference between the two:
 
 | | Where it appears | Needs a price |
 | --- | --- | --- |
-| **Projection** — expected passing/rushing/receiving yards, receptions, touchdowns, with the range and the games behind it | Player projections, on the fixture page | No |
-| **Selection** — a bet at a line, scored and parlayable like any other | Markets, on the fixture page | Yes, except anytime touchdown |
+| **Projection** — the expected figure, the range around it, and the appearances behind it | Player projections, on the fixture page | No |
+| **Selection** — a bet at a line, scored and parlayable like any other | Markets, on the fixture page | Yes, with one exception |
 
-The exception is deliberate and narrow. "Anytime touchdown" has one threshold
-everywhere — half a touchdown — because the question is whether he scored at
-all, so the model is not choosing a rung on a ladder. Every other player line
-must come from a bookmaker, for the reason two sections below: a ladder of
-yardage lines nobody offers is the exact failure this work set out to fix.
+The exception is deliberate and narrow, and baseball does not get it. "Anytime
+touchdown" has one threshold everywhere — half a touchdown — because the question
+is whether he scored at all, so the model is not choosing a rung on a ladder. A
+strikeout line has no such threshold: 5.5 is no more the real question than 6.5,
+so a pitcher market exists **only** where a book has quoted one. A ladder of
+lines nobody offers is the exact failure this work set out to fix.
 
-Three things the model does not know, stated on every projection rather than
-buried here: whether the player is selected (no lineup, depth chart or
-inactive list is published to this application), why a number moved (a change
-of team or scheme looks like noise from here), and anything at all about the
-opposing defence.
+What the model does not know, stated on every projection rather than buried here:
+anything at all about the opposition, and why a figure moved — a change of role
+looks exactly like noise from here. Whether the player is selected is the third,
+and it is the one that varies: a pitcher's start is announced and said to be, and
+everywhere else a recent appearance is evidence about a *role* rather than about
+selection and is labelled as that.
+
+Those absences are why a player estimate's data quality is capped below 1 — at
+0.8 for an announced starter and 0.55 otherwise — however long the record is.
+They do not shrink as the sample grows, so no number of appearances should buy a
+perfect score.
 
 ### Where a player price comes from
 
@@ -362,6 +376,7 @@ ODDS_ENABLED=true              # false reports every selection as model_only
 ODDS_CACHE_TTL_SECONDS=600
 ODDS_API_KEY=                  # empty means off: no request, no UK prices
 ODDS_API_REGION=uk             # one region; more multiplies the bill
+PLAYER_MARKET_LEAGUES=mlb      # which competitions publish a player market
 ODDS_API_CACHE_TTL_SECONDS=1200  # freshness-bound, not cost-bound. See above.
 ```
 

@@ -61,6 +61,7 @@ interface SlipResponse {
   slip: {
     legs: Selection[];
     dropped: number;
+    dropped_reasons?: string[];
     unknown: string[];
     independent_probability: number;
     combined_probability: number;
@@ -367,11 +368,26 @@ export function MarketExplorer({ gameId }: { gameId: string }) {
             </ul>
 
             {slip.dropped > 0 && (
-              <p className="mt-2 text-2xs text-status-warn">
-                {slip.dropped} selection{slip.dropped === 1 ? ' was' : 's were'} left out as
-                incompatible with one already chosen — two sides of the same market cannot both
-                win.
-              </p>
+              /*
+                The reason, not just the count. There are three, and they are
+                genuinely different claims: the same bet twice, a contest with no
+                simulations behind it, and a player-and-scoreline pairing whose
+                joint probability has never been measured. "Two sides of the same
+                market cannot both win" was printed for all three, and was true
+                of one.
+              */
+              <div className="mt-2 space-y-1 text-2xs text-status-warn">
+                <p>
+                  {slip.dropped} selection{slip.dropped === 1 ? ' was' : 's were'} left out.
+                </p>
+                {slip.dropped_reasons && slip.dropped_reasons.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-4">
+                    {slip.dropped_reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
 
             <dl className="mt-3 space-y-2 border-t border-line pt-3 text-2xs">

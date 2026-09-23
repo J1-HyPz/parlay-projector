@@ -35,9 +35,45 @@ uncertain it is, a baseball model that no longer claims to be more certain than
 it is, baseball totals that account for the temperature and for the ballpark,
 every other sport checked the same way, and two new sports — the UFC, and
 the ATP and WTA tours — each with a model of its own and each now offered
-throughout the application. 967 tests.
+throughout the application, and player markets for baseball. 1,073 tests.
 
 ### Added
+
+**Player markets, starting with how many batters a pitcher strikes out**
+
+- A baseball fixture's page now shows what the model expects each announced
+  starting pitcher to do, with the range around it and the appearances behind
+  it. Where a bookmaker has quoted a strikeout line, it becomes a bet that can
+  be checked, combined and settled like any other.
+- **Why a pitcher, when the obvious choice was a quarterback.** Per-player
+  statistics turned out to be abundant. Evidence that a named player will
+  actually *take part* turned out to be nearly absent — no competition publishes
+  a starting lineup before kick-off, and the depth chart returns nothing at all.
+  The one individual the data actually names in advance is a baseball pitcher,
+  for every fixture surveyed, against nobody at all across a full slate of
+  American football. A bet on a player who then does not play is a bet on
+  nothing, so the market followed the evidence rather than the appetite.
+- **A line has to be one somebody is offering.** Nothing stops the model pricing
+  "over 5.5 strikeouts", and the number would look exactly as real as any other
+  — so it does not. The only threshold it picks for itself is one that has a
+  single natural answer everywhere, which a strikeout line does not.
+- **The model was measured against the laziest possible rival and barely won.**
+  Over two seasons and 5,841 appearances it beats "this pitcher averages six,
+  call it six" — but by two tenths of a percentage point on how often it is
+  right. What it genuinely buys is better-shaped odds rather than better
+  guesses, and that is the honest way to read it.
+- **It was also over-confident, and that is now fixed.** Of the calls it rated
+  92%, only 88% came in. Strikeouts vary more than the distribution behind them
+  allowed for, so the distribution was widened until the two agreed: of the
+  calls it now rates 92%, 92% come in.
+- A player market is **withheld from low-risk lines**, deliberately. Nothing
+  here knows anything about the opposition a player faces, and that gap does not
+  close however long their record is — so the category that reads as most
+  trustworthy is kept to markets without it.
+- A player who does not take part **voids rather than loses**, and the selection
+  says so before it is placed.
+- The Accuracy page now breaks results down **by market**, so a player line can
+  be read apart from the team markets it used to be averaged into.
 
 **Fights and tennis matches are projected, offered and tracked**
 
@@ -63,6 +99,26 @@ throughout the application. 967 tests.
   the ATP for a fortnight and then quietly stopped.
 
 ### Fixed
+
+**The bet builder no longer invents a reason for a number it could not work out**
+
+- Adding a player selection to the builder reported the combination at **0.5%**
+  when the selection's own card said 55% — and then explained the difference as
+  the two selections "pulling against each other". Nothing was pulling against
+  anything: the fixture's simulations contain no people, so the question could
+  not be asked, and an unanswerable question was being counted as a miss every
+  time. The builder now works out what it can and says plainly which part it had
+  to estimate.
+- Two different players quoted at the same number were read as **two sides of
+  one bet**, and the second was silently dropped — two players to score a
+  touchdown, or two pitchers at the same strikeout line. They are different bets
+  on different people.
+- A selection left out of a slip now **says why it was left out**. There are
+  three quite different reasons and all three were reported as "two sides of the
+  same market cannot both win", which was true of one of them.
+- A player selection could not reach a generated line at all, at any risk level,
+  for any sport. It was modelled, priced and settled, and then dropped without a
+  word — the same way the UFC and both tennis tours were once invisible.
 
 **Tennis no longer lists matches between nobody**
 

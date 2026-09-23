@@ -59,6 +59,7 @@ interface Report {
   overall: Overall;
   by_league: BreakdownRow[];
   by_sport: BreakdownRow[];
+  by_market: BreakdownRow[];
   by_risk: BreakdownRow[];
   risk_ordering: RiskCheck;
   updated_at: string;
@@ -247,6 +248,23 @@ export function AccuracyView() {
               <Breakdown
                 heading="Sport"
                 rows={report?.by_sport ?? []}
+                empty="No settled predictions in this window."
+              />
+            )}
+          </section>
+
+          <section className="panel mt-4 p-4 sm:p-5" aria-busy={loading}>
+            <SectionHeading title="By market" />
+            <p className="mb-3 text-2xs leading-5 text-ink-faint">
+              Every row above blends a player line in with the team markets beside it; this is
+              where the two can be read apart.
+            </p>
+            {loading ? (
+              <TableSkeleton />
+            ) : (
+              <Breakdown
+                heading="Market"
+                rows={report?.by_market ?? []}
                 empty="No settled predictions in this window."
               />
             )}

@@ -34,9 +34,9 @@
  * for their sport — a spread is a "Run Line" in baseball and a "Puck Line" in
  * hockey — but that is a display concern, handled in `explain.ts`.
  *
- * Player markets are deliberately absent. See `docs/betting-markets.md`: this
- * application has no player statistics, no lineups and no prop prices, so there
- * is nothing to model and nothing to verify against.
+ * `player_stat` covers every player market, because a strikeout and a receiving
+ * yard settle identically — read the person's line, compare it to the number.
+ * Which statistic it is lives on the rule, not on the type.
  */
 export type MarketType =
   | 'moneyline'

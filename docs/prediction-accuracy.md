@@ -330,11 +330,17 @@ whose game started more than twelve hours ago mean something is stuck.
 
 ## What is not measured
 
-- **Player performance predictions.** The selection type and its settlement
-  exist, but nothing generates one — rosters carry no statistics and there is no
-  injury or lineup data. See `docs/projection-engine.md`.
-- **DNP / late scratch handling** is therefore untested in production. The rule
-  is written (void, never a loss) and waits on a data source.
+- **Player markets beyond baseball's starting pitcher.** American football's
+  model is built and switched off pending its own backtest; football (soccer)
+  and MLB batters are unbuilt. `PLAYER_MARKET_LEAGUES` is the switch, and
+  `docs/specs/player-performance.md` says what each is waiting for.
+- **DNP / late scratch handling** is written (void, never a loss), asserted in
+  tests, and **still unproven in production** — it has not yet fired against a
+  real scratch. Worth watching for another reason too: a player market settles
+  only from ESPN's box score, where every other market settles from a score
+  TheSportsDB also carries, so an ESPN outage inside the finalisation window
+  would void open player legs for a reason that has nothing to do with the
+  player.
 - **No automatic retraining.** Model weights are not changed based on recent
   results. Measuring comes first; adjusting the model from a bad weekend is how
   a system learns superstition.

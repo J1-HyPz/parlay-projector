@@ -1,8 +1,13 @@
 # Spec — Player performance
 
-**Status: draft.** Nothing in this document has shipped. A partial
-implementation exists on the `player-markets` branch and §5 says exactly what
-is wrong with it. Companion to
+**Status: built for the pilot.** Baseball's starting-pitcher strikeouts has
+been through every phase including §7.6's gate, which it passed — the numbers
+are in §7.6 and in `docs/projection-engine.md`. American football's model is
+built and **switched off** at `PLAYER_MARKET_LEAGUES` pending its own
+measurement, per decision 2. Football (soccer) and MLB batters remain unbuilt,
+per §11. Every defect §5 recorded is fixed, and §5 is kept as written because
+the failures it describes are the reason the rest of this document is shaped as
+it is. Companion to
 [docs/specs/projection-v2.md](projection-v2.md), whose §9 put player props out
 of scope on the grounds that no player statistics existed — §4 below is the
 measurement that changed that. Everything here is a decision, not an option,
@@ -537,6 +542,74 @@ the same code path as the live model, it is **calibrated** (bands, Brier, log
 loss) and **beats a naive baseline** — the player's plain season average as the
 mean, with the same distribution. A statistic that fails stays unpublished and
 the docs say why.
+
+**Result — pitcher strikeouts, run over the 2024 and 2025 seasons.** 120
+announced starters, 5,841 appearances, 4,881 of them evaluated and 960 skipped
+for too short a record. Every estimate built from that pitcher's strictly
+earlier starts.
+
+| | Brier | log loss | bias | accuracy |
+|---|---|---|---|---|
+| **model** | **0.2012** | **0.5880** | **+0.0012** | **0.6920** |
+| baseline | 0.2025 | 0.5948 | +0.0022 | 0.6903 |
+
+Paired Brier difference **−0.00223 over 4,659 starts, t = −2.60**.
+
+**Clustered by start, and that is load-bearing.** Each appearance is scored at
+up to four lines, so the 15,664 pairs are roughly fourfold correlated; treating
+them as independent observations would make almost any difference look
+established. The unit of evidence is one start.
+
+**The effect is real and it is small.** Accuracy differs by less than two tenths
+of a point, and the whole Brier gain is 0.0013. What the model buys over "this
+pitcher averages six, call it six" is better-shaped *probabilities* rather than
+better guesses — which is visible in the log loss, where the gap is five times
+wider than in Brier.
+
+Calibration, folded onto the favoured side — the same correction
+`bout-backtest.ts` makes, because bucketing on "probability of going over" would
+put every under-leaning estimate below 0.5 and smear the bands:
+
+| band | n | model says | happened |
+|---|---|---|---|
+| 50–60% | 4,193 | 55.0% | 55.1% |
+| 60–70% | 4,166 | 65.0% | 66.0% |
+| 70–80% | 3,857 | 75.0% | 74.6% |
+| 80–90% | 3,068 | 84.6% | 83.3% |
+| 90–100% | 380 | 92.6% | 91.8% |
+
+**The finding that mattered more than the verdict: strikeouts are not Poisson.**
+Asked before anything shipped, because it asks what no rate can answer. Within
+player, variance over mean measures **1.16**. Left at Poisson the model was
+over-confident everywhere and increasingly so at the top — the 90–100% band
+claimed 92.5% and delivered 88.2%, and bias ran +0.0214.
+
+Fitted at **1.35** by sweep, higher than the measurement, and the gap is worth
+recording. Baseball's *scoring* dispersion had to be fitted down from its raw
+figure because a pooled variance double-counts how much fixtures differ from one
+another. This one is measured within player, so it carries no such
+double-count — but the model's rate is itself an estimate from eight to thirty
+starts, and the uncertainty in that estimate adds to the predictive spread on top
+of the process variance. A decayed sample of eight to ten starts contributes
+roughly another 0.1, which is *consistent with* 1.35 without establishing it.
+
+| dispersion | bias | Brier | log loss | paired t |
+|---|---|---|---|---|
+| 1 (Poisson) | +0.0214 | 0.2019 | 0.5906 | −2.11 |
+| 1.16 (measured) | +0.0104 | 0.2014 | 0.5888 | −2.37 |
+| **1.35 (shipped)** | **+0.0012** | **0.2012** | **0.5880** | **−2.60** |
+| 1.5 | −0.0037 | 0.2012 | 0.5880 | −2.74 |
+
+Bias crosses zero between 1.35 and 1.5 while Brier and log loss are flat from
+1.25, so both criteria land in the same place — the reasoning the ballpark weight
+and MMA's `eloK` already use.
+
+**Two things this gate did not establish.** The lines are a fixed ladder rather
+than prices anybody quoted, because no historical book lines exist here; the
+calibration claim is therefore about the model's probabilities at plausible
+thresholds, not about its edge against a real market. And 120 of 291 announced
+starters were read, so the sample is the busiest end of the rotation rather than
+every pitcher who started a game.
 
 **Its own harness.** `backtest.ts` reports margin and total error over
 home/away/draw and cannot express this claim; `bout-backtest.ts` is the

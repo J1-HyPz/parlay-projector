@@ -133,16 +133,23 @@ export function PlayerProjections({ gameId }: { gameId: string }) {
           </div>
 
           {/*
-            The two things a reader has to know about these numbers, said here
-            rather than left to be inferred from their absence elsewhere.
+            What a reader has to know about these numbers, said here rather than
+            left to be inferred from their absence elsewhere.
+
+            The selection sentence is conditional because the truth is. An
+            announced starter is a published fact, and telling a reader nothing
+            knows whether he will play would be false -- the kind of display-only
+            falsehood that is not a smaller version of fabrication but the same
+            failure somewhere it happens not to touch a number.
           */}
           <p className="border-t border-line pt-3 text-2xs leading-5 text-ink-faint">
             These are projections, not bets. A bet needs a line, and a line comes from a
             bookmaker &mdash; where one has quoted a player market for this fixture it appears
             under Markets with its price. Each estimate is built from that player&rsquo;s own
-            games and carries no view of the defence they face, and nothing here knows whether
-            they will be selected: no lineup, depth chart or inactive list is published to this
-            application.
+            appearances and carries no view of the opposition they face.{' '}
+            {players.every((projection) => projection.participation === 'announced')
+              ? 'Each of these players is the announced starter, which is published rather than inferred; if that changes before the start, the bet is void rather than lost.'
+              : 'Nothing here knows whether they will be selected: no lineup, depth chart or inactive list is published to this application, so a recent appearance is evidence of a role rather than of selection.'}
           </p>
         </div>
       )}
