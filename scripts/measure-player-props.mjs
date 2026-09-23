@@ -8,9 +8,16 @@
  * does not build on hints — so this asks the provider directly and prints what
  * comes back.
  *
- *   node scripts/measure-player-props.mjs            # uk, the default region
+ *   node scripts/measure-player-props.mjs            # uk, both sports
  *   node scripts/measure-player-props.mjs us         # for comparison
- *   node scripts/measure-player-props.mjs uk,us      # both at once
+ *   node scripts/measure-player-props.mjs uk,us      # both regions at once
+ *   node scripts/measure-player-props.mjs uk mlb     # one sport only
+ *
+ * **Baseball is the one that matters.** The pilot market is a starting
+ * pitcher's strikeouts, chosen because a pitcher is the only individual the
+ * stats provider actually announces before a fixture. American football is
+ * measured alongside it because its model is already built and waiting on
+ * exactly this answer.
  *
  * The key is read from ODDS_API_KEY and never printed, and no URL is logged
  * either, because the provider takes the key in the query string. Put it in a
@@ -20,24 +27,41 @@
  *
  * WHAT IT COSTS. The provider charges markets-returned x regions *per event*,
  * and charges nothing for a market it does not return. So if the answer is
- * "the UK books quote none of this", this costs one credit for the event list
- * and nothing for the events themselves. It reads at most three fixtures.
+ * "the UK books quote none of this", this costs one credit per sport for the
+ * event list and nothing for the events themselves. It reads at most three
+ * fixtures per sport.
  */
 
 import { readFileSync } from 'node:fs';
 
 const BASE = 'https://api.the-odds-api.com/v4';
-const SPORT = 'americanfootball_nfl';
 
-/** The markets the model can actually price; asking for more would be noise. */
-const MARKETS = [
-  'player_pass_yds',
-  'player_pass_tds',
-  'player_rush_yds',
-  'player_reception_yds',
-  'player_receptions',
-  'player_anytime_td',
-];
+/**
+ * The markets each sport's model can actually price.
+ *
+ * Kept in step with `MARKETS_BY_LEAGUE` in lib/odds/player-props.ts. Asking for
+ * more would cost nothing, and would tell us about markets this application
+ * must not appear to have an opinion on.
+ */
+const SPORTS = {
+  mlb: {
+    key: 'baseball_mlb',
+    label: 'MLB — the pilot',
+    markets: ['pitcher_strikeouts'],
+  },
+  nfl: {
+    key: 'americanfootball_nfl',
+    label: 'NFL — built, gated off pending this',
+    markets: [
+      'player_pass_yds',
+      'player_pass_tds',
+      'player_rush_yds',
+      'player_reception_yds',
+      'player_receptions',
+      'player_anytime_td',
+    ],
+  },
+};
 
 /** Fixtures inspected. Enough to tell coverage from one odd fixture. */
 const MAX_EVENTS = 3;
@@ -68,10 +92,11 @@ if (!KEY) {
 
 /** Quota, which the provider reports on every priced call. */
 function quota(response) {
-  const remaining = response.headers.get('x-requests-remaining');
-  const used = response.headers.get('x-requests-used');
-  const last = response.headers.get('x-requests-last');
-  return { remaining, used, last };
+  return {
+    remaining: response.headers.get('x-requests-remaining'),
+    used: response.headers.get('x-requests-used'),
+    last: response.headers.get('x-requests-last'),
+  };
 }
 
 async function get(path, params) {
@@ -89,88 +114,109 @@ async function get(path, params) {
 }
 
 const regions = (process.argv[2] ?? 'uk').trim();
+const wanted = (process.argv[3] ?? '').trim();
+const sports = wanted ? [wanted] : Object.keys(SPORTS);
 
-console.log(`Region(s): ${regions}`);
-console.log(`Markets asked for: ${MARKETS.join(', ')}\n`);
-
-// --- which fixtures are there ------------------------------------------------
-let events;
-try {
-  const result = await get(`/sports/${SPORT}/events`, {});
-  events = result.body;
-  console.log(
-    `Upcoming ${SPORT} events: ${events.length}` +
-      `  (quota after this call: ${result.quota.remaining} left, ${result.quota.used} used)`,
-  );
-} catch (error) {
-  console.error(`Could not list events: ${error.message}`);
-  process.exit(1);
+for (const name of sports) {
+  if (!SPORTS[name]) {
+    console.error(`Unknown sport "${name}". Known: ${Object.keys(SPORTS).join(', ')}`);
+    process.exit(2);
+  }
 }
 
-if (events.length === 0) {
-  console.log('No upcoming fixtures to ask about. Try again closer to a game week.');
-  process.exit(0);
-}
+console.log(`Region(s): ${regions}\n`);
 
-// --- what is quoted on them --------------------------------------------------
-const marketsSeen = new Map();
-const booksSeen = new Set();
 let lastQuota = null;
 
-for (const event of events.slice(0, MAX_EVENTS)) {
-  const label = `${event.away_team} at ${event.home_team}`;
-  let result;
+for (const name of sports) {
+  const sport = SPORTS[name];
+  console.log(`=== ${sport.label} ===`);
+  console.log(`Markets asked for: ${sport.markets.join(', ')}`);
+
+  let events;
   try {
-    result = await get(`/sports/${SPORT}/events/${event.id}/odds`, {
-      regions,
-      markets: MARKETS.join(','),
-      oddsFormat: 'decimal',
-    });
+    const result = await get(`/sports/${sport.key}/events`, {});
+    events = result.body;
+    lastQuota = result.quota;
+    console.log(`Upcoming fixtures: ${events.length}  (quota left: ${result.quota.remaining})`);
   } catch (error) {
-    console.log(`\n${label}\n  request failed: ${error.message}`);
+    console.log(`  could not list events: ${error.message}\n`);
     continue;
   }
 
-  lastQuota = result.quota;
-  const books = result.body.bookmakers ?? [];
-  console.log(`\n${label}`);
-  console.log(`  bookmakers returning anything: ${books.length}`);
+  if (events.length === 0) {
+    console.log('  no upcoming fixtures to ask about — try again closer to a game week.\n');
+    continue;
+  }
 
-  for (const book of books) {
-    booksSeen.add(book.title ?? book.key);
-    for (const market of book.markets ?? []) {
-      const outcomes = market.outcomes ?? [];
-      marketsSeen.set(market.key, (marketsSeen.get(market.key) ?? 0) + outcomes.length);
+  const marketsSeen = new Map();
+  const booksSeen = new Set();
 
-      // One real example, so the shape is visible rather than described.
-      const sample = outcomes[0];
-      if (sample) {
-        console.log(
-          `    ${book.title}: ${market.key} — ` +
-            `${sample.description ?? sample.name} ${sample.name ?? ''} ` +
-            `${sample.point ?? ''} @ ${sample.price}`,
-        );
+  for (const event of events.slice(0, MAX_EVENTS)) {
+    const label = `${event.away_team} at ${event.home_team}`;
+    let result;
+    try {
+      result = await get(`/sports/${sport.key}/events/${event.id}/odds`, {
+        regions,
+        markets: sport.markets.join(','),
+        oddsFormat: 'decimal',
+      });
+    } catch (error) {
+      console.log(`\n  ${label}\n    request failed: ${error.message}`);
+      continue;
+    }
+
+    lastQuota = result.quota;
+    const books = result.body.bookmakers ?? [];
+    console.log(`\n  ${label}`);
+    console.log(`    bookmakers returning anything: ${books.length}`);
+
+    for (const book of books) {
+      booksSeen.add(book.title ?? book.key);
+      for (const market of book.markets ?? []) {
+        const outcomes = market.outcomes ?? [];
+        marketsSeen.set(market.key, (marketsSeen.get(market.key) ?? 0) + outcomes.length);
+
+        // One real example, so the shape is visible rather than described.
+        const sample = outcomes[0];
+        if (sample) {
+          console.log(
+            `      ${book.title}: ${market.key} — ` +
+              `${sample.description ?? sample.name} ${sample.name ?? ''} ` +
+              `${sample.point ?? ''} @ ${sample.price}`,
+          );
+        }
       }
     }
+    if (books.length === 0) console.log('      (no bookmaker quoted any of these markets)');
   }
-  if (books.length === 0) console.log('    (no bookmaker quoted any of these markets)');
+
+  console.log(`\n  --- ${name} result ---`);
+  if (marketsSeen.size === 0) {
+    console.log(`  No player markets returned for region "${regions}".`);
+    console.log('  Charged nothing for them: the provider bills markets *returned*.');
+  } else {
+    console.log(`  Player markets returned for region "${regions}":`);
+    for (const [key, outcomes] of [...marketsSeen].sort((a, b) => a[0].localeCompare(b[0]))) {
+      console.log(`    ${key.padEnd(24)} ${outcomes} outcomes across the fixtures read`);
+    }
+    console.log(`  Bookmakers quoting them: ${[...booksSeen].join(', ')}`);
+  }
+  console.log();
 }
 
-// --- the answer --------------------------------------------------------------
-console.log('\n--- result ---');
-if (marketsSeen.size === 0) {
-  console.log(`No player prop markets were returned for region "${regions}".`);
-  console.log('Charged nothing for them: the provider bills markets *returned*.');
-} else {
-  console.log(`Player markets returned for region "${regions}":`);
-  for (const [key, outcomes] of [...marketsSeen].sort((a, b) => a[0].localeCompare(b[0]))) {
-    console.log(`  ${key.padEnd(24)} ${outcomes} outcomes across the fixtures read`);
-  }
-  console.log(`Bookmakers quoting them: ${[...booksSeen].join(', ')}`);
-}
 if (lastQuota) {
   console.log(
-    `\nQuota: ${lastQuota.remaining} remaining, ${lastQuota.used} used, ` +
+    `Quota: ${lastQuota.remaining} remaining, ${lastQuota.used} used, ` +
       `last call cost ${lastQuota.last}.`,
   );
 }
+
+console.log(
+  '\nWhat to do with this:\n' +
+    '  - markets returned for uk  -> nothing to change; they are already live.\n' +
+    '  - nothing for uk, some for us -> set ODDS_API_PLAYER_REGION=us. That moves\n' +
+    '    player props only; the match markets stay on UK books.\n' +
+    '  - nothing anywhere -> player selections stay unverified analysis, which is\n' +
+    '    what they are built to be. The projections still show on a fixture page.',
+);

@@ -36,13 +36,17 @@ import { boundProbability } from './math.ts';
 import { orientFactors } from './factors.ts';
 import { edgeFor, marketContextFor, selectionScore } from './project.ts';
 import {
+  MLB_PITCHER_STATS,
   NFL_PLAYER_STATS,
+  PITCHER_MODEL_VERSION,
   PLAYER_MODEL_VERSION,
   playerDataQuality,
   playerQualityReasons,
   probabilityOver,
 } from './player-model.ts';
+import { MIN_DATA_QUALITY } from './types.ts';
 import type {
+  Participation,
   PlayerProfile,
   PlayerRatings,
   PlayerStatConfig,
@@ -79,6 +83,62 @@ const MAX_PROJECTIONS = 12;
  * proposed itself.
  */
 const MAX_DERIVED = 8;
+
+/**
+ * One sport's player market, as this module needs to know it.
+ *
+ * The two differ in three ways that matter and in nothing else, which is why
+ * they are a descriptor rather than two modules: which statistics exist, what
+ * kind of participation evidence stands behind them, and how the fixture's
+ * eligible players are arrived at. A football squad is filtered out of a
+ * competition-wide rating set by team id; a pitcher market's two players are
+ * named by the provider and are the whole of the squad.
+ */
+export interface PlayerMarket {
+  stats: readonly PlayerStatConfig[];
+  /** What is actually known about whether these players will take part. */
+  participation: Participation;
+  modelVersion: string;
+  /** The players this fixture's markets may be about. */
+  squad(game: Game, ratings: PlayerRatings, asOf: number): PlayerProfile[];
+  /**
+   * Statistics whose threshold the model is allowed to choose for itself.
+   *
+   * Empty for almost everything, and that is the rule rather than an accident:
+   * a line has to come from a bookmaker. The one exception is a market with a
+   * single natural threshold everywhere.
+   */
+  derived: readonly PlayerStatKey[];
+}
+
+export const NFL_MARKET: PlayerMarket = {
+  stats: NFL_PLAYER_STATS,
+  // Nobody is announced for American football — measured, none of fourteen
+  // fixtures named a starter and the depth chart returns an empty object.
+  participation: 'recent_appearance',
+  modelVersion: PLAYER_MODEL_VERSION,
+  squad: (game, ratings, asOf) => squadFor(game, ratings, asOf),
+  derived: ['anytime_touchdown'],
+};
+
+/**
+ * Baseball's starting pitchers.
+ *
+ * The squad is whoever the ratings were built for, because they were built for
+ * exactly the two announced starters and nobody else — the participation gate
+ * lives in the data layer, where the announcement is read, rather than being
+ * re-checked here from information this module does not have.
+ *
+ * `derived` is empty. A strikeout line has no natural threshold: 5.5 is not a
+ * more correct question than 6.5, so the model does not get to pick one.
+ */
+export const MLB_PITCHER_MARKET: PlayerMarket = {
+  stats: MLB_PITCHER_STATS,
+  participation: 'announced',
+  modelVersion: PITCHER_MODEL_VERSION,
+  squad: (_game, ratings) => [...ratings.players.values()],
+  derived: [],
+};
 
 function round(value: number, places = 4): number {
   const factor = 10 ** places;
@@ -125,11 +185,20 @@ function projectionFor(
   profile: PlayerProfile,
   config: PlayerStatConfig,
   asOf: number,
+  market: PlayerMarket,
 ): PlayerProjection | null {
   const rating = profile.stats.get(config.key);
   if (!rating) return null;
 
-  const quality = playerDataQuality(profile, rating, config, asOf);
+  const quality = playerDataQuality(profile, rating, config, asOf, market.participation);
+  /*
+   * The same floor the team model applies, for the same reason.
+   *
+   * Below it the honest answer is "insufficient data", not a low confidence —
+   * and this path had no floor at all, so a player projection was produced at
+   * any quality while a team projection below 0.35 was refused.
+   */
+  if (quality < MIN_DATA_QUALITY) return null;
 
   return {
     game_id: game.id,
@@ -149,8 +218,8 @@ function projectionFor(
     games: rating.games,
     recent: [...rating.recent],
     data_quality: round(quality, 3),
-    quality_reasons: playerQualityReasons(profile, rating, config, asOf),
-    model_version: PLAYER_MODEL_VERSION,
+    quality_reasons: playerQualityReasons(profile, rating, config, asOf, market.participation),
+    model_version: market.modelVersion,
     generated_at: new Date(asOf).toISOString(),
   };
 }
@@ -166,13 +235,13 @@ export function playerProjections(
   game: Game,
   ratings: PlayerRatings,
   asOf: number = Date.now(),
-  stats: readonly PlayerStatConfig[] = NFL_PLAYER_STATS,
+  market: PlayerMarket = NFL_MARKET,
 ): PlayerProjection[] {
   const out: PlayerProjection[] = [];
 
-  for (const profile of squadFor(game, ratings, asOf)) {
-    for (const config of stats) {
-      const projection = projectionFor(game, profile, config, asOf);
+  for (const profile of market.squad(game, ratings, asOf)) {
+    for (const config of market.stats) {
+      const projection = projectionFor(game, profile, config, asOf, market);
       if (projection) out.push(projection);
     }
   }
@@ -186,11 +255,9 @@ export function playerProjections(
 // Selections
 // ---------------------------------------------------------------------------
 
-const BY_KEY = new Map(NFL_PLAYER_STATS.map((config) => [config.key, config]));
-
 /** The statistic a quoted player market is about, if this model knows it. */
-function configFor(key: string): PlayerStatConfig | null {
-  return BY_KEY.get(key as PlayerStatKey) ?? null;
+function configFor(market: PlayerMarket, key: string): PlayerStatConfig | null {
+  return market.stats.find((config) => config.key === key) ?? null;
 }
 
 function makeSelection(
@@ -202,6 +269,7 @@ function makeSelection(
   quotes: GameMarkets | null,
   quote: QuotedMarket | null,
   asOf: number,
+  market_: PlayerMarket,
 ): Selection | null {
   const rating = profile.stats.get(config.key);
   if (!rating) return null;
@@ -214,7 +282,10 @@ function makeSelection(
 
   const market = marketContextFor(rule, names, quotes, quote, asOf);
   const verified = market.availability === 'verified';
-  const quality = playerDataQuality(profile, rating, config, asOf);
+  const quality = playerDataQuality(profile, rating, config, asOf, market_.participation);
+  // The same floor the projection applies. A selection the model would not
+  // publish an estimate for must not appear as a bet either.
+  if (quality < MIN_DATA_QUALITY) return null;
   /*
    * Confidence is not the probability.
    *
@@ -262,7 +333,7 @@ function makeSelection(
     reasoning: orientFactors(
       // Every one of these is a caveat about the estimate rather than a
       // statement about a side, which is what `uncertainty` is for.
-      playerQualityReasons(profile, rating, config, asOf).map((text) => ({
+      playerQualityReasons(profile, rating, config, asOf, market_.participation).map((text) => ({
         text,
         subject: { kind: 'uncertainty' as const },
         direction: 'negative' as const,
@@ -284,6 +355,7 @@ export function playerSelections(
   ratings: PlayerRatings,
   quotes: GameMarkets | null = null,
   asOf: number = Date.now(),
+  market: PlayerMarket = NFL_MARKET,
 ): Selection[] {
   const sides = sidesOf(game);
   if (!sides) return [];
@@ -297,7 +369,7 @@ export function playerSelections(
   // A stale block is treated as no block at all, exactly as every other engine
   // treats one: better an absent selection than an old price.
   const usable = quotes && quoteIsFresh(quotes.fetchedAt, asOf) ? quotes : null;
-  const squad = squadFor(game, ratings, asOf);
+  const squad = market.squad(game, ratings, asOf);
   const byId = new Map(squad.map((profile) => [profile.athleteId, profile]));
 
   const selections: Selection[] = [];
@@ -318,6 +390,7 @@ export function playerSelections(
       usable,
       quote,
       asOf,
+      market,
     );
     if (!selection || seen.has(selection.id)) return;
     seen.add(selection.id);
@@ -330,7 +403,7 @@ export function playerSelections(
     if (rule.kind !== 'player_stat') continue;
 
     const profile = byId.get(rule.athleteId);
-    const config = configFor(rule.stat);
+    const config = configFor(market, rule.stat);
     // A market on somebody this model has no record for is left alone rather
     // than answered with a guess.
     if (!profile || !config) continue;
@@ -339,28 +412,32 @@ export function playerSelections(
   }
 
   /*
-   * The one derived line, and why it is allowed.
+   * The derived lines, and why there are almost none.
    *
-   * "Anytime touchdown" has a single threshold everywhere — half a
-   * touchdown — because the question is whether he scored at all. The model
-   * is not choosing a rung on a ladder, and there is exactly one market to
-   * state an opinion about.
+   * A market qualifies only if it has a single natural threshold everywhere, so
+   * that the model is reporting the one question there is rather than choosing a
+   * rung on a ladder. "Anytime touchdown" is half a touchdown because the
+   * question is whether he scored at all. A strikeout line is not: 5.5 is no
+   * more the real question than 6.5, so baseball derives nothing and a pitcher
+   * market exists only where a book has quoted one.
    */
-  const anytime = BY_KEY.get('anytime_touchdown');
   const derived: Selection[] = [];
-  if (anytime) {
+  for (const key of market.derived) {
+    const config = configFor(market, key);
+    if (!config) continue;
+
     const before = selections.length;
     for (const profile of squad) {
-      if (!profile.stats.has(anytime.key)) continue;
+      if (!profile.stats.has(config.key)) continue;
       add(
         profile,
-        anytime,
+        config,
         {
           kind: 'player_stat',
           athleteId: profile.athleteId,
           player: profile.name,
-          stat: anytime.key,
-          statLabel: anytime.label,
+          stat: config.key,
+          statLabel: config.label,
           direction: 'over',
           line: 0.5,
         },

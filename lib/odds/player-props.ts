@@ -42,15 +42,44 @@ const BASE = 'https://api.the-odds-api.com/v4';
  * about, which is the same rule the fight and tennis markets follow.
  */
 const MARKET_KEYS: Readonly<Record<string, { stat: string; label: string }>> = {
+  // American football. Built and measured-pending; see PLAYER_MARKET_LEAGUES.
   player_pass_yds: { stat: 'passing_yards', label: 'Passing yards' },
   player_pass_tds: { stat: 'passing_touchdowns', label: 'Passing touchdowns' },
   player_rush_yds: { stat: 'rushing_yards', label: 'Rushing yards' },
   player_reception_yds: { stat: 'receiving_yards', label: 'Receiving yards' },
   player_receptions: { stat: 'receptions', label: 'Receptions' },
   player_anytime_td: { stat: 'anytime_touchdown', label: 'Anytime touchdown' },
+  // Baseball's starting pitcher, which is the pilot market.
+  pitcher_strikeouts: { stat: 'pitcher_strikeouts', label: 'Strikeouts' },
+};
+
+/**
+ * The market keys asked for, per competition.
+ *
+ * Asking for a sport's other markets would cost nothing — billing counts what
+ * comes back — but a quote the model has no opinion on is a market this
+ * application must not appear to have a view about, which is the rule the fight
+ * and tennis markets already follow. So a competition asks for exactly what its
+ * own model prices.
+ */
+const MARKETS_BY_LEAGUE: Readonly<Record<string, readonly string[]>> = {
+  mlb: ['pitcher_strikeouts'],
+  nfl: [
+    'player_pass_yds',
+    'player_pass_tds',
+    'player_rush_yds',
+    'player_reception_yds',
+    'player_receptions',
+    'player_anytime_td',
+  ],
 };
 
 export const PLAYER_MARKETS = Object.keys(MARKET_KEYS);
+
+/** Which player markets to ask for on a fixture in this competition. */
+export function playerMarketsFor(leagueId: string): readonly string[] {
+  return MARKETS_BY_LEAGUE[leagueId] ?? [];
+}
 
 /** Resolve a bookmaker's spelling of a player to the provider's athlete id. */
 export type ResolvePlayer = (name: string) => string | null;
@@ -226,6 +255,10 @@ export async function playerPropsForEvent(
   const sportKey = sportKeyFor(leagueId);
   if (!sportKey) return [];
 
+  const markets = playerMarketsFor(leagueId);
+  // A competition whose model prices no player market costs no request at all.
+  if (markets.length === 0) return [];
+
   const region = playerRegion();
 
   const { value } = await cached(
@@ -236,7 +269,7 @@ export async function playerPropsForEvent(
         `${BASE}/sports/${encodeURIComponent(sportKey)}/events/${encodeURIComponent(eventId)}/odds` +
         `?apiKey=${encodeURIComponent(oddsApiConfig.key)}` +
         `&regions=${encodeURIComponent(region)}` +
-        `&markets=${encodeURIComponent(PLAYER_MARKETS.join(','))}` +
+        `&markets=${encodeURIComponent(markets.join(','))}` +
         `&oddsFormat=decimal`;
 
       try {

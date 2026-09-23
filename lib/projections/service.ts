@@ -28,7 +28,12 @@
  */
 
 import { cached } from '../cache';
-import { APP_TIMEZONE, projectionConfig, todayInAppTimezone } from '../config';
+import {
+  APP_TIMEZONE,
+  playerMarketConfig,
+  projectionConfig,
+  todayInAppTimezone,
+} from '../config';
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
@@ -60,9 +65,16 @@ import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-mod
 import type { BoutRatings } from './bout-model';
 import { boutSelections, projectContest } from './bout-selections';
 import { playerGames } from '../players/history';
+import { announcedFor, fixtureStarters, pitcherGames } from '../players/pitchers';
 import { buildPlayerRatings, playerResolver } from './player-model';
 import type { PlayerRatings } from './player-model';
-import { playerProjections, playerSelections } from './player-selections';
+import {
+  MLB_PITCHER_MARKET,
+  NFL_MARKET,
+  playerProjections,
+  playerSelections,
+} from './player-selections';
+import type { PlayerMarket } from './player-selections';
 import { playerPropsForEvent } from '../odds/player-props';
 import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
@@ -699,17 +711,71 @@ export async function boutProjectionForGame(
 // ---------------------------------------------------------------------------
 
 /**
- * Competitions whose players this model can price.
+ * The player market a competition has, if it has one and it is switched on.
  *
- * One entry, deliberately. The statistics in `player-model.ts` are American
- * football's, and a receiving yard means nothing in the NBA — so a second
- * sport is a second statistic table and a second verification, not a flag
- * flipped here.
+ * Two distinct questions, and conflating them is what went wrong the first
+ * time: *is there a model for this sport* and *has it been measured*. A
+ * competition can have the first without the second, and `playerMarketConfig`
+ * is where the second is recorded — deliberately, somewhere a reader can find
+ * it, rather than as the absence of an entry in the optimiser's type list.
  */
-const PLAYER_LEAGUES = new Set(['nfl']);
+const PLAYER_MARKETS: Readonly<Record<string, PlayerMarket>> = {
+  mlb: MLB_PITCHER_MARKET,
+  nfl: NFL_MARKET,
+};
+
+export function playerMarketFor(league: League): PlayerMarket | null {
+  if (!playerMarketConfig.leagues.includes(league.id)) return null;
+  return PLAYER_MARKETS[league.id] ?? null;
+}
 
 export function hasPlayerMarkets(league: League): boolean {
-  return PLAYER_LEAGUES.has(league.id);
+  return playerMarketFor(league) !== null;
+}
+
+/**
+ * Ratings for the two pitchers a baseball fixture has announced.
+ *
+ * Fixture-scoped rather than competition-scoped, which is the opposite of the
+ * football path and is the right shape for the question: this market is about
+ * two named individuals, so two gamelog requests answer it where sixty box
+ * scores would. It also reaches back ten seasons rather than as far as the
+ * fixture window happens to go.
+ *
+ * Null when neither side has announced, which is the participation gate and is
+ * the whole reason this is the pilot sport. Nothing is inferred from whoever
+ * pitched last time.
+ */
+async function pitcherRatings(game: Game, asOf: number): Promise<PlayerRatings | null> {
+  if (!game.start_time) return null;
+
+  const kickoff = Date.parse(game.start_time);
+  if (!Number.isFinite(kickoff)) return null;
+
+  const date = game.start_time.slice(0, 10).replace(/-/g, '');
+  const announced = await announcedFor([date]);
+
+  const sides = sidesOf(game);
+  const starters = fixtureStarters(announced.get(game.id), {
+    home: sides?.home.id ?? null,
+    away: sides?.away.id ?? null,
+  });
+  if (starters.length === 0) return null;
+
+  const { value } = await cached(
+    `projection:pitcher-ratings:${game.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => {
+      const logs = await Promise.all(
+        // Strictly before the kick-off, so a backtest cannot read a start from
+        // the fixture it is projecting.
+        starters.map((starter) => pitcherGames(starter, Math.min(asOf, kickoff))),
+      );
+      return buildPlayerRatings(logs.flat(), MLB_PITCHER_MARKET.stats);
+    },
+  );
+
+  return value.players.size > 0 ? value : null;
 }
 
 /** No players rated, which yields no player selections rather than throwing. */
@@ -729,6 +795,8 @@ export async function buildPlayerModel(
   asOf: number = Date.now(),
 ): Promise<PlayerRatings | null> {
   if (!hasPlayerMarkets(league)) return null;
+  // Baseball's ratings are per fixture, not per competition; see pitcherRatings.
+  if (league.id === 'mlb') return null;
 
   const config = modelConfigForLeague(league.id, league.sport);
   if (!config) return null;
@@ -771,12 +839,30 @@ export async function playersForGame(
   asOf: number = Date.now(),
 ): Promise<PlayerProjection[]> {
   const league = LEAGUES.find((entry) => entry.label === game.league);
-  if (!league || !hasPlayerMarkets(league)) return [];
+  const market = league ? playerMarketFor(league) : null;
+  if (!league || !market) return [];
 
-  const ratings = await buildPlayerModel(league, asOf);
+  const ratings = await playerRatingsFor(league, game, asOf);
   if (!ratings) return [];
 
-  return playerProjections(game, ratings, asOf);
+  return playerProjections(game, ratings, asOf, market);
+}
+
+/**
+ * Whichever rating set this competition's player market is built from.
+ *
+ * The two shapes are not a wrinkle to be smoothed over — they are the right
+ * answer to different questions. A football market is about a whole squad, so
+ * one box score per game serves fifty players. A pitcher market is about two
+ * announced individuals, so two gamelogs serve it and reach ten seasons back.
+ */
+async function playerRatingsFor(
+  league: League,
+  game: Game,
+  asOf: number,
+): Promise<PlayerRatings | null> {
+  if (league.id === 'mlb') return pitcherRatings(game, asOf);
+  return buildPlayerModel(league, asOf);
 }
 
 /**
@@ -1261,8 +1347,9 @@ export async function gameCandidates(
    * proportionate.
    */
   let players: Selection[] = [];
-  if (hasPlayerMarkets(league)) {
-    const ratings = (await buildPlayerModel(league, asOf)) ?? emptyPlayerRatings();
+  const playerMarket = playerMarketFor(league);
+  if (playerMarket) {
+    const ratings = (await playerRatingsFor(league, game, asOf)) ?? emptyPlayerRatings();
 
     /*
      * Prices for this fixture's players, if any book quotes them.
@@ -1282,7 +1369,7 @@ export async function gameCandidates(
         ? { ...markets, markets: [...markets.markets, ...priced] }
         : markets;
 
-    players = playerSelections(game, ratings, quotes, asOf);
+    players = playerSelections(game, ratings, quotes, asOf, playerMarket);
   }
 
   return {

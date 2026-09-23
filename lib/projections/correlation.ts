@@ -86,10 +86,14 @@ export function satisfiedBy(
      * Not answerable from a simulated scoreline.
      *
      * Every other rule here asks something about the score; a player market
-     * asks about one person, and the team simulations contain no people. These
-     * never reach this function — a fixture with no usable distribution is held
-     * to a single leg upstream — and false is the honest answer to a question
-     * the simulations cannot address.
+     * asks about one person, and the simulated games contain no people.
+     *
+     * **`false` here is a placeholder, not an answer**, and callers must not
+     * reach it: `isCountable` below is the question to ask first. An earlier
+     * version relied on a comment saying these "never reach this function",
+     * which was simply untrue for any fixture that *does* have a distribution —
+     * and the consequence was a 55% player leg reported at 0.5% with an
+     * invented explanation attached.
      */
     case 'player_stat':
       return false;
@@ -100,11 +104,46 @@ export function satisfiedBy(
 }
 
 /**
+ * Whether a simulated scoreline can answer this rule at all.
+ *
+ * The distinction `satisfiedBy` returning false could not make, and the reason
+ * it could not be left to do so. A total and a handicap are questions about a
+ * score, so a simulated game answers them. A race position, a head-to-head and
+ * a player's own statistic are not — and `false` for those does not mean "did
+ * not happen", it means "cannot be asked here".
+ *
+ * Conflating the two produced the worst behaviour this feature had: a single
+ * player leg put through the bet builder reported a joint probability of 0.005
+ * against its own card's 0.55, and the builder then *explained* the gap as the
+ * legs pulling against each other. Counting an unanswerable rule as a miss in
+ * every simulation is how a model invents a reason for its own artefact.
+ */
+export function isCountable(rule: SettlementRule): boolean {
+  switch (rule.kind) {
+    case 'winner':
+    case 'double_chance':
+    case 'spread':
+    case 'total':
+    case 'team_total':
+    case 'both_teams_to_score':
+      return true;
+    case 'finish_position':
+    case 'head_to_head':
+    case 'player_stat':
+      return false;
+  }
+}
+
+/**
  * How often every rule holds in the same simulated game.
  *
  * The measured joint probability. With a single rule it returns that rule's
  * own probability, which is a useful property: the marginal and the joint come
  * from one code path and so cannot drift apart.
+ *
+ * **Every rule passed here must be countable.** A caller holding a mixture is
+ * asking two different questions and has to keep them apart itself — see
+ * `evaluateCombination`, which does.
  */
 export function jointProbability(
   distribution: Distribution,
@@ -149,6 +188,10 @@ export function isContradictory(
   a: SettlementRule,
   b: SettlementRule,
 ): boolean {
+  // A rule the simulations cannot ask about is not a contradiction; it is a
+  // question for a different set of evidence. Saying otherwise would make every
+  // player market incompatible with everything.
+  if (!isCountable(a) || !isCountable(b)) return false;
   return jointProbability(distribution, [a, b]) <= 0.005;
 }
 
@@ -175,12 +218,40 @@ export function describeCorrelation(
   joint: number,
   independent: number,
   sameGame: boolean,
+  /**
+   * Whether the joint figure was actually counted.
+   *
+   * False when any leg's rule the simulations cannot answer had to be
+   * multiplied in instead. The distinction is the difference between a measured
+   * relationship and an assumed one, and stating the second as the first is a
+   * claim about evidence that does not exist.
+   */
+  measured = true,
 ): CorrelationAssessment {
   if (!sameGame) {
     return {
       level: 'low',
       ratio: 1,
       note: 'Each leg comes from a different fixture, so the results do not depend on one another.',
+    };
+  }
+
+  if (!measured) {
+    /*
+     * No ratio, because there is nothing to take a ratio of. A player market is
+     * read off that person's own record rather than off a simulated scoreline,
+     * so the simulations hold no joint distribution these legs are both in.
+     * Reported as unmeasured rather than as independent: they are related, and
+     * how much is not known.
+     */
+    return {
+      level: 'moderate',
+      ratio: null,
+      note:
+        'These selections come from one fixture, and how much they move together has ' +
+        'not been measured — a player market is read off that player’s own record, ' +
+        'which the fixture simulations know nothing about. The combined figure ' +
+        'multiplies them, so treat it as an estimate rather than a count.',
     };
   }
 

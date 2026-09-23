@@ -747,6 +747,17 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
      * 60% and lands in Medium; a race win is nearer 30% and clears none of
      * them, which is the honest answer rather than a forced inclusion.
      */
+    /*
+     * `player_performance` is deliberately absent, and it is the one omission
+     * here that is about evidence rather than about shape.
+     *
+     * A player estimate cannot reach a data quality above 0.8 however long the
+     * record is, because the opposition is not in it and nothing knows why a
+     * number moved. Low risk is the category a reader trusts most, so it is
+     * held to markets whose evidence has no structural hole in it. Medium and
+     * high carry player markets, which is where their probabilities land
+     * anyway.
+     */
     allowedTypes: [
       'double_chance',
       'spread',
@@ -773,6 +784,7 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
       'both_teams_to_score',
       'finish_position',
       'head_to_head',
+      'player_performance',
     ],
   },
   high: {
@@ -789,6 +801,7 @@ export const RISK_PROFILES: Record<'low' | 'medium' | 'high', RiskProfile> = {
       'both_teams_to_score',
       'finish_position',
       'head_to_head',
+      'player_performance',
     ],
   },
 };

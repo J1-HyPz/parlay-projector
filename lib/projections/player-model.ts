@@ -11,21 +11,28 @@
  *   continuous  yardage, which is a sum of many plays and spreads roughly
  *               symmetrically about its mean. Normal, with the spread measured
  *               from the player's own games rather than assumed.
- *   count       receptions and touchdowns, which are small whole numbers and
- *               cannot be negative. Poisson on the measured rate.
+ *   count       strikeouts, receptions and touchdowns, which are small whole
+ *               numbers and cannot be negative. Poisson on the measured rate —
+ *               unless a statistic has been *measured* to vary more than
+ *               Poisson allows, in which case `dispersion` widens it without
+ *               moving the mean. Absent means unmeasured, and unmeasured means
+ *               Poisson.
  *
  * What this model does **not** know, and what therefore has to be stated
  * wherever it is shown:
  *
- *   - **Whether the player is playing.** There is no snap count, no depth
- *     chart and no expected-starter feed here. Recent appearances are the only
- *     evidence of a role, so a player who has missed games is excluded rather
- *     than projected at their old rate.
- *   - **Why a number moved.** A change of team, of quarterback or of scheme
- *     looks exactly like noise from here. Recency weighting softens it; it
- *     does not detect it.
- *   - **The opponent.** A team's defence is not in this estimate at all. That
- *     is a real omission and it is named rather than papered over.
+ *   - **Whether the player is playing** — except where the provider actually
+ *     announces them, which is baseball's starting pitcher and ice hockey's
+ *     goalie and nobody else. Everywhere else a recent appearance is the only
+ *     evidence of a role, and that is evidence about the role rather than about
+ *     selection. `Participation` carries which of the two a given estimate
+ *     rests on, and it is the largest single term in the data quality.
+ *   - **Why a number moved.** A change of team, of role or of scheme looks
+ *     exactly like noise from here. Recency weighting softens it; it does not
+ *     detect it.
+ *   - **The opponent.** The opposition is not in this estimate at all. That is
+ *     a real omission, it is named rather than papered over, and it is why no
+ *     amount of sample buys a perfect data quality.
  *
  * Pure: ratings in, probabilities out, reproducible from its inputs.
  */
@@ -35,7 +42,7 @@ import {
   clamp,
   decayWeights,
   normalAbove,
-  poissonAtLeast,
+  overdispersedAtLeast,
   standardDeviation,
   weightedMean,
 } from './math.ts';
@@ -48,7 +55,9 @@ export type PlayerStatKey =
   | 'rushing_yards'
   | 'receiving_yards'
   | 'receptions'
-  | 'anytime_touchdown';
+  | 'anytime_touchdown'
+  /** Baseball's starting pitcher, which is the pilot market. */
+  | 'pitcher_strikeouts';
 
 export interface PlayerStatConfig {
   key: PlayerStatKey;
@@ -78,6 +87,17 @@ export interface PlayerStatConfig {
    * it is guarded here at the source rather than filtered downstream.
    */
   minSpread: number;
+  /**
+   * How much more this count varies than a Poisson process allows.
+   *
+   * Absent means unmeasured, and unmeasured means Poisson — the same
+   * convention `SportModelConfig.scoreDispersion` uses, and for the same
+   * reason: a value nobody has measured must not quietly widen a distribution.
+   * A count whose spread is inherited from something else varying — a
+   * pitcher's strikeouts from how long he lasts — is exactly where this is
+   * expected to bite, and §7.6 of the spec is where it gets fitted.
+   */
+  dispersion?: number;
 }
 
 function sum(stats: Record<string, number>, keys: readonly string[]): number | null {
@@ -170,7 +190,45 @@ export const NFL_PLAYER_STATS: readonly PlayerStatConfig[] = [
   },
 ];
 
+/**
+ * Baseball's starting pitcher — the pilot, and deliberately one statistic.
+ *
+ * Strikeouts and nothing else, for a reason that is about evidence rather than
+ * about effort. A pitcher is the only individual in any sport here whom the
+ * provider *announces* before the fixture: measured across a full slate, every
+ * baseball fixture had at least one named starter, against none at all for
+ * fourteen American football fixtures. A player market needs to know the person
+ * will take part, and this is the one place that is published rather than
+ * presumed.
+ *
+ * The thresholds are higher than football's because they can be. A gamelog
+ * serves ten seasons for a pitcher at roughly thirty starts each, so twenty
+ * starts is an ordinary sample here where it would be two seasons of a
+ * receiver's career.
+ *
+ * `dispersion` is deliberately absent, which means Poisson until it is
+ * measured. It is the value most likely to need changing: a pitcher's
+ * strikeouts inherit variance from how long he lasts, and a distribution that
+ * cannot widen would price both tails as more certain than the record supports
+ * — the failure baseball's own scoring model already had once.
+ */
+export const MLB_PITCHER_STATS: readonly PlayerStatConfig[] = [
+  {
+    key: 'pitcher_strikeouts',
+    label: 'Strikeouts',
+    noun: 'strikeouts',
+    kind: 'count',
+    from: (stats) => only(stats, 'strikeouts'),
+    minGames: 8,
+    targetGames: 20,
+    minSpread: 0,
+  },
+];
+
 export const PLAYER_MODEL_VERSION = 'player-v1-nfl';
+
+/** The pilot carries its own version, since it is a different model family. */
+export const PITCHER_MODEL_VERSION = 'player-v1-mlb-k';
 
 /** One statistic's rating for one player. */
 export interface PlayerStatRating {
@@ -311,23 +369,67 @@ export function probabilityOver(
   if (config.kind === 'count') {
     // Over 0.5 is "at least one"; over 1.5 is "at least two".
     const atLeast = Math.floor(line) + 1;
-    return boundProbability(poissonAtLeast(atLeast, countRate(rating)));
+    return boundProbability(
+      overdispersedAtLeast(atLeast, countRate(rating), config.dispersion ?? 1),
+    );
   }
   return boundProbability(normalAbove(line, rating.mean, Math.max(rating.spread, 0.5)));
 }
 
 /**
+ * What is actually known about whether this player will take part.
+ *
+ *   announced           the provider names this individual as a starter. Only
+ *                       baseball's pitcher and ice hockey's goalie are ever
+ *                       announced; measured, every surveyed baseball fixture
+ *                       had at least one and all eleven hockey fixtures had
+ *                       both.
+ *   recent_appearance   he played recently, so he presumably still has a role.
+ *                       That is evidence about the *role*, not about selection,
+ *                       and the two are not interchangeable.
+ */
+export type Participation = 'announced' | 'recent_appearance';
+
+/**
+ * The most this model may claim, by what kind of evidence it holds.
+ *
+ * **Neither reaches 1.** Data quality in this application means how much
+ * information went in, and a player estimate is missing whole categories of it
+ * that a team estimate is not: the opposition is not in the number at all, and
+ * nothing here knows why a figure moved — a change of team, of quarterback or
+ * of role looks exactly like noise. Those absences do not shrink as the sample
+ * grows, so no number of games should buy a perfect score.
+ *
+ * This was the bug. Ten games of one statistic scored **1.000**, where a team
+ * reaches that only with a full season plus standings plus a settled
+ * head-to-head record. Since the optimiser ranks on
+ * `probability × confidence × data_quality`, a ten-game player leg outranked a
+ * full-season team leg — while the model's own `quality_reasons` listed three
+ * things it did not know.
+ *
+ * The gap between the two ceilings is the participation evidence, and it is
+ * deliberately large enough to matter: an unannounced player cannot reach the
+ * low-risk profile's 0.60 floor however long his record is.
+ */
+const QUALITY_CEILING: Readonly<Record<Participation, number>> = {
+  announced: 0.8,
+  recent_appearance: 0.55,
+};
+
+/**
  * How much the estimate rests on.
  *
- * Games recorded, tempered by how recently the player appeared. A player last
- * seen a month ago is either injured or no longer used, and this model cannot
- * tell which — so the sample is discounted rather than trusted at face value.
+ * Three things multiplied rather than added, because each is a reason to
+ * believe less and none of them substitutes for another: how much of the
+ * sample the model wanted it actually has, how recently the player was seen,
+ * and the ceiling above.
  */
 export function playerDataQuality(
   profile: PlayerProfile,
   rating: PlayerStatRating,
   config: PlayerStatConfig,
   asOf: number,
+  participation: Participation = 'recent_appearance',
 ): number {
   const sample = clamp(rating.games / config.targetGames, 0, 1);
 
@@ -336,7 +438,11 @@ export function playerDataQuality(
   // A fortnight covers a bye week; beyond a month the role is in doubt.
   const fresh = days <= 14 ? 1 : days <= 30 ? 0.7 : 0.3;
 
-  return clamp(sample * 0.8 * fresh + 0.2 * fresh, 0, 1);
+  // A floor of 0.2 on the sample term, so a short record is thin rather than
+  // worthless — it is still this player's own record.
+  const evidence = 0.2 + 0.8 * sample;
+
+  return clamp(evidence * fresh * QUALITY_CEILING[participation], 0, 1);
 }
 
 /** Why the estimate is as strong or as weak as it is. */
@@ -345,6 +451,7 @@ export function playerQualityReasons(
   rating: PlayerStatRating,
   config: PlayerStatConfig,
   asOf: number,
+  participation: Participation = 'recent_appearance',
 ): string[] {
   const reasons: string[] = [];
 
@@ -356,13 +463,34 @@ export function playerQualityReasons(
     );
   }
 
+  /*
+   * What is known about taking part, which differs entirely by sport.
+   *
+   * An announced starter is a published fact and the caveat would be false.
+   * Everybody else rests on having appeared recently, which is evidence about
+   * their role rather than about selection — and saying so is the whole point,
+   * since it is also the largest single term in the quality above.
+   */
   const days =
     profile.lastPlayed === null ? Infinity : (asOf - profile.lastPlayed) / 86_400_000;
-  if (Number.isFinite(days) && days > 14) {
+
+  if (participation === 'announced') {
     reasons.push(
-      `${profile.name} last recorded a statistic ${Math.round(days)} days ago, so their ` +
-        'current role is uncertain — no lineup or expected-starter data is published here.',
+      `${profile.name} is the announced starter, which is published rather than ` +
+        'inferred. If that changes before the start, this is void rather than lost.',
     );
+  } else {
+    reasons.push(
+      `Nothing here confirms ${profile.name} will be selected: no lineup, depth chart ` +
+        'or inactive list is published to this application. A recent appearance is ' +
+        'evidence of a role, not of selection.',
+    );
+    if (Number.isFinite(days) && days > 14) {
+      reasons.push(
+        `${profile.name} last recorded a statistic ${Math.round(days)} days ago, so even ` +
+          'their role is in doubt.',
+      );
+    }
   }
 
   if (rating.measuredSpread !== null && rating.spread > rating.measuredSpread) {

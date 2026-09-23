@@ -282,6 +282,33 @@ export const projectionConfig = {
 };
 
 /**
+ * Which competitions publish player markets.
+ *
+ * **This is a gate, and it is named rather than implied.** A player market
+ * ships only once a backtest shows it is calibrated and beats the player's own
+ * season average — so the list holds the competitions that have passed that,
+ * and a competition whose model exists but has not been measured is absent on
+ * purpose.
+ *
+ * The distinction matters because the first version of this feature was
+ * *accidentally* switched off: player selections carried a type no risk profile
+ * allowed, so the optimiser silently dropped every one. That is
+ * indistinguishable from a deliberate gate until somebody "fixes" it, which is
+ * precisely why the gate now lives somewhere a reader can find it.
+ *
+ * American football is deliberately not here. Its model is built and its
+ * participation evidence is the weakest measured anywhere — no announced
+ * starter across a full slate, and an empty depth chart — so it waits for its
+ * own measurement rather than shipping because the code exists.
+ */
+export const playerMarketConfig = {
+  leagues: (env('PLAYER_MARKET_LEAGUES', 'mlb') || 'mlb')
+    .split(',')
+    .map((id) => id.trim().toLowerCase())
+    .filter((id) => id.length > 0),
+};
+
+/**
  * Directory for persistent application data.
  *
  * Must point at a mounted volume in production: a container filesystem is
