@@ -22,7 +22,7 @@
  * Pure.
  */
 
-import { describeCorrelation, jointProbability } from './correlation.ts';
+import { describeCorrelation, isCountable, jointProbability } from './correlation.ts';
 import { MAX_LEGS, MIN_LEGS, RISK_PROFILES } from './config.ts';
 import { clamp } from './math.ts';
 import { eligible, explainRisk, priceParlay } from './optimiser.ts';
@@ -65,17 +65,39 @@ export function evaluateCombination(
   distribution: Distribution,
 ): CombinationAssessment {
   const independent = legs.reduce((product, leg) => product * leg.probability, 1);
-  const joint = jointProbability(
-    distribution,
-    legs.map((leg) => leg.settlement),
-  );
+
+  /*
+   * Counted where the simulations can answer, multiplied where they cannot.
+   *
+   * The same division `buildMixed` already makes across fixtures — "counted
+   * within each fixture, multiplied between them" — applied to a second place
+   * the simulations fall silent. A player market asks about one person and the
+   * simulated games contain no people, so its probability is genuine and its
+   * *relationship* to the scoreline legs is unmeasured.
+   *
+   * Handing the whole set to `jointProbability` is what produced 0.005 for a
+   * single 55% player leg: an unanswerable rule counted as a miss in every
+   * simulation.
+   */
+  const countable = legs.filter((leg) => isCountable(leg.settlement));
+  const assumed = legs.filter((leg) => !isCountable(leg.settlement));
+
+  const counted =
+    countable.length > 0
+      ? jointProbability(
+          distribution,
+          countable.map((leg) => leg.settlement),
+        )
+      : 1;
+  const multiplied = assumed.reduce((product, leg) => product * leg.probability, 1);
+  const joint = counted * multiplied;
 
   return {
     independent: Number(independent.toFixed(4)),
     joint: Number(joint.toFixed(4)),
     correlation:
       legs.length > 1
-        ? describeCorrelation(joint, independent, true)
+        ? describeCorrelation(joint, independent, true, assumed.length === 0)
         : {
             level: 'low',
             ratio: 1,
@@ -97,8 +119,16 @@ export function conditionalProbability(
   candidate: Selection,
   distribution: Distribution,
 ): number {
-  const rules = chosen.map((leg) => leg.settlement);
-  const base = chosen.length === 0 ? 1 : jointProbability(distribution, rules);
+  /*
+   * A rule the simulations cannot answer is its own probability and nothing
+   * else. Asked conditionally it would come back zero and be refused every
+   * time — which is how a player leg was silently unable to enter any
+   * combination even once the risk profiles allowed it.
+   */
+  if (!isCountable(candidate.settlement)) return candidate.probability;
+
+  const rules = chosen.map((leg) => leg.settlement).filter(isCountable);
+  const base = rules.length === 0 ? 1 : jointProbability(distribution, rules);
   if (base <= 0) return 0;
 
   const together = jointProbability(distribution, [...rules, candidate.settlement]);
@@ -115,7 +145,47 @@ export function conditionalProbability(
  */
 export function conflicts(a: Selection, b: Selection): boolean {
   if (a.id === b.id) return true;
+
+  /*
+   * A player market needs the person in the key, not just the market and line.
+   *
+   * Two players' anytime touchdown both sit at half a touchdown, and two
+   * pitchers are routinely quoted at the same strikeout line — so market-plus-
+   * line read them as two sides of one bet and silently dropped the second.
+   * They are different bets on different people; the same person twice on the
+   * same statistic and line is the real conflict.
+   */
+  const ruleA = a.settlement;
+  const ruleB = b.settlement;
+  if (ruleA.kind === 'player_stat' || ruleB.kind === 'player_stat') {
+    if (ruleA.kind !== 'player_stat' || ruleB.kind !== 'player_stat') return false;
+    return (
+      ruleA.athleteId === ruleB.athleteId &&
+      ruleA.stat === ruleB.stat &&
+      ruleA.line === ruleB.line
+    );
+  }
+
   return a.market.type === b.market.type && a.market.line === b.market.line;
+}
+
+/**
+ * Two legs from one fixture whose relationship nobody has measured.
+ *
+ * A player's own statistic and that fixture's scoreline are genuinely linked —
+ * a pitcher striking more batters out is a pitcher conceding fewer runs, and a
+ * quarterback's passing yards are most of his team's offence. The simulations
+ * cannot count the pair, because they contain no people, so the only two honest
+ * options are to measure the coupling or to refuse the combination. Until it is
+ * measured, this refuses it.
+ *
+ * Deliberately *not* folded into `conflicts`, which means "these cannot both be
+ * true". These can both be true; we simply cannot say how often together.
+ */
+export function unmeasurableTogether(a: Selection, b: Selection): boolean {
+  const playerA = a.settlement.kind === 'player_stat';
+  const playerB = b.settlement.kind === 'player_stat';
+  return playerA !== playerB;
 }
 
 /**
@@ -151,6 +221,9 @@ export function buildSameGame(
   for (const candidate of rotated) {
     if (chosen.length >= requested) break;
     if (chosen.some((leg) => conflicts(leg, candidate))) continue;
+    // Refused for the same reason the builder refuses it: the pair's joint
+    // probability is not something this model has measured.
+    if (chosen.some((leg) => unmeasurableTogether(leg, candidate))) continue;
 
     // Must still be likely enough given what is already in the slip. This is
     // what refuses a contradiction, without needing to know it is one.
@@ -201,6 +274,15 @@ export function buildSameGame(
 export interface CustomSlip {
   legs: Selection[];
   dropped: number;
+  /**
+   * Why each dropped leg was dropped, in words.
+   *
+   * A count alone reads as a fault. The three reasons are genuinely different —
+   * the same bet twice, a pairing whose joint probability is unmeasured, and a
+   * fixture with no simulations behind it — and a reader who chose the leg is
+   * entitled to know which applied.
+   */
+  dropped_reasons: string[];
   assessment: CombinationAssessment;
   price: ParlayPrice | null;
   verified_legs: number;
@@ -211,11 +293,31 @@ export function assembleSlip(
   distribution: Distribution | null,
 ): CustomSlip {
   const legs: Selection[] = [];
+  const reasons: string[] = [];
   let dropped = 0;
 
   for (const candidate of selections) {
     if (legs.some((leg) => conflicts(leg, candidate))) {
       dropped += 1;
+      reasons.push(`${candidate.label} is the same bet as one already chosen.`);
+      continue;
+    }
+
+    /*
+     * A player leg and a scoreline leg from one fixture move together, and how
+     * much has not been measured. Multiplying them would state a combined
+     * chance the model cannot stand behind, so the combination is refused
+     * rather than priced — the same choice the one-leg-per-fixture rule makes
+     * everywhere else evidence is missing.
+     */
+    const linked = legs.find((leg) => unmeasurableTogether(leg, candidate));
+    if (linked) {
+      dropped += 1;
+      reasons.push(
+        `${candidate.label} cannot be combined with ${linked.label}: one is about a ` +
+          'player and the other about the scoreline, and how much they move together ' +
+          'has not been measured.',
+      );
       continue;
     }
     /*
@@ -228,6 +330,10 @@ export function assembleSlip(
      */
     if (!distribution && legs.length >= 1) {
       dropped += 1;
+      reasons.push(
+        `${candidate.label} cannot be added: this contest is not simulated, so a second ` +
+          'leg could only be priced by multiplying.',
+      );
       continue;
     }
     legs.push(candidate);
@@ -248,6 +354,7 @@ export function assembleSlip(
   return {
     legs,
     dropped,
+    dropped_reasons: reasons,
     assessment,
     price: priceParlay(legs, assessment.joint),
     verified_legs: legs.filter((leg) => leg.market.availability === 'verified').length,
@@ -340,6 +447,7 @@ export function buildMixed(
 
       const candidate = pool.queue.find((entry) => {
         if (pool.chosen.some((leg) => conflicts(leg, entry))) return false;
+        if (pool.chosen.some((leg) => unmeasurableTogether(leg, entry))) return false;
         // Still likely enough given this fixture's legs already chosen. This
         // is what refuses a contradiction without enumerating contradictions.
         return (
@@ -367,18 +475,20 @@ export function buildMixed(
    * A fixture contributing one leg counts to that leg's own probability, so a
    * line with no doubled-up fixture gives exactly the multi-game answer.
    */
-  const joint = used.reduce(
-    (product, pool) =>
-      product *
-      jointProbability(
-        pool.bundle.distribution,
-        pool.chosen.map((leg) => leg.settlement),
-      ),
-    1,
-  );
+  /*
+   * Each fixture's own assessment, then multiplied between fixtures.
+   *
+   * `evaluateCombination` rather than `jointProbability` directly, because a
+   * fixture's legs may include a player market the simulations cannot answer —
+   * handed to the raw counter, one of those makes the whole product zero.
+   */
+  const perFixture = used.map((pool) => evaluateCombination(pool.chosen, pool.bundle.distribution));
+  const joint = perFixture.reduce((product, assessment) => product * assessment.joint, 1);
 
   const independent = legs.reduce((product, leg) => product * leg.probability, 1);
   const doubled = used.some((pool) => pool.chosen.length > 1);
+  // Only a genuinely counted relationship may be described as one.
+  const allCounted = used.every((pool) => pool.chosen.every((leg) => isCountable(leg.settlement)));
 
   const ordered = [...legs].sort((a, b) => b.probability - a.probability);
 
@@ -390,7 +500,7 @@ export function buildMixed(
     combined_probability: Number(joint.toFixed(4)),
     // Only claim correlation was measured when a fixture actually contributes
     // more than one leg; otherwise this is an ordinary independent line.
-    correlation: describeCorrelation(joint, independent, doubled),
+    correlation: describeCorrelation(joint, independent, doubled, allCounted),
     price: priceParlay(ordered, joint),
     average_confidence: Number(
       (ordered.reduce((sum, leg) => sum + leg.confidence, 0) / ordered.length).toFixed(3),

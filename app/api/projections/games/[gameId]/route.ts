@@ -14,12 +14,21 @@
  * match answers on `bout` with a winner probability and the two records it
  * rests on; a Grand Prix answers on `race` with a finishing order. Never more
  * than one.
+ *
+ * `players` is different in kind and can accompany any of them: what the model
+ * expects named individuals to do. It is analysis rather than a set of bets —
+ * a bet needs a line, and a line comes from a bookmaker — so it is reported
+ * separately from the markets and never merged into them.
  */
 
 import { json } from '@/lib/home/api';
 import { isValidGameId } from '@/lib/games/normalise';
 import { getGameDetail } from '@/lib/games/service';
-import { fixtureProjection, projectionGap } from '@/lib/projections/service';
+import {
+  fixtureProjection,
+  playersForGame,
+  projectionGap,
+} from '@/lib/projections/service';
 import { MODEL_VERSION } from '@/lib/projections/types';
 import type { Game } from '@/lib/home/types';
 
@@ -32,6 +41,7 @@ function nothing(reason: string, detail?: string): Response {
     projection: null,
     bout: null,
     race: null,
+    players: [],
     reason,
     ...(detail ? { reason_detail: detail } : {}),
   });
@@ -70,10 +80,18 @@ export async function GET(
     return nothing(gap.reason, gap.detail);
   }
 
+  /*
+   * Players are additional rather than alternative, and their absence is not
+   * a failure: most competitions have no player model at all, and a fixture
+   * whose squads are too thinly recorded simply returns none.
+   */
+  const players = await playersForGame(game);
+
   return json({
     model_version: MODEL_VERSION,
     projection: projected.game?.projection ?? null,
     bout: projected.bout?.projection ?? null,
     race: projected.race?.projection ?? null,
+    players,
   });
 }

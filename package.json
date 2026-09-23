@@ -15,7 +15,8 @@
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "backtest:players": "node --experimental-strip-types scripts/backtest-players.ts"
   },
   "dependencies": {
     "react": "19.2.6",

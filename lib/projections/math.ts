@@ -88,7 +88,18 @@ function logFactorial(k: number): number {
 
 /** P(X = k) for X ~ Poisson(lambda). Computed in logs to stay stable. */
 export function poissonPmf(k: number, lambda: number): number {
-  if (k < 0 || !Number.isInteger(k) || !(lambda > 0)) return 0;
+  if (k < 0 || !Number.isInteger(k)) return 0;
+  /*
+   * A rate of zero is a distribution, not a missing one.
+   *
+   * At lambda 0 the event never happens, so all the mass sits on k = 0. This
+   * returned 0 for every k, which made the cumulative function 0 and so made
+   * `poissonAtLeast(1, 0)` report *one* — a certainty that something happens,
+   * derived from it never having happened. A player who had never scored was
+   * priced at 99.5% to score.
+   */
+  if (lambda === 0) return k === 0 ? 1 : 0;
+  if (!(lambda > 0)) return 0;
   return Math.exp(k * Math.log(lambda) - lambda - logFactorial(k));
 }
 
@@ -104,6 +115,79 @@ export function poissonCdf(k: number, lambda: number): number {
 export function poissonAtLeast(k: number, lambda: number): number {
   if (k <= 0) return 1;
   return clamp(1 - poissonCdf(k - 1, lambda), 0, 1);
+}
+
+// ---------------------------------------------------------------------------
+// Overdispersed counts
+// ---------------------------------------------------------------------------
+
+/** ln Γ(x) by the Lanczos approximation; accurate well past what these need. */
+const LANCZOS = [
+  676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+];
+
+export function logGamma(x: number): number {
+  if (!(x > 0)) return Number.NaN;
+  // Reflection, for the sake of completeness: no caller here passes x < 0.5.
+  if (x < 0.5) {
+    return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
+  }
+
+  const z = x - 1;
+  let series = 0.99999999999980993;
+  LANCZOS.forEach((coefficient, index) => {
+    series += coefficient / (z + index + 1);
+  });
+
+  const t = z + LANCZOS.length - 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(series);
+}
+
+/**
+ * P(X = k) for a count whose variance is `dispersion` times its mean.
+ *
+ * The analytic counterpart of `sampleOverdispersed`, and it exists for the same
+ * reason: a Poisson process fixes variance at the mean, which is a real
+ * assumption rather than a formality. Baseball's *scoring* measured 2.27 and
+ * needed its distribution changed rather than its constants; nothing says a
+ * player's count statistic is any better behaved, and a model with no way to
+ * express the answer cannot act on the measurement.
+ *
+ * Parameterised so the mean is preserved exactly: with variance `d * mean`, the
+ * negative binomial takes `p = 1/d` and `r = mean / (d - 1)`. Widening a
+ * distribution must never move what it is centred on, or a width fix quietly
+ * becomes a different projection.
+ *
+ * At or below a dispersion of 1 this returns plain Poisson bit-for-bit, so a
+ * statistic measured to be Poisson is untouched by this existing.
+ */
+export function negativeBinomialPmf(k: number, mean: number, dispersion: number): number {
+  if (k < 0 || !Number.isInteger(k)) return 0;
+  if (!(dispersion > 1)) return poissonPmf(k, mean);
+  if (!(mean > 0)) return k === 0 ? 1 : 0;
+
+  const p = 1 / dispersion;
+  const r = mean / (dispersion - 1);
+
+  const logP =
+    logGamma(k + r) -
+    logGamma(r) -
+    logFactorial(k) +
+    r * Math.log(p) +
+    k * Math.log(1 - p);
+
+  return Math.exp(logP);
+}
+
+/** P(X >= k) for an overdispersed count. */
+export function overdispersedAtLeast(k: number, mean: number, dispersion: number): number {
+  if (k <= 0) return 1;
+  if (!(dispersion > 1)) return poissonAtLeast(k, mean);
+
+  let below = 0;
+  for (let i = 0; i < k; i += 1) below += negativeBinomialPmf(i, mean, dispersion);
+  return clamp(1 - below, 0, 1);
 }
 
 // ---------------------------------------------------------------------------

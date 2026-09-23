@@ -1,0 +1,451 @@
+{
+  "categories": [
+    {
+      "name": "passing",
+      "displayName": "Passing",
+      "count": 11
+    },
+    {
+      "name": "rushing",
+      "displayName": "Rushing",
+      "count": 5
+    }
+  ],
+  "filters": [
+    {
+      "displayName": "League",
+      "name": "league",
+      "value": "nfl",
+      "options": [
+        {
+          "value": "college-football",
+          "displayValue": "NCAA - Football",
+          "shortDisplayName": "NCAAF"
+        },
+        {
+          "value": "nfl",
+          "displayValue": "National Football League",
+          "shortDisplayName": "NFL"
+        }
+      ]
+    },
+    {
+      "displayName": "Season",
+      "name": "season",
+      "value": "2026",
+      "options": [
+        {
+          "value": "2026",
+          "displayValue": "2026"
+        },
+        {
+          "value": "2025",
+          "displayValue": "2025"
+        },
+        {
+          "value": "2024",
+          "displayValue": "2024"
+        },
+        {
+          "value": "2023",
+          "displayValue": "2023"
+        },
+        {
+          "value": "2022",
+          "displayValue": "2022"
+        },
+        {
+          "value": "2021",
+          "displayValue": "2021"
+        },
+        {
+          "value": "2020",
+          "displayValue": "2020"
+        },
+        {
+          "value": "2019",
+          "displayValue": "2019"
+        },
+        {
+          "value": "2018",
+          "displayValue": "2018"
+        }
+      ]
+    }
+  ],
+  "labels": [
+    "CMP",
+    "ATT",
+    "YDS",
+    "CMP%",
+    "AVG",
+    "TD",
+    "INT",
+    "LNG",
+    "SACK",
+    "RTG",
+    "QBR",
+    "CAR",
+    "YDS",
+    "AVG",
+    "TD",
+    "LNG"
+  ],
+  "names": [
+    "completions",
+    "passingAttempts",
+    "passingYards",
+    "completionPct",
+    "yardsPerPassAttempt",
+    "passingTouchdowns",
+    "interceptions",
+    "longPassing",
+    "sacks",
+    "QBRating",
+    "adjQBR",
+    "rushingAttempts",
+    "rushingYards",
+    "yardsPerRushAttempt",
+    "rushingTouchdowns",
+    "longRushing"
+  ],
+  "displayNames": [
+    "Completions",
+    "Passing Attempts",
+    "Passing Yards",
+    "Completion Percentage",
+    "Yards Per Pass Attempt",
+    "Passing Touchdowns",
+    "Interceptions",
+    "Longest Pass",
+    "Total Sacks",
+    "Passer Rating",
+    "Adjusted QBR",
+    "Rushing Attempts",
+    "Rushing Yards",
+    "Yards Per Rush Attempt",
+    "Rushing Touchdowns",
+    "Long Rushing"
+  ],
+  "events": {
+    "401872925": {
+      "id": "401872925",
+      "links": [
+        {
+          "language": "en",
+          "rel": [
+            "summary",
+            "desktop",
+            "event"
+          ],
+          "href": "https://www.espn.com/nfl/game/_/gameId/401872925/buccaneers-bengals",
+          "text": "Gamecast",
+          "shortText": "Summary",
+          "isExternal": false,
+          "isPremium": false
+        }
+      ],
+      "week": 1,
+      "atVs": "@",
+      "gameDate": "2026-09-13T17:00:00.000+00:00",
+      "score": "33-27",
+      "homeTeamId": "4",
+      "awayTeamId": "27",
+      "homeTeamScore": "33",
+      "awayTeamScore": "27",
+      "gameResult": "L",
+      "opponent": {
+        "id": "4",
+        "uid": "s:20~l:28~t:4",
+        "displayName": "Cincinnati Bengals",
+        "abbreviation": "CIN",
+        "links": [
+          {
+            "language": "en",
+            "rel": [
+              "clubhouse",
+              "desktop",
+              "team"
+            ],
+            "href": "https://www.espn.com/nfl/team/_/name/cin/cincinnati-bengals",
+            "text": "Clubhouse",
+            "shortText": "Clubhouse",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cin.png"
+      },
+      "leagueName": "National Football League",
+      "leagueAbbreviation": "NFL",
+      "leagueShortName": "NFL",
+      "team": {
+        "id": "27",
+        "uid": "s:20~l:28~t:27",
+        "abbreviation": "TB",
+        "links": [
+          {
+            "language": "en",
+            "rel": [
+              "clubhouse",
+              "desktop",
+              "team"
+            ],
+            "href": "https://www.espn.com/nfl/team/_/name/tb/tampa-bay-buccaneers",
+            "text": "Clubhouse",
+            "shortText": "Clubhouse",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/tb.png",
+        "isAllStar": false
+      }
+    },
+    "401872935": {
+      "id": "401872935",
+      "links": [
+        {
+          "language": "en",
+          "rel": [
+            "summary",
+            "desktop",
+            "event"
+          ],
+          "href": "https://www.espn.com/nfl/game/_/gameId/401872935/browns-buccaneers",
+          "text": "Gamecast",
+          "shortText": "Summary",
+          "isExternal": false,
+          "isPremium": false
+        }
+      ],
+      "week": 2,
+      "atVs": "vs",
+      "gameDate": "2026-09-20T17:00:00.000+00:00",
+      "score": "23-19",
+      "homeTeamId": "27",
+      "awayTeamId": "5",
+      "homeTeamScore": "19",
+      "awayTeamScore": "23",
+      "gameResult": "L",
+      "opponent": {
+        "id": "5",
+        "uid": "s:20~l:28~t:5",
+        "displayName": "Cleveland Browns",
+        "abbreviation": "CLE",
+        "links": [
+          {
+            "language": "en",
+            "rel": [
+              "clubhouse",
+              "desktop",
+              "team"
+            ],
+            "href": "https://www.espn.com/nfl/team/_/name/cle/cleveland-browns",
+            "text": "Clubhouse",
+            "shortText": "Clubhouse",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/cle.png"
+      },
+      "leagueName": "National Football League",
+      "leagueAbbreviation": "NFL",
+      "leagueShortName": "NFL",
+      "team": {
+        "id": "27",
+        "uid": "s:20~l:28~t:27",
+        "abbreviation": "TB",
+        "links": [
+          {
+            "language": "en",
+            "rel": [
+              "clubhouse",
+              "desktop",
+              "team"
+            ],
+            "href": "https://www.espn.com/nfl/team/_/name/tb/tampa-bay-buccaneers",
+            "text": "Clubhouse",
+            "shortText": "Clubhouse",
+            "isExternal": false,
+            "isPremium": false
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/nfl/500/tb.png",
+        "isAllStar": false
+      }
+    }
+  },
+  "seasonTypes": [
+    {
+      "displayName": "2026 Regular Season",
+      "displayTeam": "TB",
+      "categories": [
+        {
+          "displayName": "Regular Season Stats",
+          "type": "event",
+          "splitType": "2",
+          "events": [
+            {
+              "eventId": "401872935",
+              "stats": [
+                "21",
+                "34",
+                "182",
+                "61.8",
+                "5.4",
+                "1",
+                "1",
+                "49",
+                "3",
+                "73.4",
+                "53.1",
+                "4",
+                "29",
+                "7.3",
+                "0",
+                "14"
+              ]
+            },
+            {
+              "eventId": "401872925",
+              "stats": [
+                "23",
+                "28",
+                "216",
+                "82.1",
+                "7.7",
+                "0",
+                "0",
+                "30",
+                "4",
+                "98.8",
+                "37.6",
+                "5",
+                "30",
+                "6.0",
+                "1",
+                "9"
+              ]
+            }
+          ],
+          "totals": [
+            "44",
+            "62",
+            "398",
+            "71.0",
+            "6.4",
+            "1",
+            "1",
+            "49",
+            "7",
+            "86.6",
+            "45.4",
+            "9",
+            "59",
+            "6.6",
+            "1",
+            "14"
+          ]
+        }
+      ],
+      "summary": {
+        "displayName": "Regular Season Stats",
+        "stats": [
+          {
+            "displayName": "Totals",
+            "stats": [
+              "44",
+              "62",
+              "398",
+              "71.0",
+              "6.4",
+              "1",
+              "1",
+              "49",
+              "7",
+              "86.6",
+              "45.4",
+              "9",
+              "59",
+              "6.6",
+              "1",
+              "14"
+            ],
+            "type": "total"
+          }
+        ]
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "abbreviation": "ATT",
+      "displayName": "Passing Attempts"
+    },
+    {
+      "abbreviation": "AVG",
+      "displayName": "Yards Per Pass Attempt"
+    },
+    {
+      "abbreviation": "CAR",
+      "displayName": "Rushing Attempts"
+    },
+    {
+      "abbreviation": "CMP",
+      "displayName": "Completions"
+    },
+    {
+      "abbreviation": "CMP%",
+      "displayName": "Completion Percentage"
+    },
+    {
+      "abbreviation": "INT",
+      "displayName": "Interceptions"
+    },
+    {
+      "abbreviation": "LNG",
+      "displayName": "Longest Pass"
+    },
+    {
+      "abbreviation": "QBR",
+      "displayName": "Adjusted QBR"
+    },
+    {
+      "abbreviation": "RTG",
+      "displayName": "Passer Rating"
+    },
+    {
+      "abbreviation": "SACK",
+      "displayName": "Total Sacks"
+    },
+    {
+      "abbreviation": "TD",
+      "displayName": "Passing Touchdowns"
+    },
+    {
+      "abbreviation": "YDS",
+      "displayName": "Passing Yards"
+    }
+  ],
+  "__probeNote": {
+    "truncatedLinkArraysToOneEntry": 6,
+    "what": "ESPN athlete gamelog response, verbatim except as recorded here",
+    "originalTopLevelKeys": [
+      "categories",
+      "filters",
+      "labels",
+      "names",
+      "displayNames",
+      "events",
+      "seasonTypes",
+      "glossary"
+    ],
+    "truncatedArrays": [],
+    "requestUrl": "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/3052587/gamelog",
+    "httpStatus": 200,
+    "originalResponseBytes": 21567,
+    "fetchedAt": "2026-09-23T00:13:46.786Z"
+  }
+}

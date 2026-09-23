@@ -23,6 +23,7 @@ import { GameHeader } from './game-header';
 import { useGameDetail } from './game-data';
 import { MarketExplorer } from './market-explorer';
 import { ProjectorAnalysis } from './projector-analysis';
+import { PlayerProjections } from './player-projections';
 import { RaceField, RaceWeekend } from './race-sections';
 import { isFieldDetail } from '@/lib/games/types';
 
@@ -191,6 +192,12 @@ export function GameDetail({ gameId }: { gameId: string }) {
           )}
 
           <ProjectorAnalysis gameId={game.id} />
+
+          {/* Below the fixture's own projection and above the markets: it is
+              analysis about the same game, and it is what the player markets
+              in the panel beneath are built from. Renders nothing at all for a
+              competition with no player model. */}
+          <PlayerProjections gameId={game.id} />
 
           {/* Every market on the fixture, and a builder for combining them.
               Only meaningful before kick-off, and the panel says so itself

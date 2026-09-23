@@ -347,6 +347,44 @@ describe('grouped accuracy', () => {
     assert.equal(nfl.sample, 'small');
   });
 
+  it('splits by market, so a player line is not averaged into the team ones', () => {
+    /*
+     * What the market breakdown on the accuracy page reads from.
+     *
+     * A player performance line and a winner line share a sport and a
+     * competition, so every other breakdown on that page averages the two
+     * together — and the player market, being the newer of them, is the half
+     * with the thinner sample and the one that disappears into the other.
+     */
+    const groups = groupBy(
+      [
+        ...Array.from({ length: 20 }, () => record({ selection_type: 'winner', status: 'won' })),
+        ...Array.from({ length: 10 }, () =>
+          record({ selection_type: 'player_performance', status: 'lost' }),
+        ),
+        ...Array.from({ length: 4 }, () => record({ selection_type: 'total', status: 'pending' })),
+      ],
+      (r) => r.selection_type,
+    );
+
+    // Settled descending, which is the order the section renders them in.
+    assert.deepEqual(
+      groups.map((group) => group.key),
+      ['winner', 'player_performance', 'total'],
+    );
+
+    const player = groups.find((group) => group.key === 'player_performance')!;
+    assert.equal(player.settled, 10);
+    assert.equal(player.accuracy, null, 'ten settled predictions is not a rate');
+    assert.notEqual(player.brier, null, 'the scoring rule still says something at ten');
+
+    // A market running with nothing settled yet has a count to show, so the
+    // row is not six dashes reading as a fault.
+    const total = groups.find((group) => group.key === 'total')!;
+    assert.equal(total.settled, 0);
+    assert.equal(total.pending, 4);
+  });
+
   it('bands confidence', () => {
     const groups = byConfidence([
       ...Array.from({ length: 20 }, () => record({ model_confidence: 0.9, status: 'won' })),

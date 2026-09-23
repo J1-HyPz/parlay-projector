@@ -28,7 +28,12 @@
  */
 
 import { cached } from '../cache';
-import { APP_TIMEZONE, projectionConfig, todayInAppTimezone } from '../config';
+import {
+  APP_TIMEZONE,
+  playerMarketConfig,
+  projectionConfig,
+  todayInAppTimezone,
+} from '../config';
 import { logger } from '../logger';
 import { LEAGUES } from '../leagues/registry';
 import type { League } from '../leagues/registry';
@@ -45,9 +50,12 @@ import type { ProjectionOutcome } from './project';
 import { marketsForLeagues } from '../odds/service';
 import { leagueAvailability } from '../providers/espn/availability';
 import type { LeagueAvailability } from '../providers/espn/availability';
-import { announcedStarters, pitchersForFixture } from '../providers/espn/pitchers';
+import {
+  announcedStarters,
+  pitchersForFixture,
+  scoreboardDates,
+} from '../providers/espn/pitchers';
 import type { AnnouncedStarters } from '../providers/espn/pitchers';
-import { compactDate } from '../providers/espn/fixture-normalise';
 import { conditionsForGames } from '../providers/weather';
 import type { FixtureConditions } from './weather';
 import type { SquadNews } from './features';
@@ -59,11 +67,23 @@ import type { RaceOutcome } from './race-selections';
 import { boutConfigForLeague, buildBoutRatings, toBoutResults } from './bout-model';
 import type { BoutRatings } from './bout-model';
 import { boutSelections, projectContest } from './bout-selections';
+import { playerGames } from '../players/history';
+import { announcedFor, fixtureStarters, pitcherGames } from '../players/pitchers';
+import { buildPlayerRatings, playerResolver } from './player-model';
+import type { PlayerRatings } from './player-model';
+import {
+  MLB_PITCHER_MARKET,
+  NFL_MARKET,
+  playerProjections,
+  playerSelections,
+} from './player-selections';
+import type { PlayerMarket } from './player-selections';
+import { playerPropsForEvent } from '../odds/player-props';
 import type { BoutOutcome } from './bout-selections';
 import type { GameMarkets } from '../markets/types';
 import { sidesOf } from '../home/types';
 import type { Game, ConcreteSportId } from '../home/types';
-import type { GameProjection, Selection } from './types';
+import type { GameProjection, PlayerProjection, Selection } from './types';
 
 /** Ratings change only when a game finishes. */
 const RATINGS_TTL_MS = 3 * 60 * 60_000;
@@ -324,8 +344,10 @@ async function startersFor(
   const dates = new Set<string>();
   for (const game of games) {
     if (game.sport !== 'mlb') continue;
-    const day = game.start_time?.slice(0, 10);
-    if (day) dates.add(compactDate(day));
+    // Both candidate dates: the scoreboard is keyed by US date, so a night game
+    // is listed under the previous one. Asking only for the UTC day found no
+    // starter for nearly every evening fixture -- see `scoreboardDates`.
+    for (const date of scoreboardDates(game.start_time)) dates.add(date);
   }
   if (dates.size === 0) return new Map();
 
@@ -687,6 +709,164 @@ export async function boutProjectionForGame(
   );
 
   return value;
+}
+
+// ---------------------------------------------------------------------------
+// Players
+// ---------------------------------------------------------------------------
+
+/**
+ * The player market a competition has, if it has one and it is switched on.
+ *
+ * Two distinct questions, and conflating them is what went wrong the first
+ * time: *is there a model for this sport* and *has it been measured*. A
+ * competition can have the first without the second, and `playerMarketConfig`
+ * is where the second is recorded — deliberately, somewhere a reader can find
+ * it, rather than as the absence of an entry in the optimiser's type list.
+ */
+const PLAYER_MARKETS: Readonly<Record<string, PlayerMarket>> = {
+  mlb: MLB_PITCHER_MARKET,
+  nfl: NFL_MARKET,
+};
+
+export function playerMarketFor(league: League): PlayerMarket | null {
+  if (!playerMarketConfig.leagues.includes(league.id)) return null;
+  return PLAYER_MARKETS[league.id] ?? null;
+}
+
+export function hasPlayerMarkets(league: League): boolean {
+  return playerMarketFor(league) !== null;
+}
+
+/**
+ * Ratings for the two pitchers a baseball fixture has announced.
+ *
+ * Fixture-scoped rather than competition-scoped, which is the opposite of the
+ * football path and is the right shape for the question: this market is about
+ * two named individuals, so two gamelog requests answer it where sixty box
+ * scores would. It also reaches back ten seasons rather than as far as the
+ * fixture window happens to go.
+ *
+ * Null when neither side has announced, which is the participation gate and is
+ * the whole reason this is the pilot sport. Nothing is inferred from whoever
+ * pitched last time.
+ */
+async function pitcherRatings(game: Game, asOf: number): Promise<PlayerRatings | null> {
+  if (!game.start_time) return null;
+
+  const kickoff = Date.parse(game.start_time);
+  if (!Number.isFinite(kickoff)) return null;
+
+  const announced = await announcedFor(game.start_time);
+
+  const sides = sidesOf(game);
+  const starters = fixtureStarters(announced.get(game.id), {
+    home: sides?.home.id ?? null,
+    away: sides?.away.id ?? null,
+  });
+  if (starters.length === 0) return null;
+
+  const { value } = await cached(
+    `projection:pitcher-ratings:${game.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => {
+      const logs = await Promise.all(
+        // Strictly before the kick-off, so a backtest cannot read a start from
+        // the fixture it is projecting.
+        starters.map((starter) => pitcherGames(starter, Math.min(asOf, kickoff))),
+      );
+      return buildPlayerRatings(logs.flat(), MLB_PITCHER_MARKET.stats);
+    },
+  );
+
+  return value.players.size > 0 ? value : null;
+}
+
+/** No players rated, which yields no player selections rather than throwing. */
+function emptyPlayerRatings(): PlayerRatings {
+  return { players: new Map(), sample: 0 };
+}
+
+/**
+ * Per-player ratings for a competition.
+ *
+ * Built from the same fixture history the team model already fetched, so the
+ * only extra cost is one summary request per finished game — see
+ * `players/history.ts`. Cached on the same cadence as every other rating set.
+ */
+export async function buildPlayerModel(
+  league: League,
+  asOf: number = Date.now(),
+): Promise<PlayerRatings | null> {
+  if (!hasPlayerMarkets(league)) return null;
+  // Baseball's ratings are per fixture, not per competition; see pitcherRatings.
+  if (league.id === 'mlb') return null;
+
+  const config = modelConfigForLeague(league.id, league.sport);
+  if (!config) return null;
+
+  const today = todayInAppTimezone();
+  let games: Game[];
+  try {
+    games = await fixturesForRange(
+      league,
+      addDays(today, -config.historyDays),
+      addDays(today, 7),
+      { currentTtlMs: CURRENT_WINDOW_TTL_MS, settledTtlMs: SETTLED_WINDOW_TTL_MS, today },
+    );
+  } catch (error) {
+    logger.warn('player_history_failed', {
+      league: league.id,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+    return null;
+  }
+  if (games.length === 0) return null;
+
+  const { value } = await cached(
+    `projection:player-ratings:${league.id}:${Math.floor(asOf / RATINGS_TTL_MS)}`,
+    RATINGS_TTL_MS,
+    async () => buildPlayerRatings(await playerGames(league, games, asOf)),
+  );
+
+  return value;
+}
+
+/**
+ * What the model expects this fixture's players to do.
+ *
+ * Analysis rather than bets: see `player-selections.ts` for why a line has to
+ * come from a bookmaker before any of this becomes something to back.
+ */
+export async function playersForGame(
+  game: Game,
+  asOf: number = Date.now(),
+): Promise<PlayerProjection[]> {
+  const league = LEAGUES.find((entry) => entry.label === game.league);
+  const market = league ? playerMarketFor(league) : null;
+  if (!league || !market) return [];
+
+  const ratings = await playerRatingsFor(league, game, asOf);
+  if (!ratings) return [];
+
+  return playerProjections(game, ratings, asOf, market);
+}
+
+/**
+ * Whichever rating set this competition's player market is built from.
+ *
+ * The two shapes are not a wrinkle to be smoothed over — they are the right
+ * answer to different questions. A football market is about a whole squad, so
+ * one box score per game serves fifty players. A pitcher market is about two
+ * announced individuals, so two gamelogs serve it and reach ten seasons back.
+ */
+async function playerRatingsFor(
+  league: League,
+  game: Game,
+  asOf: number,
+): Promise<PlayerRatings | null> {
+  if (league.id === 'mlb') return pitcherRatings(game, asOf);
+  return buildPlayerModel(league, asOf);
 }
 
 /**
@@ -1160,12 +1340,51 @@ export async function gameCandidates(
         ? candidateSelections(game, projected.game, config, markets, asOf)
         : [];
 
+  /*
+   * Player markets, for one fixture at a time.
+   *
+   * Deliberately not part of the slate-wide build. The price provider serves
+   * player props from a per-event endpoint — one request per fixture rather
+   * than one per competition — so pricing a whole card of them costs an order
+   * of magnitude more than every other market on the page put together. Here
+   * the reader has opened a single fixture, and one request for it is
+   * proportionate.
+   */
+  let players: Selection[] = [];
+  const playerMarket = playerMarketFor(league);
+  if (playerMarket) {
+    const ratings = (await playerRatingsFor(league, game, asOf)) ?? emptyPlayerRatings();
+
+    /*
+     * Prices for this fixture's players, if any book quotes them.
+     *
+     * One request, for the fixture the reader has open, using the provider's
+     * own event id — which the match-market fetch already matched and carried
+     * here, so finding it costs nothing. A quote for somebody this model has
+     * no record of is dropped by the resolver rather than guessed at.
+     */
+    const priced =
+      markets?.eventId && ratings.players.size > 0
+        ? await playerPropsForEvent(league.id, markets.eventId, playerResolver(ratings))
+        : [];
+
+    const quotes: GameMarkets | null =
+      priced.length > 0 && markets
+        ? { ...markets, markets: [...markets.markets, ...priced] }
+        : markets;
+
+    players = playerSelections(game, ratings, quotes, asOf, playerMarket);
+  }
+
   return {
     game,
     outcome: projected.game,
     bout: projected.bout,
     race: projected.race,
-    selections: selections.map((selection) => ({ ...selection, league_id: league.id })),
+    selections: [...selections, ...players].map((selection) => ({
+      ...selection,
+      league_id: league.id,
+    })),
     markets,
   };
 }

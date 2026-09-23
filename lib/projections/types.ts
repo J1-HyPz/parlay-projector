@@ -122,11 +122,16 @@ export interface GameProjection {
 /**
  * Kinds of selection the engine can produce.
  *
- * `player_performance` is defined here and handled by settlement, but nothing
- * currently generates it: rosters carry no statistics, and there is no injury,
- * lineup or expected-starter data, so §27's preconditions ("player data
- * exists + player expected to participate + sufficient history") cannot be met.
- * Producing player props from an unavailable dataset would be fabrication.
+ * `player_performance` is produced by `player-selections.ts`, for the
+ * competitions listed in `playerMarketConfig` — which today is baseball's
+ * starting-pitcher strikeouts and nothing else. The gate is participation
+ * rather than statistics: per-player records are abundant, and evidence that a
+ * named person will actually take part is published for a baseball pitcher and
+ * an ice hockey goalie and nobody else. See docs/specs/player-performance.md.
+ *
+ * It is named `player_performance` where the market type is `player_stat`. Two
+ * words for one thing, inherited rather than chosen, and recorded as an open
+ * decision in that spec rather than left to be discovered.
  */
 export type SelectionType =
   | 'winner'
@@ -349,6 +354,59 @@ export interface RaceEntrantProjection {
   mean_position: number;
   /** Grid slot, once qualifying has run. Null before it. */
   grid: number | null;
+}
+
+/**
+ * What the model expects one player to do, for one statistic.
+ *
+ * Deliberately not a selection. This is the analysis half of a player market:
+ * always produced where the record supports it, shown on the fixture's page,
+ * and never by itself a bet — a bet needs a line, and a line has to come from
+ * a bookmaker rather than from this number. See `player-selections.ts`.
+ */
+export interface PlayerProjection {
+  game_id: string;
+  /** The provider's athlete id, which is what settlement matches on. */
+  athlete_id: string;
+  player: string;
+  team_id: string | null;
+  position: string | null;
+  /** Canonical statistic key, e.g. `receiving_yards`. */
+  stat: string;
+  stat_label: string;
+  /** Recency-weighted mean per game. */
+  expected: number;
+  /**
+   * One spread either side of the mean.
+   *
+   * About two games in three for the yardage statistics, and floored at zero
+   * because a normal distribution will happily suggest a player runs for
+   * minus forty yards and nobody ever has.
+   */
+  likely_range: [number, number];
+  /** Games this rests on — of this statistic, not of the player's career. */
+  games: number;
+  /**
+   * What is known about this player taking part.
+   *
+   * `announced` means the provider names this individual as a starter, which is
+   * published for a baseball pitcher and an ice hockey goalie and nobody else.
+   * `recent_appearance` means he played recently, which is evidence about his
+   * role rather than about selection.
+   *
+   * Carried on the contract because the interface has to be able to say the
+   * right one. A blanket "nothing here knows whether they will be selected" is
+   * true of a receiver and false of an announced starter, and stating it of both
+   * would be a display feature misleading in exactly the way §6 of the v2 spec
+   * warns about.
+   */
+  participation: 'announced' | 'recent_appearance';
+  /** Most recent values, newest first. */
+  recent: number[];
+  data_quality: DataQuality;
+  quality_reasons: string[];
+  model_version: string;
+  generated_at: string;
 }
 
 /**
@@ -627,6 +685,15 @@ export interface ActualOutcome {
    * Null for a draw or a no-contest. Absent for every fixture that has a score.
    */
   winner?: 'home' | 'away' | null;
+  /**
+   * What the backed player actually recorded, for a player market.
+   *
+   * The equivalent of the scoreline for a market that is not about the score:
+   * the one number the result was judged against. Null means the player took
+   * no part, which voids the selection rather than losing it — so null and
+   * zero are different answers and are kept apart.
+   */
+  player_value?: number | null;
 }
 
 /**

@@ -146,6 +146,28 @@ export const oddsApiConfig = {
    * delivers nothing. See docs/betting-markets.md for the budget.
    */
   cacheTtlMs: envInt('ODDS_API_CACHE_TTL_SECONDS', 1200) * 1000,
+  /**
+   * Whether to ask for player prop prices at all.
+   *
+   * On by default, and cheap to leave on: props are read one fixture at a
+   * time, only when a reader opens that fixture, and the provider bills for
+   * markets it actually returns. A region that quotes none of them therefore
+   * costs nothing beyond the request. Set false to stop asking entirely.
+   */
+  playerProps: (env('ODDS_API_PLAYER_PROPS', 'true') || 'true').toLowerCase() !== 'false',
+  /**
+   * The region player props are read from, when it differs from the match one.
+   *
+   * Empty means "the same region as everything else", which is the honest
+   * default: a UK reader should be shown UK prices. It exists because the
+   * provider documents prop coverage as "mainly limited to US sports and US
+   * bookmakers", and if that proves true here then the choice — show a price
+   * a UK reader cannot take, or show no player bets at all — is one for
+   * whoever runs this, not one to be hard-coded.
+   *
+   * Setting it does not move the match markets, which stay on `region`.
+   */
+  playerRegion: env('ODDS_API_PLAYER_REGION'),
 };
 
 export const liveConfig = {
@@ -257,6 +279,33 @@ export const projectionConfig = {
   simulations: Math.min(Math.max(envInt('PROJECTION_SIMULATIONS', 10_000), 1_000), 50_000),
   /** Fallback lifetime; the real one tightens as kick-off approaches. */
   cacheTtlMs: envInt('PROJECTION_CACHE_TTL_SECONDS', 6 * 60 * 60) * 1000,
+};
+
+/**
+ * Which competitions publish player markets.
+ *
+ * **This is a gate, and it is named rather than implied.** A player market
+ * ships only once a backtest shows it is calibrated and beats the player's own
+ * season average — so the list holds the competitions that have passed that,
+ * and a competition whose model exists but has not been measured is absent on
+ * purpose.
+ *
+ * The distinction matters because the first version of this feature was
+ * *accidentally* switched off: player selections carried a type no risk profile
+ * allowed, so the optimiser silently dropped every one. That is
+ * indistinguishable from a deliberate gate until somebody "fixes" it, which is
+ * precisely why the gate now lives somewhere a reader can find it.
+ *
+ * American football is deliberately not here. Its model is built and its
+ * participation evidence is the weakest measured anywhere — no announced
+ * starter across a full slate, and an empty depth chart — so it waits for its
+ * own measurement rather than shipping because the code exists.
+ */
+export const playerMarketConfig = {
+  leagues: (env('PLAYER_MARKET_LEAGUES', 'mlb') || 'mlb')
+    .split(',')
+    .map((id) => id.trim().toLowerCase())
+    .filter((id) => id.length > 0),
 };
 
 /**

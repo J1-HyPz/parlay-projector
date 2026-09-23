@@ -15,6 +15,14 @@ export const CAPABILITIES = [
   'recent_form',
   'head_to_head',
   'player_leaders',
+  /**
+   * One athlete's own record, a game at a time, with a date on every row.
+   *
+   * Distinct from `player_leaders`, which is a league-wide ranking and says
+   * nothing about a specific person's game-by-game record. A player market
+   * needs the second and cannot be built from the first.
+   */
+  'player_gamelogs',
   'broadcasts',
   'news',
 ] as const;

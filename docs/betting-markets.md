@@ -249,13 +249,85 @@ space.
 
 ## What is not offered, and why
 
-**No player markets.** Not points, rebounds, assists, strikeouts, passing
-yards, anytime touchdown or anytime goalscorer.
+**Player markets: baseball's starting pitcher, and the line has to be quoted.**
 
-The application has no player statistics, no lineups, no expected starters and
-no injury feed, and the price feed carries no player markets either. There is
-nothing to model and nothing to verify against. Producing them would be
-invention on both counts.
+This said there were none at all, on the grounds that the application had no
+player statistics. That was wrong twice over. A finished game's box score
+carries every player's line; and the athlete gamelog, which a comment here once
+described as serving the current season only, serves **nine or ten seasons per
+athlete** through `?season=YYYY`. Both were measured rather than reasoned about.
+
+What is actually scarce is evidence that a named player will take part. No
+competition publishes a starting lineup before kick-off and the depth chart
+returns an empty object, so the only individual the provider announces is a
+baseball pitcher or an ice hockey goalie — measured, every baseball fixture on a
+full slate had at least one named starter against none at all across fourteen
+American football fixtures. **That is why the market is a pitcher's strikeouts
+and not a receiver's yards.** American football's model is built and switched
+off at `PLAYER_MARKET_LEAGUES` pending its own backtest.
+
+What is produced, and the difference between the two:
+
+| | Where it appears | Needs a price |
+| --- | --- | --- |
+| **Projection** — the expected figure, the range around it, and the appearances behind it | Player projections, on the fixture page | No |
+| **Selection** — a bet at a line, scored and parlayable like any other | Markets, on the fixture page | Yes, with one exception |
+
+The exception is deliberate and narrow, and baseball does not get it. "Anytime
+touchdown" has one threshold everywhere — half a touchdown — because the question
+is whether he scored at all, so the model is not choosing a rung on a ladder. A
+strikeout line has no such threshold: 5.5 is no more the real question than 6.5,
+so a pitcher market exists **only** where a book has quoted one. A ladder of
+lines nobody offers is the exact failure this work set out to fix.
+
+What the model does not know, stated on every projection rather than buried here:
+anything at all about the opposition, and why a figure moved — a change of role
+looks exactly like noise from here. Whether the player is selected is the third,
+and it is the one that varies: a pitcher's start is announced and said to be, and
+everywhere else a recent appearance is evidence about a *role* rather than about
+selection and is labelled as that.
+
+Those absences are why a player estimate's data quality is capped below 1 — at
+0.8 for an announced starter and 0.55 otherwise — however long the record is.
+They do not shrink as the sample grows, so no number of appearances should buy a
+perfect score.
+
+### Where a player price comes from
+
+Player props are the one market this provider does not serve per competition.
+They come from `/events/{id}/odds` — **a request per fixture** — so a slate of
+them would cost more than every other market on the page combined. The
+consequence is architectural rather than incidental:
+
+- A reader who opens a fixture gets **one** request for it, using the
+  provider's own event id, which the match-market fetch already matched and
+  carried along. No second lookup is made to find an id we have just held.
+- The slate-wide parlay build never asks for them at all.
+- Billing counts markets *returned* per event, so a region quoting none of
+  them costs nothing beyond the request.
+
+**The region is separately configurable, and it is not a detail.** The
+provider documents prop coverage as "mainly limited to US sports and US
+bookmakers", and its UK bookmaker list states no prop coverage. That is a
+strong hint and not a measurement, so `ODDS_API_PLAYER_REGION` exists to act
+on whatever the answer turns out to be *without* moving the match markets,
+which are correctly UK and should stay there. Empty means "the same region",
+which is the honest default: a UK reader should be shown UK prices.
+
+Run `node scripts/measure-player-props.mjs` to find out what a given key
+actually returns before changing it. It never prints the key.
+
+A quote whose player cannot be matched to a record is **dropped**, not
+guessed. Names are compared with suffixes, punctuation and accents removed —
+"Tyrone Tracy Jr." is "Tyrone Tracy" — and nothing looser: a near miss
+resolves to nobody, and two players sharing a name resolve to neither.
+Pricing the wrong person would settle a bet against a record the model never
+had an opinion about, and nothing downstream could detect it.
+
+A player who does not take part **voids** rather than loses. That is far
+commoner than a tennis retirement, and it is why an unrecorded statistic is
+kept distinct from a recorded zero all the way from the box score to
+settlement.
 
 **No half or quarter markets.** The model simulates whole games. It has no
 notion of a first half, so a first-half line would be a number with nothing
@@ -304,6 +376,7 @@ ODDS_ENABLED=true              # false reports every selection as model_only
 ODDS_CACHE_TTL_SECONDS=600
 ODDS_API_KEY=                  # empty means off: no request, no UK prices
 ODDS_API_REGION=uk             # one region; more multiplies the bill
+PLAYER_MARKET_LEAGUES=mlb      # which competitions publish a player market
 ODDS_API_CACHE_TTL_SECONDS=1200  # freshness-bound, not cost-bound. See above.
 ```
 

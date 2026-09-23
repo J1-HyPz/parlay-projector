@@ -149,6 +149,17 @@ export function backingFor(rule: SettlementRule, sides: Sides): Backing {
     case 'finish_position':
       return { team: rule.entrant, opponent: null, lean: null };
 
+    /*
+     * Backs a person, not a side of the fixture.
+     *
+     * This machinery orients evidence towards a team so a factor can be read
+     * as for or against a selection. A receiver going over his yards says
+     * nothing about who wins, so there is no side to orient towards and no
+     * scoring lean to claim.
+     */
+    case 'player_stat':
+      return { team: null, opponent: null, lean: null };
+
     case 'head_to_head':
       return { team: rule.entrant, opponent: rule.over, lean: null };
   }

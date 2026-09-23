@@ -34,9 +34,9 @@
  * for their sport — a spread is a "Run Line" in baseball and a "Puck Line" in
  * hockey — but that is a display concern, handled in `explain.ts`.
  *
- * Player markets are deliberately absent. See `docs/betting-markets.md`: this
- * application has no player statistics, no lineups and no prop prices, so there
- * is nothing to model and nothing to verify against.
+ * `player_stat` covers every player market, because a strikeout and a receiving
+ * yard settle identically — read the person's line, compare it to the number.
+ * Which statistic it is lives on the rule, not on the type.
  */
 export type MarketType =
   | 'moneyline'
@@ -49,7 +49,15 @@ export type MarketType =
   /** Motorsport: a competitor finishing inside a given position. */
   | 'finish_position'
   /** Motorsport: one competitor classified ahead of another. */
-  | 'head_to_head';
+  | 'head_to_head'
+  /**
+   * One named player, over or under a number of something.
+   *
+   * A single type rather than one per statistic, because a receiving yard and
+   * a reception settle identically — read the player's line, compare it to the
+   * number. Which statistic it is lives on the rule and in the market's label.
+   */
+  | 'player_stat';
 
 export const MARKET_TYPES: readonly MarketType[] = [
   'moneyline',
@@ -116,7 +124,27 @@ export type SettlementRule =
    */
   | { kind: 'finish_position'; entrant: string; within: number }
   /** One competitor classified ahead of another in the same session. */
-  | { kind: 'head_to_head'; entrant: string; over: string };
+  | { kind: 'head_to_head'; entrant: string; over: string }
+  /**
+   * A named player's own number, over or under a line.
+   *
+   * `athleteId` is the provider's, and it rather than the name is what
+   * settlement matches on: two players share a name far more often than an id,
+   * and the name is carried alongside only so a settled leg still reads as
+   * English once the fixture is long gone.
+   *
+   * `stat` is the model's canonical key and `statLabel` how it is written.
+   * Both are frozen with the prediction, like every other settlement input.
+   */
+  | {
+      kind: 'player_stat';
+      athleteId: string;
+      player: string;
+      stat: string;
+      statLabel: string;
+      direction: Direction;
+      line: number;
+    };
 
 /** The market a settlement rule belongs to. */
 export function marketTypeOf(rule: SettlementRule): MarketType {
@@ -137,6 +165,8 @@ export function marketTypeOf(rule: SettlementRule): MarketType {
       return 'finish_position';
     case 'head_to_head':
       return 'head_to_head';
+    case 'player_stat':
+      return 'player_stat';
   }
 }
 
@@ -227,6 +257,16 @@ export interface GameMarkets {
   source: string;
   fetchedAt: string;
   markets: QuotedMarket[];
+  /**
+   * The price provider's own id for this fixture.
+   *
+   * Recorded because player props are served per event rather than per
+   * competition, and asking for them needs the provider's id rather than
+   * ours. Carrying it here means the fixture-matching already done for the
+   * match markets is not repeated — and an extra request to find an id we
+   * have just had in our hands is not made.
+   */
+  eventId?: string | null;
 }
 
 /**

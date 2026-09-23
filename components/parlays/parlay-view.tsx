@@ -959,9 +959,19 @@ export function ParlayView() {
 
           <div className="px-1">
             <Note>
-              Player markets are not offered. This application has no player statistics, no
-              lineups and no injury data, and no prices for them — so there is nothing to model
-              and nothing to check against.
+              {/*
+                This said player markets were not offered at all, which stopped
+                being true. What remains true is the part that matters on this
+                page: a player line has to be quoted before it can be staked,
+                and the lines are quoted per fixture rather than per card — so
+                they live on a fixture's own page and not in a generated slate.
+              */}
+              Player markets are on each fixture&rsquo;s own page rather than here, because
+              their prices are quoted per fixture rather than per card. Baseball&rsquo;s
+              starting-pitcher strikeouts is the one competition through its backtest; a
+              player leg can join a medium or high line built from fixtures you pick, and
+              cannot be combined with a scoreline leg from the same fixture, because how much
+              the two move together has not been measured.
             </Note>
           </div>
         </aside>

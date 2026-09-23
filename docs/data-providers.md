@@ -62,7 +62,7 @@ Confirm which profile is live with `GET /api/internal/providers`, which reports
 | Sports | NFL, NBA, MLB, NHL, Football (major competitions), Tennis |
 | Auth | **None** |
 | Cost | Free |
-| Capabilities | `team_records`, `recent_form`, `head_to_head`, `broadcasts`, `standings`, `player_leaders` |
+| Capabilities | `team_records`, `recent_form`, `head_to_head`, `broadcasts`, `standings`, `player_leaders`, `player_gamelogs` |
 | Enable/disable | `ESPN_ENABLED` (default `true`) |
 
 Host note: `site.api.espn.com` returns **403** to server-side callers;
@@ -92,6 +92,26 @@ Two base paths are used: `/apis/site/v2/sports/...` for scoreboards, teams,
 rosters and summaries, and `/apis/v2/sports/...` for standings — the site path
 returns only a link stub with no table.
 
+**Per-player data, and the one finding worth reusing.** Two endpoints carry it
+and they answer different questions. `summary?event=<id>` →
+`boxscore.players[]` is one request holding every player who appeared, so it
+answers about a squad; it is present for the NFL, NCAA football, the NBA, MLB and
+the NHL, and **absent for every football (soccer) competition**, which puts its
+per-player data in `rosters[].roster[].stats` in an entirely different shape.
+
+`common/v3/sports/<sport>/<league>/athletes/<id>/gamelog` is one request holding
+one player, and **`?season=YYYY` serves a past season** — nine seasons for an NFL
+quarterback, ten for a pitcher, and the payload advertises which ones it will
+serve in its own `filters`, per athlete rather than per league. That was recorded
+in this codebase as impossible for some time ("asked for an earlier season it
+returns nothing") on the strength of nobody having tried it, which is worth
+remembering before the next such claim. MLB also takes `?category=pitching`.
+
+Two caveats measured alongside it: a football athlete's gamelog **ignores the
+league in its path** and returns their domestic competition whatever is asked
+for, and `teams/<id>/depthchart` returns a two-byte `{}` on this host for all
+four American leagues against valid team ids.
+
 ### RSS — news
 
 | | |
@@ -120,6 +140,7 @@ Declared once, in `lib/providers/registry.ts`:
 | `head_to_head` | **espn** |
 | `broadcasts` | **espn** |
 | `player_leaders` | **espn** |
+| `player_gamelogs` | **espn** |
 | `news` | rss |
 
 Services request a *capability*, never a named provider.

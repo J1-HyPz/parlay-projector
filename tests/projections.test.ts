@@ -479,9 +479,15 @@ describe('candidate selections', () => {
     assert.ok(types.has('spread'));
   });
 
-  it('never generates player props', () => {
-    // No player statistics, injuries or lineups exist in this application, so
-    // the preconditions for a player projection cannot be met.
+  it('does not produce a player market from a scoreline projection', () => {
+    /*
+     * This was named "never generates player props" and asserted that no player
+     * statistics existed anywhere. That stopped being true, and the test kept
+     * passing — because it exercises the *team* builder, which is the real
+     * invariant worth holding: a player market is read off one person's record
+     * and is built in `player-selections.ts`, never derived from a simulated
+     * scoreline.
+     */
     assert.equal(candidates.some((c) => c.type === 'player_performance'), false);
   });
 

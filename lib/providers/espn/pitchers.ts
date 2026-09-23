@@ -20,29 +20,13 @@ import { cached } from '../../cache.ts';
 import { espnConfig } from '../../config.ts';
 import { logger } from '../../logger.ts';
 import { fetchEspn } from './client.ts';
-import { getJson } from '../../http.ts';
+import { athleteGamelog } from './gamelog.ts';
+import type { GamelogRow } from './gamelog.ts';
 import { parseInnings, rateBefore } from '../../projections/pitchers.ts';
 import type { FixturePitchers, PitcherStart } from '../../projections/pitchers';
 
-/**
- * The gamelog lives on a different ESPN base path from everything else here.
- *
- * `<sport>/<league>/athletes/<id>/gamelog` on the site API returns 404; this
- * common path returns the whole season a start at a time. Passed through the
- * shared request helper anyway, for its timeout and size cap.
- */
-const COMMON_BASE = 'https://site.web.api.espn.com/apis/common/v3/sports';
-
-/** A pitcher's season does not change between starts; a day is ample. */
-const LOG_TTL_MS = 6 * 60 * 60_000;
 /** Probables are announced a day or two out and can change; keep this short. */
 const PROBABLES_TTL_MS = 15 * 60_000;
-
-interface RawGamelog {
-  names?: unknown;
-  events?: Record<string, { gameDate?: unknown }>;
-  seasonTypes?: { categories?: { events?: { eventId?: unknown; stats?: unknown[] }[] }[] }[];
-}
 
 function str(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
@@ -50,59 +34,42 @@ function str(value: unknown): string | null {
 }
 
 /**
- * Every start on a pitcher's record, with the date each one began.
+ * A pitcher's starts, read out of gamelog rows.
  *
- * Flattened out of the provider's month-by-month grouping, which carries no
- * meaning worth preserving. An entry missing its date, innings or runs is
- * dropped rather than defaulted — a start recorded as zero innings would drag
- * a rate toward a number the pitcher never produced.
+ * Pure, and exported for that reason: the innings notation is the one thing
+ * here that has gone wrong before, and it should be checkable without a
+ * network. Dating and flattening are the adapter's job by the time rows arrive.
  */
-async function fetchStarts(athleteId: string): Promise<PitcherStart[]> {
-  const raw = await getJson<RawGamelog>(
-    `${COMMON_BASE}/baseball/mlb/athletes/${encodeURIComponent(athleteId)}/gamelog`,
-    { timeoutMs: espnConfig.timeoutMs },
-  );
-  if (!raw) return [];
-
-  const names = Array.isArray(raw.names) ? raw.names.map((name) => str(name)) : [];
-  const innings = names.indexOf('innings');
-  const runs = names.indexOf('runs');
-  if (innings < 0 || runs < 0) return [];
-
+export function startsFrom(rows: readonly GamelogRow[]): PitcherStart[] {
   const starts: PitcherStart[] = [];
-  for (const seasonType of raw.seasonTypes ?? []) {
-    for (const category of seasonType.categories ?? []) {
-      for (const event of category.events ?? []) {
-        const eventId = str(event.eventId);
-        if (!eventId) continue;
 
-        const date = Date.parse(str(raw.events?.[eventId]?.gameDate) ?? '');
-        const pitched = parseInnings(event.stats?.[innings]);
-        const allowed = Number(event.stats?.[runs]);
-        if (!Number.isFinite(date) || pitched === null || !Number.isFinite(allowed)) continue;
+  for (const row of rows) {
+    const pitched = parseInnings(row.stats.innings);
+    const allowed = Number(row.stats.runs);
+    // A start recorded as no innings would drag a rate toward a number the
+    // pitcher never produced, so an unreadable row is dropped rather than
+    // defaulted.
+    if (pitched === null || !Number.isFinite(allowed)) continue;
 
-        starts.push({ event_id: eventId, date, innings: pitched, runs: allowed });
-      }
-    }
+    starts.push({ event_id: row.eventId, date: row.date, innings: pitched, runs: allowed });
   }
+
   return starts;
 }
 
-/** One pitcher's starts, cached. */
+/**
+ * One pitcher's starts, cached.
+ *
+ * Reads through the shared gamelog adapter rather than parsing the payload
+ * again here. The rate this produces feeds the *team* model, so the only thing
+ * that mattered in moving it was that the numbers not change — `innings` still
+ * goes through `parseInnings`, which is the whole reason the adapter hands back
+ * the provider's own text instead of helpfully converting it.
+ */
 export async function pitcherStarts(athleteId: string): Promise<PitcherStart[]> {
   if (!espnConfig.enabled) return [];
-  try {
-    const { value } = await cached(`espn:pitcher:${athleteId}`, LOG_TTL_MS, () =>
-      fetchStarts(athleteId),
-    );
-    return value;
-  } catch (error) {
-    logger.warn('espn_pitcher_log_failed', {
-      athlete: athleteId,
-      reason: error instanceof Error ? error.message : 'unknown',
-    });
-    return [];
-  }
+  const { rows } = await athleteGamelog('baseball/mlb', athleteId);
+  return startsFrom(rows);
 }
 
 interface RawScoreboard {
@@ -160,6 +127,30 @@ async function fetchAnnounced(date: string): Promise<Map<string, AnnouncedStarte
     byGame.set(`espn-mlb-${eventId}`, { home, away });
   }
   return byGame;
+}
+
+/**
+ * The scoreboard dates a fixture could be listed under.
+ *
+ * **The scoreboard is keyed by US date, not UTC**, and getting this wrong loses
+ * most of an evening's card. Measured: event 401817044 starts at
+ * `2026-09-23T01:40Z` and appears on the **22nd's** board, because 01:40 UTC is
+ * half past nine the previous evening in the east. Asking only for the UTC date
+ * therefore finds no announced starter for any fixture beginning before about
+ * four in the morning UTC — which is nearly every night game.
+ *
+ * So both candidates are asked for. Each is cached per date and the slate-wide
+ * build already fetches most of them, so the second one is usually free.
+ */
+export function scoreboardDates(startTime: string | null): string[] {
+  if (!startTime) return [];
+  const at = Date.parse(startTime);
+  if (!Number.isFinite(at)) return [];
+
+  const compact = (ms: number) => new Date(ms).toISOString().slice(0, 10).replace(/-/g, '');
+  // The UTC day, and the one before it. Ordered newest first so a caller
+  // reading the first match gets the more likely one.
+  return [...new Set([compact(at), compact(at - 86_400_000)])];
 }
 
 /** Announced starters across a set of dates, `YYYYMMDD`. */

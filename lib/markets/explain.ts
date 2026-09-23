@@ -163,7 +163,27 @@ export function marketLabel(type: MarketType, sport: ConcreteSportId): string {
       return 'Finishing Position';
     case 'head_to_head':
       return 'Head-to-Head';
+    /*
+     * Generic on purpose, and rarely what is shown.
+     *
+     * Every other market has one name per sport; a player market has one per
+     * statistic, and the statistic lives on the rule rather than the type.
+     * `playerMarketLabel` takes it from there; this is what a caller holding
+     * only the type can honestly say.
+     */
+    case 'player_stat':
+      return 'Player';
   }
+}
+
+/**
+ * The specific name of a player market, which is the statistic itself.
+ *
+ * The same shape as `raceMarketLabel` and for the same reason: the type says
+ * what kind of bet it is, the rule says what it is about.
+ */
+export function playerMarketLabel(rule: SettlementRule): string {
+  return rule.kind === 'player_stat' ? rule.statLabel : 'Player';
 }
 
 /**
@@ -228,6 +248,10 @@ export function selectionLabel(rule: SettlementRule, names: FixtureNames): strin
 
     case 'head_to_head':
       return `${rule.entrant} to beat ${rule.over}`;
+
+    // As a slip prints it: the person, the side of the line, the number.
+    case 'player_stat':
+      return `${rule.player} ${capitalise(rule.direction)} ${rule.line} ${rule.statLabel.toLowerCase()}`;
   }
 }
 
@@ -370,6 +394,22 @@ export function whatNeedsToHappen(rule: SettlementRule, names: FixtureNames): st
 
     case 'head_to_head':
       return `${rule.entrant} must be classified ahead of ${rule.over}. If ${rule.entrant} retires and ${rule.over} does not, this loses.`;
+
+    /*
+     * The condition, and the one thing about it a reader must know first.
+     *
+     * A player who does not take part is void rather than lost — see `settle`.
+     * That is a real and common outcome for a player market, far commoner than
+     * a tennis retirement, so it is said in advance rather than discovered
+     * afterwards.
+     */
+    case 'player_stat': {
+      const side = rule.direction === 'over' ? 'more than' : 'fewer than';
+      return (
+        `${rule.player} must record ${side} ${rule.line} ${rule.statLabel.toLowerCase()} ` +
+        `in this ${contest}. If ${rule.player} does not play, this is void rather than lost.`
+      );
+    }
   }
 }
 
@@ -402,6 +442,8 @@ export function probabilityLabel(type: MarketType): string {
       return 'Finish probability';
     case 'head_to_head':
       return 'Head-to-head probability';
+    case 'player_stat':
+      return 'Player probability';
   }
 }
 
@@ -432,5 +474,7 @@ export function probabilityMeaning(type: MarketType, sport: ConcreteSportId): st
       return 'How often this driver is classified inside that position across the simulated races.';
     case 'head_to_head':
       return 'How often this driver is classified ahead of the other across the simulated races.';
+    case 'player_stat':
+      return "How often this player's own game-by-game record lands on this side of the line. Built from their record alone: the defence they face is not in the estimate.";
   }
 }

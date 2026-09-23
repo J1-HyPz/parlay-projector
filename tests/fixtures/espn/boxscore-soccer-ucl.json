@@ -1,0 +1,4581 @@
+{
+  "boxscore": {
+    "teams": [
+      {
+        "team": {
+          "id": "436",
+          "uid": "s:600~t:436",
+          "slug": "tur.fenerbahce",
+          "location": "Fenerbahce",
+          "name": "Fenerbahce",
+          "abbreviation": "FEN",
+          "displayName": "Fenerbahce",
+          "shortDisplayName": "Fenerbahce",
+          "color": "ffff00",
+          "alternateColor": "ffffff",
+          "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
+          "uniform": {
+            "type": "home",
+            "color": "003399",
+            "alternateColor": "efe47f"
+          }
+        },
+        "statistics": [
+          {
+            "name": "foulsCommitted",
+            "displayValue": "12",
+            "label": "Fouls"
+          },
+          {
+            "name": "yellowCards",
+            "displayValue": "4",
+            "label": "Yellow Cards"
+          },
+          {
+            "name": "redCards",
+            "displayValue": "0",
+            "label": "Red Cards"
+          },
+          {
+            "name": "offsides",
+            "displayValue": "1",
+            "label": "Offsides"
+          },
+          {
+            "name": "wonCorners",
+            "displayValue": "1",
+            "label": "Corner Kicks"
+          },
+          {
+            "name": "saves",
+            "displayValue": "2",
+            "label": "Saves"
+          },
+          {
+            "name": "possessionPct",
+            "displayValue": "41.7",
+            "label": "Possession"
+          },
+          {
+            "name": "totalShots",
+            "displayValue": "11",
+            "label": "SHOTS"
+          },
+          {
+            "name": "shotsOnTarget",
+            "displayValue": "5",
+            "label": "ON GOAL"
+          },
+          {
+            "name": "shotPct",
+            "displayValue": "0.5",
+            "label": "On Target %"
+          },
+          {
+            "name": "penaltyKickGoals",
+            "displayValue": "0",
+            "label": "Penalty Goals"
+          },
+          {
+            "name": "penaltyKickShots",
+            "displayValue": "0",
+            "label": "Penalty Kicks Taken"
+          },
+          {
+            "name": "accuratePasses",
+            "displayValue": "369",
+            "label": "Accurate Passes"
+          },
+          {
+            "name": "totalPasses",
+            "displayValue": "441",
+            "label": "Passes"
+          },
+          {
+            "name": "passPct",
+            "displayValue": "0.8",
+            "label": "Pass Completion %"
+          },
+          {
+            "name": "accurateCrosses",
+            "displayValue": "1",
+            "label": "Accurate Crosses"
+          },
+          {
+            "name": "totalCrosses",
+            "displayValue": "5",
+            "label": "Crosses"
+          },
+          {
+            "name": "crossPct",
+            "displayValue": "0.2",
+            "label": "Cross %"
+          },
+          {
+            "name": "totalLongBalls",
+            "displayValue": "50",
+            "label": "Long Balls"
+          },
+          {
+            "name": "accurateLongBalls",
+            "displayValue": "18",
+            "label": "Accurate Long Balls"
+          },
+          {
+            "name": "longballPct",
+            "displayValue": "0.4",
+            "label": "Long Balls %"
+          },
+          {
+            "name": "blockedShots",
+            "displayValue": "2",
+            "label": "Blocked Shots"
+          },
+          {
+            "name": "effectiveTackles",
+            "displayValue": "10",
+            "label": "Effective Tackles"
+          },
+          {
+            "name": "totalTackles",
+            "displayValue": "17",
+            "label": "Tackles"
+          },
+          {
+            "name": "tacklePct",
+            "displayValue": "0.6",
+            "label": "Tackle %"
+          },
+          {
+            "name": "interceptions",
+            "displayValue": "14",
+            "label": "Interceptions"
+          },
+          {
+            "name": "effectiveClearance",
+            "displayValue": "15",
+            "label": "Effective Clearances"
+          },
+          {
+            "name": "totalClearance",
+            "displayValue": "15",
+            "label": "Clearances"
+          }
+        ],
+        "displayOrder": 1,
+        "homeAway": "home"
+      },
+      {
+        "team": {
+          "id": "104",
+          "uid": "s:600~t:104",
+          "slug": "ita.as_roma",
+          "location": "AS Roma",
+          "name": "AS Roma",
+          "abbreviation": "ROMA",
+          "displayName": "AS Roma",
+          "shortDisplayName": "AS Roma",
+          "color": "990a2c",
+          "alternateColor": "F5F3E5",
+          "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+          "uniform": {
+            "type": "home",
+            "color": "990000"
+          }
+        },
+        "statistics": [
+          {
+            "name": "foulsCommitted",
+            "displayValue": "19",
+            "label": "Fouls"
+          },
+          {
+            "name": "yellowCards",
+            "displayValue": "2",
+            "label": "Yellow Cards"
+          },
+          {
+            "name": "redCards",
+            "displayValue": "0",
+            "label": "Red Cards"
+          },
+          {
+            "name": "offsides",
+            "displayValue": "0",
+            "label": "Offsides"
+          },
+          {
+            "name": "wonCorners",
+            "displayValue": "3",
+            "label": "Corner Kicks"
+          },
+          {
+            "name": "saves",
+            "displayValue": "4",
+            "label": "Saves"
+          },
+          {
+            "name": "possessionPct",
+            "displayValue": "58.3",
+            "label": "Possession"
+          },
+          {
+            "name": "totalShots",
+            "displayValue": "8",
+            "label": "SHOTS"
+          },
+          {
+            "name": "shotsOnTarget",
+            "displayValue": "3",
+            "label": "ON GOAL"
+          },
+          {
+            "name": "shotPct",
+            "displayValue": "0.4",
+            "label": "On Target %"
+          },
+          {
+            "name": "penaltyKickGoals",
+            "displayValue": "0",
+            "label": "Penalty Goals"
+          },
+          {
+            "name": "penaltyKickShots",
+            "displayValue": "0",
+            "label": "Penalty Kicks Taken"
+          },
+          {
+            "name": "accuratePasses",
+            "displayValue": "554",
+            "label": "Accurate Passes"
+          },
+          {
+            "name": "totalPasses",
+            "displayValue": "614",
+            "label": "Passes"
+          },
+          {
+            "name": "passPct",
+            "displayValue": "0.9",
+            "label": "Pass Completion %"
+          },
+          {
+            "name": "accurateCrosses",
+            "displayValue": "1",
+            "label": "Accurate Crosses"
+          },
+          {
+            "name": "totalCrosses",
+            "displayValue": "16",
+            "label": "Crosses"
+          },
+          {
+            "name": "crossPct",
+            "displayValue": "0.1",
+            "label": "Cross %"
+          },
+          {
+            "name": "totalLongBalls",
+            "displayValue": "30",
+            "label": "Long Balls"
+          },
+          {
+            "name": "accurateLongBalls",
+            "displayValue": "17",
+            "label": "Accurate Long Balls"
+          },
+          {
+            "name": "longballPct",
+            "displayValue": "0.6",
+            "label": "Long Balls %"
+          },
+          {
+            "name": "blockedShots",
+            "displayValue": "2",
+            "label": "Blocked Shots"
+          },
+          {
+            "name": "effectiveTackles",
+            "displayValue": "8",
+            "label": "Effective Tackles"
+          },
+          {
+            "name": "totalTackles",
+            "displayValue": "12",
+            "label": "Tackles"
+          },
+          {
+            "name": "tacklePct",
+            "displayValue": "0.7",
+            "label": "Tackle %"
+          },
+          {
+            "name": "interceptions",
+            "displayValue": "14",
+            "label": "Interceptions"
+          },
+          {
+            "name": "effectiveClearance",
+            "displayValue": "6",
+            "label": "Effective Clearances"
+          },
+          {
+            "name": "totalClearance",
+            "displayValue": "6",
+            "label": "Clearances"
+          }
+        ],
+        "displayOrder": 2,
+        "homeAway": "away"
+      }
+    ]
+  },
+  "gameInfo": {
+    "venue": {
+      "id": "1810",
+      "guid": "8db5c61b-c53d-3510-bb71-bfeff6f9123f",
+      "fullName": "Şükrü Saracoğlu Stadium",
+      "shortName": "Şükrü Saracoğlu Stadium",
+      "address": {
+        "city": "Istanbul",
+        "country": "Türkiye"
+      },
+      "images": []
+    },
+    "attendance": 0,
+    "officials": [
+      {
+        "fullName": "Jesús Gil Manzano",
+        "displayName": "Jesús Gil Manzano",
+        "position": {
+          "name": "Referee",
+          "displayName": "Referee",
+          "id": "1"
+        },
+        "order": 1
+      }
+    ]
+  },
+  "leaders": [
+    {
+      "team": {
+        "id": "436",
+        "uid": "s:600~t:436",
+        "displayName": "Fenerbahce",
+        "abbreviation": "FEN",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/club/_/id/436/fenerbahce",
+            "text": "Clubhouse"
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
+        "logos": [
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "default"
+            ],
+            "lastUpdated": "2018-06-05T12:14Z"
+          }
+        ]
+      },
+      "leaders": [
+        {
+          "name": "totalShots",
+          "displayName": "Total Shots",
+          "leaders": [
+            {
+              "displayValue": "3",
+              "athlete": {
+                "id": "276221",
+                "uid": "s:600~a:276221",
+                "guid": "4889bbd5-1682-c219-71fe-8596565f7b1a",
+                "lastName": "Greenwood",
+                "fullName": "Mason Greenwood",
+                "displayName": "Mason Greenwood",
+                "shortName": "M. Greenwood",
+                "links": [
+                  {
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/soccer/player/_/id/276221/mason-greenwood",
+                    "text": "Player Card"
+                  }
+                ],
+                "jersey": "11",
+                "position": {
+                  "name": "Forward",
+                  "displayName": "Forward",
+                  "abbreviation": "F"
+                },
+                "status": {
+                  "id": "1",
+                  "name": "Active",
+                  "type": "active",
+                  "abbreviation": "Active"
+                },
+                "jerseyImage": [
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/276221/jersey.png?darkMode=false",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  },
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/276221/jersey.png?darkMode=true",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  }
+                ]
+              },
+              "statistics": [
+                {
+                  "name": "totalShots",
+                  "displayName": "Shots",
+                  "shortDisplayName": "SHOT",
+                  "description": "The number of shots attempted.",
+                  "abbreviation": "SHOT",
+                  "value": 3,
+                  "displayValue": "3"
+                },
+                {
+                  "name": "shotsOnTarget",
+                  "displayName": "Shots On Goal",
+                  "shortDisplayName": "SOG",
+                  "description": "The number of shots that are on goal.",
+                  "abbreviation": "SOG",
+                  "value": 0,
+                  "displayValue": "0"
+                },
+                {
+                  "name": "expectedGoals",
+                  "displayName": "Expected Goals",
+                  "shortDisplayName": "xG",
+                  "description": "Total expected goals",
+                  "abbreviation": "xG",
+                  "value": 0.134,
+                  "displayValue": "0.13"
+                }
+              ],
+              "mainStat": {
+                "value": "3",
+                "label": "SHOT"
+              },
+              "summary": "0 SOG, 0.13 xG"
+            }
+          ]
+        },
+        {
+          "name": "accuratePasses",
+          "displayName": "Accurate Passes",
+          "leaders": [
+            {
+              "displayValue": "54",
+              "athlete": {
+                "id": "175195",
+                "uid": "s:600~a:175195",
+                "guid": "8e3460c9-5c17-8fe1-a9a1-a21e885115e8",
+                "lastName": "Skriniar",
+                "fullName": "Milan Skriniar",
+                "displayName": "Milan Skriniar",
+                "shortName": "M. Skriniar",
+                "links": [
+                  {
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/soccer/player/_/id/175195/milan-skriniar",
+                    "text": "Player Card"
+                  }
+                ],
+                "jersey": "37",
+                "position": {
+                  "name": "Defender",
+                  "displayName": "Defender",
+                  "abbreviation": "D"
+                },
+                "status": {
+                  "id": "1",
+                  "name": "Active",
+                  "type": "active",
+                  "abbreviation": "Active"
+                },
+                "jerseyImage": [
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/175195/jersey.png?darkMode=false",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  },
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/175195/jersey.png?darkMode=true",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  }
+                ]
+              },
+              "statistics": [
+                {
+                  "name": "accuratePasses",
+                  "displayName": "Accurate Passes",
+                  "shortDisplayName": "ACPASS",
+                  "description": "The number of passes completed.",
+                  "abbreviation": "AC.PASS",
+                  "value": 54,
+                  "displayValue": "54"
+                },
+                {
+                  "name": "totalPasses",
+                  "displayName": "Passes",
+                  "shortDisplayName": "PASS",
+                  "description": "The number of passes attempted.",
+                  "abbreviation": "PASS",
+                  "value": 59,
+                  "displayValue": "59"
+                },
+                {
+                  "name": "bigChanceCreated",
+                  "displayName": "Big Chances Created",
+                  "shortDisplayName": "BCC",
+                  "description": "A pass which led to a clear-cut scoring opportunity, such as a one-on-one situation or a shot from just a few yards out",
+                  "abbreviation": "BCC",
+                  "value": 0,
+                  "displayValue": "0"
+                }
+              ],
+              "mainStat": {
+                "value": "54",
+                "label": "ACPASS"
+              },
+              "summary": "59 PASS, 0 BCC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "team": {
+        "id": "104",
+        "uid": "s:600~t:104",
+        "displayName": "AS Roma",
+        "abbreviation": "ROMA",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/club/_/id/104/as-roma",
+            "text": "Clubhouse"
+          }
+        ],
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+        "logos": [
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "default"
+            ],
+            "lastUpdated": "2024-01-04T17:49Z"
+          },
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/104.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "dark"
+            ],
+            "lastUpdated": "2024-01-04T17:53Z"
+          }
+        ]
+      },
+      "leaders": [
+        {
+          "name": "totalShots",
+          "displayName": "Total Shots",
+          "leaders": [
+            {
+              "displayValue": "4",
+              "athlete": {
+                "id": "259481",
+                "uid": "s:600~a:259481",
+                "guid": "8f6f9bbd-32de-eb36-5fea-e326e1989fc2",
+                "lastName": "Malen",
+                "fullName": "Donyell Malen",
+                "displayName": "Donyell Malen",
+                "shortName": "D. Malen",
+                "links": [
+                  {
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/soccer/player/_/id/259481/donyell-malen",
+                    "text": "Player Card"
+                  }
+                ],
+                "headshot": {
+                  "href": "https://a.espncdn.com/i/headshots/soccer/players/full/259481.png",
+                  "alt": "Donyell Malen"
+                },
+                "jersey": "14",
+                "position": {
+                  "name": "Forward",
+                  "displayName": "Forward",
+                  "abbreviation": "F"
+                },
+                "status": {
+                  "id": "1",
+                  "name": "Active",
+                  "type": "active",
+                  "abbreviation": "Active"
+                },
+                "jerseyImage": [
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/259481/jersey.png?darkMode=false",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  },
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/259481/jersey.png?darkMode=true",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  }
+                ]
+              },
+              "statistics": [
+                {
+                  "name": "totalShots",
+                  "displayName": "Shots",
+                  "shortDisplayName": "SHOT",
+                  "description": "The number of shots attempted.",
+                  "abbreviation": "SHOT",
+                  "value": 4,
+                  "displayValue": "4"
+                },
+                {
+                  "name": "shotsOnTarget",
+                  "displayName": "Shots On Goal",
+                  "shortDisplayName": "SOG",
+                  "description": "The number of shots that are on goal.",
+                  "abbreviation": "SOG",
+                  "value": 0,
+                  "displayValue": "0"
+                },
+                {
+                  "name": "expectedGoals",
+                  "displayName": "Expected Goals",
+                  "shortDisplayName": "xG",
+                  "description": "Total expected goals",
+                  "abbreviation": "xG",
+                  "value": 0.193,
+                  "displayValue": "0.19"
+                }
+              ],
+              "mainStat": {
+                "value": "4",
+                "label": "SHOT"
+              },
+              "summary": "0 SOG, 0.19 xG"
+            }
+          ],
+          "advantage": true
+        },
+        {
+          "name": "accuratePasses",
+          "displayName": "Accurate Passes",
+          "leaders": [
+            {
+              "displayValue": "91",
+              "athlete": {
+                "id": "169213",
+                "uid": "s:600~a:169213",
+                "guid": "60adb72b-f48c-ed19-fe81-e6548d1eb2b0",
+                "lastName": "Cristante",
+                "fullName": "Bryan Cristante",
+                "displayName": "Bryan Cristante",
+                "shortName": "B. Cristante",
+                "links": [
+                  {
+                    "rel": [
+                      "playercard",
+                      "desktop",
+                      "athlete"
+                    ],
+                    "href": "https://www.espn.com/soccer/player/_/id/169213/bryan-cristante",
+                    "text": "Player Card"
+                  }
+                ],
+                "jersey": "4",
+                "position": {
+                  "name": "Midfielder",
+                  "displayName": "Midfielder",
+                  "abbreviation": "M"
+                },
+                "status": {
+                  "id": "1",
+                  "name": "Active",
+                  "type": "active",
+                  "abbreviation": "Active"
+                },
+                "jerseyImage": [
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/169213/jersey.png?darkMode=false",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  },
+                  {
+                    "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/169213/jersey.png?darkMode=true",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "width": 1440,
+                    "height": 1440
+                  }
+                ]
+              },
+              "statistics": [
+                {
+                  "name": "accuratePasses",
+                  "displayName": "Accurate Passes",
+                  "shortDisplayName": "ACPASS",
+                  "description": "The number of passes completed.",
+                  "abbreviation": "AC.PASS",
+                  "value": 91,
+                  "displayValue": "91"
+                },
+                {
+                  "name": "totalPasses",
+                  "displayName": "Passes",
+                  "shortDisplayName": "PASS",
+                  "description": "The number of passes attempted.",
+                  "abbreviation": "PASS",
+                  "value": 106,
+                  "displayValue": "106"
+                },
+                {
+                  "name": "bigChanceCreated",
+                  "displayName": "Big Chances Created",
+                  "shortDisplayName": "BCC",
+                  "description": "A pass which led to a clear-cut scoring opportunity, such as a one-on-one situation or a shot from just a few yards out",
+                  "abbreviation": "BCC",
+                  "value": 0,
+                  "displayValue": "0"
+                }
+              ],
+              "mainStat": {
+                "value": "91",
+                "label": "ACPASS"
+              },
+              "summary": "106 PASS, 0 BCC"
+            }
+          ],
+          "advantage": true
+        }
+      ]
+    }
+  ],
+  "odds": [
+    {
+      "provider": {
+        "id": "100",
+        "name": "DraftKings",
+        "priority": 1,
+        "logos": [
+          {
+            "href": "https://a.espncdn.com/i/betting/Draftkings_Light.svg",
+            "rel": [
+              "light"
+            ]
+          },
+          {
+            "href": "https://a.espncdn.com/i/betting/Draftkings_Dark.svg",
+            "rel": [
+              "dark"
+            ]
+          }
+        ]
+      },
+      "details": "ROMA -115",
+      "overUnder": 2.5,
+      "spread": 0.5,
+      "overOdds": -175,
+      "underOdds": 140,
+      "awayTeamOdds": {
+        "favorite": true,
+        "underdog": false,
+        "moneyLine": -115,
+        "spreadOdds": -120,
+        "team": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/104?lang=en&region=us"
+        },
+        "teamId": "104",
+        "favoriteAtOpen": false
+      },
+      "homeTeamOdds": {
+        "favorite": false,
+        "underdog": true,
+        "moneyLine": 300,
+        "spreadOdds": -115,
+        "team": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/436?lang=en&region=us"
+        },
+        "teamId": "436",
+        "favoriteAtOpen": true
+      },
+      "drawOdds": {
+        "moneyLine": 275
+      },
+      "links": [
+        {
+          "language": "en-US",
+          "rel": [
+            "home",
+            "desktop",
+            "bets",
+            "draftkings"
+          ],
+          "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34592956%3Foutcomes%3D0ML86081612_1",
+          "text": "Home Bet",
+          "shortText": "Home Bet",
+          "isExternal": true,
+          "isPremium": false
+        }
+      ],
+      "moneyline": {
+        "displayName": "Moneyline",
+        "shortDisplayName": "ML",
+        "home": {
+          "close": {
+            "odds": "+300"
+          },
+          "open": {
+            "odds": "+140"
+          }
+        },
+        "away": {
+          "close": {
+            "odds": "-115"
+          },
+          "open": {
+            "odds": "+185"
+          }
+        },
+        "draw": {
+          "close": {
+            "odds": "+275"
+          },
+          "open": {
+            "odds": "+225"
+          }
+        }
+      },
+      "pointSpread": {
+        "displayName": "Spread",
+        "shortDisplayName": "Spread",
+        "home": {
+          "close": {
+            "line": "+0.5",
+            "odds": "-115"
+          },
+          "open": {
+            "line": "-0.5",
+            "odds": "+125"
+          }
+        },
+        "away": {
+          "close": {
+            "line": "-0.5",
+            "odds": "-120"
+          },
+          "open": {
+            "line": "+0.5",
+            "odds": "-195"
+          }
+        }
+      },
+      "total": {
+        "displayName": "Total",
+        "shortDisplayName": "Total",
+        "over": {
+          "close": {
+            "line": "o2.5",
+            "odds": "-175"
+          },
+          "open": {
+            "line": "o2.5",
+            "odds": "-110"
+          }
+        },
+        "under": {
+          "close": {
+            "line": "u2.5",
+            "odds": "+140"
+          },
+          "open": {
+            "line": "u2.5",
+            "odds": "-125"
+          }
+        }
+      },
+      "link": {
+        "text": "See More Odds",
+        "language": "en-US",
+        "rel": [
+          "main",
+          "desktop",
+          "bets"
+        ],
+        "href": "https://sportsbook.draftkings.com",
+        "isExternal": true,
+        "isPremium": false
+      },
+      "header": {
+        "logo": {
+          "dark": "https://a.espncdn.com/i/espnbet/dark/espn-bet-square-off.svg",
+          "light": "https://a.espncdn.com/i/espnbet/espn-bet-square-off.svg",
+          "exclusivesLogoDark": "https://a.espncdn.com/i/espnbet/espn-bet-square-mint.svg",
+          "exclusivesLogoLight": "https://a.espncdn.com/i/espnbet/espn-bet-square-mint.svg"
+        },
+        "text": "Game Odds"
+      },
+      "footer": {
+        "disclaimer": "GAMBLING PROBLEM? CALL 1-800-GAMBLER or 1-800-MY-RESET, (800) 327-5050 or visit gamblinghelplinema.org (MA). Call 877-8-HOPENY/text HOPENY (467369) (NY). Call 888-789-7777/visit ccpg.org (CT), or visit www.mdgamblinghelp.org (MD), 1-800-981-0023 (PR). 21+ and present in most states. (18+ DC/KY/NH/PR/WY). Void in ONT. Eligibility restrictions apply. Terms: draftkings.com/sportsbook. On behalf of Boot Hill Casino (KS). Pass-thru of per wager tax may apply in IL."
+      }
+    },
+    {
+      "provider": {
+        "id": "2000",
+        "name": "Bet 365",
+        "priority": 0
+      },
+      "awayTeamOdds": {
+        "team": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/104?lang=en&region=us"
+        },
+        "odds": {
+          "summary": "11/1",
+          "value": 12,
+          "handicap": 0
+        }
+      },
+      "homeTeamOdds": {
+        "team": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/436?lang=en&region=us"
+        },
+        "odds": {
+          "summary": "20/1",
+          "value": 21,
+          "handicap": 0
+        }
+      },
+      "drawOdds": {
+        "summary": "1/14",
+        "value": 1.071,
+        "handicap": 0
+      },
+      "bettingOdds": {
+        "homeTeam": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/436?lang=en&region=us"
+        },
+        "awayTeam": {
+          "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uefa.champions/seasons/2026/teams/104?lang=en&region=us"
+        },
+        "teamOdds": {
+          "preMatchFullTimeResultDraw": {
+            "oddId": "2019804667",
+            "value": "27/10",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2019804667~27/10&bet=1"
+          },
+          "liveGoalLineOver": {
+            "oddId": "2095654447",
+            "value": "9/2",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654447~9/2&bet=1"
+          },
+          "liveOverUnderHandicap": {
+            "oddId": "2095654447",
+            "value": "2.5",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654447~2.5&bet=1"
+          },
+          "liveDoubleChanceHomeOrDraw": {
+            "oddId": "2095654516",
+            "value": "1/16",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654516~1/16&bet=1"
+          },
+          "preMatchDoubleChanceHomeOrAway": {
+            "oddId": "2020265129",
+            "value": "2/7",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2020265129~2/7&bet=1"
+          },
+          "preMatchGoalLineOver": {
+            "oddId": "2019804684",
+            "value": "19/20",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382923-2019804684~19/20&bet=1"
+          },
+          "preMatchDoubleChanceHomeOrDraw": {
+            "oddId": "2020265133",
+            "value": "10/11",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2020265133~10/11&bet=1"
+          },
+          "liveDoubleChanceHomeOrAway": {
+            "oddId": "2095654525",
+            "value": "9/2",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654525~9/2&bet=1"
+          },
+          "liveGoalLineUnder": {
+            "oddId": "2095654450",
+            "value": "1/7",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654450~1/7&bet=1"
+          },
+          "preMatchFullTimeResultAway": {
+            "oddId": "2019804668",
+            "value": "17/20",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2019804668~17/20&bet=1"
+          },
+          "preMatchDoubleChanceDrawOrAway": {
+            "oddId": "2020265122",
+            "value": "1/4",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2020265122~1/4&bet=1"
+          },
+          "liveFullTimeResultHome": {
+            "oddId": "2095654435",
+            "value": "20/1",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654435~20/1&bet=1"
+          },
+          "liveFullTimeResultDraw": {
+            "oddId": "2095654438",
+            "value": "1/16",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654438~1/16&bet=1"
+          },
+          "preMatchOverUnderHandicap": {
+            "oddId": "2019804684",
+            "value": "3",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382923-2019804684~3&bet=1"
+          },
+          "preMatchFullTimeResultHome": {
+            "oddId": "2019804666",
+            "value": "29/10",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2019804666~29/10&bet=1"
+          },
+          "preMatchGoalLineUnder": {
+            "oddId": "2019804686",
+            "value": "9/10",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382923-2019804686~9/10&bet=1"
+          },
+          "liveFullTimeResultAway": {
+            "oddId": "2095654443",
+            "value": "12/1",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654443~12/1&bet=1"
+          },
+          "liveDoubleChanceDrawOrAway": {
+            "oddId": "2095654521",
+            "value": "1/25",
+            "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2095654521~1/25&bet=1"
+          }
+        },
+        "playerOdds": {
+          "preMatchFirstGoalScorer": [
+            {
+              "oddId": "2080696117",
+              "value": "15/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696117~15/4&bet=1",
+              "player": "Donyell Malen"
+            },
+            {
+              "oddId": "2080696114",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696114~11/2&bet=1",
+              "player": "Antonio Arena"
+            },
+            {
+              "oddId": "2080696099",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696099~11/2&bet=1",
+              "player": "Mason Greenwood"
+            },
+            {
+              "oddId": "2080696087",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696087~11/2&bet=1",
+              "player": "Romelu Lukaku"
+            },
+            {
+              "oddId": "2080696106",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696106~11/2&bet=1",
+              "player": "Santiago Castro"
+            },
+            {
+              "oddId": "2080696148",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696148~11/2&bet=1",
+              "player": "Vedat Muriqi"
+            },
+            {
+              "oddId": "2080696118",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696118~6/1&bet=1",
+              "player": "Conceicao Talisca"
+            },
+            {
+              "oddId": "2080696098",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696098~13/2&bet=1",
+              "player": "Paulo Dybala"
+            },
+            {
+              "oddId": "2080696091",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696091~15/2&bet=1",
+              "player": "Kerem Akturkoglu"
+            },
+            {
+              "oddId": "2080696096",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696096~15/2&bet=1",
+              "player": "Matias Soule"
+            },
+            {
+              "oddId": "2080696127",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696127~15/2&bet=1",
+              "player": "Rodrigo Mora"
+            },
+            {
+              "oddId": "2080696090",
+              "value": "8/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696090~8/1&bet=1",
+              "player": "Lorenzo Pellegrini"
+            },
+            {
+              "oddId": "2080696136",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696136~17/2&bet=1",
+              "player": "Nene Dorgeles"
+            },
+            {
+              "oddId": "2080696101",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696101~10/1&bet=1",
+              "player": "Marco Asensio"
+            },
+            {
+              "oddId": "2080696153",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696153~10/1&bet=1",
+              "player": "No Goalscorer"
+            },
+            {
+              "oddId": "2080696134",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696134~11/1&bet=1",
+              "player": "Marten de Roon"
+            },
+            {
+              "oddId": "2080696103",
+              "value": "12/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696103~12/1&bet=1",
+              "player": "Niccolo Pisilli"
+            },
+            {
+              "oddId": "2080696082",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696082~14/1&bet=1",
+              "player": "Irfan Kahveci"
+            },
+            {
+              "oddId": "2080696083",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696083~14/1&bet=1",
+              "player": "Mert Hakan Yandas"
+            },
+            {
+              "oddId": "2080696140",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696140~14/1&bet=1",
+              "player": "Oguz Aydin"
+            },
+            {
+              "oddId": "2080696109",
+              "value": "16/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696109~16/1&bet=1",
+              "player": "Kouadio Kone"
+            },
+            {
+              "oddId": "2080696150",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696150~18/1&bet=1",
+              "player": "Bartug Elmaz"
+            },
+            {
+              "oddId": "2080696145",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696145~18/1&bet=1",
+              "player": "Bryan Cristante"
+            },
+            {
+              "oddId": "2080696141",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696141~18/1&bet=1",
+              "player": "Wesley Lima"
+            },
+            {
+              "oddId": "2080696105",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696105~20/1&bet=1",
+              "player": "Archie Brown"
+            },
+            {
+              "oddId": "2080696151",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696151~20/1&bet=1",
+              "player": "Ismail Yuksek"
+            },
+            {
+              "oddId": "2080696143",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696143~20/1&bet=1",
+              "player": "Matteo Guendouzi"
+            },
+            {
+              "oddId": "2080696104",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696104~20/1&bet=1",
+              "player": "Nelson Semedo"
+            },
+            {
+              "oddId": "2080696116",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696116~22/1&bet=1",
+              "player": "Devyne Rensch"
+            },
+            {
+              "oddId": "2080696102",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696102~22/1&bet=1",
+              "player": "Emanuele Lulli"
+            },
+            {
+              "oddId": "2080696086",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696086~22/1&bet=1",
+              "player": "Ngolo Kante"
+            },
+            {
+              "oddId": "2080696111",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696111~25/1&bet=1",
+              "player": "Daniele Ghilardi"
+            },
+            {
+              "oddId": "2080696085",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696085~25/1&bet=1",
+              "player": "Gianluca Mancini"
+            },
+            {
+              "oddId": "2080696079",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696079~25/1&bet=1",
+              "player": "Kojo Oppong"
+            },
+            {
+              "oddId": "2080696115",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696115~25/1&bet=1",
+              "player": "Leonardo Balerdi"
+            },
+            {
+              "oddId": "2080696088",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696088~25/1&bet=1",
+              "player": "Munir Mercan"
+            },
+            {
+              "oddId": "2080696100",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696100~28/1&bet=1",
+              "player": "Evan N'Dicka"
+            },
+            {
+              "oddId": "2080696147",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696147~28/1&bet=1",
+              "player": "Konstantinos Koulierakis"
+            },
+            {
+              "oddId": "2080696084",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696084~28/1&bet=1",
+              "player": "Mario Hermoso"
+            },
+            {
+              "oddId": "2080696097",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696097~33/1&bet=1",
+              "player": "Mert Muldur"
+            },
+            {
+              "oddId": "2080696094",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696094~33/1&bet=1",
+              "player": "Milan Skriniar"
+            },
+            {
+              "oddId": "2080696089",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696089~33/1&bet=1",
+              "player": "Nahuel Molina"
+            },
+            {
+              "oddId": "2080696095",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696095~33/1&bet=1",
+              "player": "Yigit Efe Demir"
+            },
+            {
+              "oddId": "2080696107",
+              "value": "50/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696107~50/1&bet=1",
+              "player": "Nathan Ake"
+            }
+          ],
+          "preMatchAnyTimeGoalScorer": [
+            {
+              "oddId": "2080696214",
+              "value": "11/10",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696214~11/10&bet=1",
+              "player": "Donyell Malen"
+            },
+            {
+              "oddId": "2080696211",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696211~7/4&bet=1",
+              "player": "Antonio Arena"
+            },
+            {
+              "oddId": "2080696245",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696245~7/4&bet=1",
+              "player": "Mason Greenwood"
+            },
+            {
+              "oddId": "2080696235",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696235~7/4&bet=1",
+              "player": "Romelu Lukaku"
+            },
+            {
+              "oddId": "2080696207",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696207~7/4&bet=1",
+              "player": "Santiago Castro"
+            },
+            {
+              "oddId": "2080696224",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696224~7/4&bet=1",
+              "player": "Vedat Muriqi"
+            },
+            {
+              "oddId": "2080696215",
+              "value": "15/8",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696215~15/8&bet=1",
+              "player": "Conceicao Talisca"
+            },
+            {
+              "oddId": "2080696244",
+              "value": "2/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696244~2/1&bet=1",
+              "player": "Paulo Dybala"
+            },
+            {
+              "oddId": "2080696239",
+              "value": "12/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696239~12/5&bet=1",
+              "player": "Kerem Akturkoglu"
+            },
+            {
+              "oddId": "2080696242",
+              "value": "12/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696242~12/5&bet=1",
+              "player": "Matias Soule"
+            },
+            {
+              "oddId": "2080696216",
+              "value": "12/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696216~12/5&bet=1",
+              "player": "Rodrigo Mora"
+            },
+            {
+              "oddId": "2080696238",
+              "value": "13/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696238~13/5&bet=1",
+              "player": "Lorenzo Pellegrini"
+            },
+            {
+              "oddId": "2080696218",
+              "value": "11/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696218~11/4&bet=1",
+              "player": "Nene Dorgeles"
+            },
+            {
+              "oddId": "2080696251",
+              "value": "10/3",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696251~10/3&bet=1",
+              "player": "Marco Asensio"
+            },
+            {
+              "oddId": "2080696217",
+              "value": "7/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696217~7/2&bet=1",
+              "player": "Marten de Roon"
+            },
+            {
+              "oddId": "2080696257",
+              "value": "4/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696257~4/1&bet=1",
+              "player": "Niccolo Pisilli"
+            },
+            {
+              "oddId": "2080696230",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696230~9/2&bet=1",
+              "player": "Irfan Kahveci"
+            },
+            {
+              "oddId": "2080696231",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696231~9/2&bet=1",
+              "player": "Mert Hakan Yandas"
+            },
+            {
+              "oddId": "2080696219",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696219~9/2&bet=1",
+              "player": "Oguz Aydin"
+            },
+            {
+              "oddId": "2080696209",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696209~11/2&bet=1",
+              "player": "Kouadio Kone"
+            },
+            {
+              "oddId": "2080696225",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696225~6/1&bet=1",
+              "player": "Bartug Elmaz"
+            },
+            {
+              "oddId": "2080696222",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696222~6/1&bet=1",
+              "player": "Bryan Cristante"
+            },
+            {
+              "oddId": "2080696220",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696220~6/1&bet=1",
+              "player": "Wesley Lima"
+            },
+            {
+              "oddId": "2080696206",
+              "value": "7/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696206~7/1&bet=1",
+              "player": "Archie Brown"
+            },
+            {
+              "oddId": "2080696227",
+              "value": "7/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696227~7/1&bet=1",
+              "player": "Ismail Yuksek"
+            },
+            {
+              "oddId": "2080696221",
+              "value": "7/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696221~7/1&bet=1",
+              "player": "Matteo Guendouzi"
+            },
+            {
+              "oddId": "2080696260",
+              "value": "7/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696260~7/1&bet=1",
+              "player": "Nelson Semedo"
+            },
+            {
+              "oddId": "2080696213",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696213~15/2&bet=1",
+              "player": "Devyne Rensch"
+            },
+            {
+              "oddId": "2080696256",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696256~15/2&bet=1",
+              "player": "Emanuele Lulli"
+            },
+            {
+              "oddId": "2080696234",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696234~15/2&bet=1",
+              "player": "Ngolo Kante"
+            },
+            {
+              "oddId": "2080696210",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696210~17/2&bet=1",
+              "player": "Daniele Ghilardi"
+            },
+            {
+              "oddId": "2080696233",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696233~17/2&bet=1",
+              "player": "Gianluca Mancini"
+            },
+            {
+              "oddId": "2080696229",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696229~17/2&bet=1",
+              "player": "Kojo Oppong"
+            },
+            {
+              "oddId": "2080696212",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696212~17/2&bet=1",
+              "player": "Leonardo Balerdi"
+            },
+            {
+              "oddId": "2080696236",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696236~17/2&bet=1",
+              "player": "Munir Mercan"
+            },
+            {
+              "oddId": "2080696246",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696246~10/1&bet=1",
+              "player": "Evan N'Dicka"
+            },
+            {
+              "oddId": "2080696223",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696223~10/1&bet=1",
+              "player": "Konstantinos Koulierakis"
+            },
+            {
+              "oddId": "2080696232",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696232~10/1&bet=1",
+              "player": "Mario Hermoso"
+            },
+            {
+              "oddId": "2080696243",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696243~11/1&bet=1",
+              "player": "Mert Muldur"
+            },
+            {
+              "oddId": "2080696240",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696240~11/1&bet=1",
+              "player": "Milan Skriniar"
+            },
+            {
+              "oddId": "2080696237",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696237~11/1&bet=1",
+              "player": "Nahuel Molina"
+            },
+            {
+              "oddId": "2080696241",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696241~11/1&bet=1",
+              "player": "Yigit Efe Demir"
+            },
+            {
+              "oddId": "2080696208",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696208~18/1&bet=1",
+              "player": "Nathan Ake"
+            }
+          ],
+          "liveAnyTimeGoalScorer": [
+            {
+              "oddId": "2113795165",
+              "value": "4/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795165~4/5&bet=1",
+              "player": "Donyell Malen"
+            },
+            {
+              "oddId": "2113795199",
+              "value": "6/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795199~6/4&bet=1",
+              "player": "Paulo Dybala"
+            },
+            {
+              "oddId": "2113795192",
+              "value": "8/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795192~8/5&bet=1",
+              "player": "Mason Greenwood"
+            },
+            {
+              "oddId": "2113795207",
+              "value": "8/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795207~8/5&bet=1",
+              "player": "Vedat Muriqi"
+            },
+            {
+              "oddId": "2113795215",
+              "value": "7/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795215~7/4&bet=1",
+              "player": "Matias Soule"
+            },
+            {
+              "oddId": "2113795223",
+              "value": "11/5",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795223~11/5&bet=1",
+              "player": "Kerem Akturkoglu"
+            },
+            {
+              "oddId": "2113795231",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795231~9/2&bet=1",
+              "player": "Bryan Cristante"
+            },
+            {
+              "oddId": "2113795239",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795239~9/2&bet=1",
+              "player": "Kouadio Kone"
+            },
+            {
+              "oddId": "2113795247",
+              "value": "9/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795247~9/2&bet=1",
+              "player": "Wesley Lima"
+            },
+            {
+              "oddId": "2113795255",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795255~11/2&bet=1",
+              "player": "Bartug Elmaz"
+            },
+            {
+              "oddId": "2113795265",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795265~6/1&bet=1",
+              "player": "Devyne Rensch"
+            },
+            {
+              "oddId": "2113795273",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795273~13/2&bet=1",
+              "player": "Archie Brown"
+            },
+            {
+              "oddId": "2113795283",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795283~13/2&bet=1",
+              "player": "Gianluca Mancini"
+            },
+            {
+              "oddId": "2113795291",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795291~13/2&bet=1",
+              "player": "Ismail Yuksek"
+            },
+            {
+              "oddId": "2114765761",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114765761~13/2&bet=1",
+              "player": "Romelu Lukaku"
+            },
+            {
+              "oddId": "2113795308",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795308~15/2&bet=1",
+              "player": "Evan N'Dicka"
+            },
+            {
+              "oddId": "2113795318",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795318~15/2&bet=1",
+              "player": "Mario Hermoso"
+            },
+            {
+              "oddId": "2113795299",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795299~15/2&bet=1",
+              "player": "Ngolo Kante"
+            },
+            {
+              "oddId": "2114771267",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114771267~15/2&bet=1",
+              "player": "Rodrigo Mora"
+            },
+            {
+              "oddId": "2114632444",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114632444~17/2&bet=1",
+              "player": "Niccolo Pisilli"
+            },
+            {
+              "oddId": "2113795325",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795325~10/1&bet=1",
+              "player": "Mert Muldur"
+            },
+            {
+              "oddId": "2113795335",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795335~10/1&bet=1",
+              "player": "Milan Skriniar"
+            },
+            {
+              "oddId": "2114765778",
+              "value": "16/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114765778~16/1&bet=1",
+              "player": "Irfan Kahveci"
+            },
+            {
+              "oddId": "2113795342",
+              "value": "16/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2113795342~16/1&bet=1",
+              "player": "Nathan Ake"
+            },
+            {
+              "oddId": "2114774738",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114774738~22/1&bet=1",
+              "player": "Leonardo Balerdi"
+            },
+            {
+              "oddId": "2114695971",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114695971~25/1&bet=1",
+              "player": "Munir Mercan"
+            },
+            {
+              "oddId": "2114770963",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114770963~33/1&bet=1",
+              "player": "Nahuel Molina"
+            },
+            {
+              "oddId": "2114841349",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114841349~33/1&bet=1",
+              "player": "Oguz Aydin"
+            },
+            {
+              "oddId": "2114840732",
+              "value": "40/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200924599-2114840732~40/1&bet=1",
+              "player": "Marten de Roon"
+            }
+          ],
+          "preMatchLastGoalScorer": [
+            {
+              "oddId": "2080696185",
+              "value": "15/4",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696185~15/4&bet=1",
+              "player": "Donyell Malen"
+            },
+            {
+              "oddId": "2080696188",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696188~11/2&bet=1",
+              "player": "Antonio Arena"
+            },
+            {
+              "oddId": "2080696174",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696174~11/2&bet=1",
+              "player": "Mason Greenwood"
+            },
+            {
+              "oddId": "2080696154",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696154~11/2&bet=1",
+              "player": "Romelu Lukaku"
+            },
+            {
+              "oddId": "2080696181",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696181~11/2&bet=1",
+              "player": "Santiago Castro"
+            },
+            {
+              "oddId": "2080696197",
+              "value": "11/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696197~11/2&bet=1",
+              "player": "Vedat Muriqi"
+            },
+            {
+              "oddId": "2080696192",
+              "value": "6/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696192~6/1&bet=1",
+              "player": "Conceicao Talisca"
+            },
+            {
+              "oddId": "2080696172",
+              "value": "13/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696172~13/2&bet=1",
+              "player": "Paulo Dybala"
+            },
+            {
+              "oddId": "2080696167",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696167~15/2&bet=1",
+              "player": "Kerem Akturkoglu"
+            },
+            {
+              "oddId": "2080696166",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696166~15/2&bet=1",
+              "player": "Matias Soule"
+            },
+            {
+              "oddId": "2080696193",
+              "value": "15/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696193~15/2&bet=1",
+              "player": "Rodrigo Mora"
+            },
+            {
+              "oddId": "2080696165",
+              "value": "8/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696165~8/1&bet=1",
+              "player": "Lorenzo Pellegrini"
+            },
+            {
+              "oddId": "2080696196",
+              "value": "17/2",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696196~17/2&bet=1",
+              "player": "Nene Dorgeles"
+            },
+            {
+              "oddId": "2080696176",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696176~10/1&bet=1",
+              "player": "Marco Asensio"
+            },
+            {
+              "oddId": "2080696205",
+              "value": "10/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696205~10/1&bet=1",
+              "player": "No Goalscorer"
+            },
+            {
+              "oddId": "2080696191",
+              "value": "11/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696191~11/1&bet=1",
+              "player": "Marten de Roon"
+            },
+            {
+              "oddId": "2080696178",
+              "value": "12/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696178~12/1&bet=1",
+              "player": "Niccolo Pisilli"
+            },
+            {
+              "oddId": "2080696204",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696204~14/1&bet=1",
+              "player": "Irfan Kahveci"
+            },
+            {
+              "oddId": "2080696158",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696158~14/1&bet=1",
+              "player": "Mert Hakan Yandas"
+            },
+            {
+              "oddId": "2080696194",
+              "value": "14/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696194~14/1&bet=1",
+              "player": "Oguz Aydin"
+            },
+            {
+              "oddId": "2080696183",
+              "value": "16/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696183~16/1&bet=1",
+              "player": "Kouadio Kone"
+            },
+            {
+              "oddId": "2080696201",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696201~18/1&bet=1",
+              "player": "Bartug Elmaz"
+            },
+            {
+              "oddId": "2080696199",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696199~18/1&bet=1",
+              "player": "Bryan Cristante"
+            },
+            {
+              "oddId": "2080696195",
+              "value": "18/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696195~18/1&bet=1",
+              "player": "Wesley Lima"
+            },
+            {
+              "oddId": "2080696180",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696180~20/1&bet=1",
+              "player": "Archie Brown"
+            },
+            {
+              "oddId": "2080696202",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696202~20/1&bet=1",
+              "player": "Ismail Yuksek"
+            },
+            {
+              "oddId": "2080696198",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696198~20/1&bet=1",
+              "player": "Matteo Guendouzi"
+            },
+            {
+              "oddId": "2080696179",
+              "value": "20/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696179~20/1&bet=1",
+              "player": "Nelson Semedo"
+            },
+            {
+              "oddId": "2080696184",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696184~22/1&bet=1",
+              "player": "Devyne Rensch"
+            },
+            {
+              "oddId": "2080696177",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696177~22/1&bet=1",
+              "player": "Emanuele Lulli"
+            },
+            {
+              "oddId": "2080696162",
+              "value": "22/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696162~22/1&bet=1",
+              "player": "Ngolo Kante"
+            },
+            {
+              "oddId": "2080696186",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696186~25/1&bet=1",
+              "player": "Daniele Ghilardi"
+            },
+            {
+              "oddId": "2080696160",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696160~25/1&bet=1",
+              "player": "Gianluca Mancini"
+            },
+            {
+              "oddId": "2080696203",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696203~25/1&bet=1",
+              "player": "Kojo Oppong"
+            },
+            {
+              "oddId": "2080696190",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696190~25/1&bet=1",
+              "player": "Leonardo Balerdi"
+            },
+            {
+              "oddId": "2080696157",
+              "value": "25/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696157~25/1&bet=1",
+              "player": "Munir Mercan"
+            },
+            {
+              "oddId": "2080696175",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696175~28/1&bet=1",
+              "player": "Evan N'Dicka"
+            },
+            {
+              "oddId": "2080696200",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696200~28/1&bet=1",
+              "player": "Konstantinos Koulierakis"
+            },
+            {
+              "oddId": "2080696159",
+              "value": "28/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696159~28/1&bet=1",
+              "player": "Mario Hermoso"
+            },
+            {
+              "oddId": "2080696171",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696171~33/1&bet=1",
+              "player": "Mert Muldur"
+            },
+            {
+              "oddId": "2080696168",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696168~33/1&bet=1",
+              "player": "Milan Skriniar"
+            },
+            {
+              "oddId": "2080696164",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696164~33/1&bet=1",
+              "player": "Nahuel Molina"
+            },
+            {
+              "oddId": "2080696169",
+              "value": "33/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696169~33/1&bet=1",
+              "player": "Yigit Efe Demir"
+            },
+            {
+              "oddId": "2080696182",
+              "value": "50/1",
+              "betSlipUrl": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_728984&bs=200382921-2080696182~50/1&bet=1",
+              "player": "Nathan Ake"
+            }
+          ]
+        }
+      },
+      "links": [
+        {
+          "language": "en-US",
+          "rel": [
+            "home",
+            "desktop",
+            "bets",
+            "bet-365"
+          ],
+          "href": "https://www.bet365.com/dl/sportsbookredirect?affiliate=365_307577&bet=1&bs=200924599-2095654435~20/1",
+          "text": "Home Bet",
+          "shortText": "Home Bet",
+          "isExternal": true,
+          "isPremium": false
+        }
+      ]
+    }
+  ],
+  "hasOdds": false,
+  "rosters": [
+    {
+      "homeAway": "home",
+      "winner": false,
+      "team": {
+        "id": "436",
+        "abbreviation": "FEN",
+        "displayName": "Fenerbahce",
+        "color": "ffff00",
+        "alternateColor": "ffffff",
+        "logos": [
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "default"
+            ],
+            "lastUpdated": "2018-06-05T12:14Z"
+          }
+        ]
+      },
+      "roster": [
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "31",
+          "athlete": {
+            "id": "176948",
+            "uid": "s:600~a:176948",
+            "guid": "194bc6bf-5c1a-1ef1-1922-9153bc89846d",
+            "fullName": "Ederson",
+            "displayName": "Ederson",
+            "shortName": "Ederson",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/176948/ederson",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/176948/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Goalkeeper",
+            "displayName": "Goalkeeper",
+            "abbreviation": "G"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "1",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "saves",
+              "displayName": "Saves",
+              "shortDisplayName": "SV",
+              "description": "The number of times a goalkeeper makes a save.",
+              "abbreviation": "SV",
+              "value": 2,
+              "displayValue": "2"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "15",
+          "athlete": {
+            "id": "159248",
+            "uid": "s:600~a:159248",
+            "guid": "d3d7ef31-27b8-41dd-9604-aef486389948",
+            "lastName": "Aké",
+            "fullName": "Nathan Aké",
+            "displayName": "Nathan Aké",
+            "shortName": "N. Aké",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/159248/nathan-ake",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/159248/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Left Defender",
+            "displayName": "Center Left Defender",
+            "abbreviation": "CD-L"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "6",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 1,
+              "displayValue": "1"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "37",
+          "athlete": {
+            "id": "175195",
+            "uid": "s:600~a:175195",
+            "guid": "8e3460c9-5c17-8fe1-a9a1-a21e885115e8",
+            "lastName": "Skriniar",
+            "fullName": "Milan Skriniar",
+            "displayName": "Milan Skriniar",
+            "shortName": "M. Skriniar",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/175195/milan-skriniar",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/175195/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Right Defender",
+            "displayName": "Center Right Defender",
+            "abbreviation": "CD-R"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "5",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "3",
+          "athlete": {
+            "id": "320982",
+            "uid": "s:600~a:320982",
+            "guid": "30a44442-2d81-3c50-aa7a-2671e16b6bac",
+            "lastName": "Brown",
+            "fullName": "Archie Brown",
+            "displayName": "Archie Brown",
+            "shortName": "A. Brown",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/320982/archie-brown",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/320982/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Left Back",
+            "displayName": "Left Back",
+            "abbreviation": "LB"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "3",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 3,
+              "displayValue": "3"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 4,
+              "displayValue": "4"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 1,
+              "displayValue": "1"
+            }
+          ],
+          "plays": [
+            {
+              "clock": {
+                "displayValue": "48'"
+              },
+              "scoringPlay": true,
+              "substitution": false,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "didScore": true
+            },
+            {
+              "clock": {
+                "displayValue": "51'"
+              },
+              "scoringPlay": false,
+              "substitution": false,
+              "redCard": false,
+              "yellowCard": true,
+              "penaltyKick": false,
+              "ownGoal": false
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "18",
+          "athlete": {
+            "id": "266002",
+            "uid": "s:600~a:266002",
+            "guid": "f7bae7d6-dbd7-51d0-ba3b-4a4cc5afd39f",
+            "lastName": "Müldür",
+            "fullName": "Mert Müldür",
+            "displayName": "Mert Müldür",
+            "shortName": "M. Müldür",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/266002/mert-muldur",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/266002/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Right Back",
+            "displayName": "Right Back",
+            "abbreviation": "RB"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "2",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ],
+          "plays": [
+            {
+              "clock": {
+                "displayValue": "71'"
+              },
+              "scoringPlay": false,
+              "substitution": false,
+              "redCard": false,
+              "yellowCard": true,
+              "penaltyKick": false,
+              "ownGoal": false
+            }
+          ]
+        }
+      ],
+      "uniform": {
+        "type": "home",
+        "color": "003399",
+        "alternateColor": "efe47f"
+      },
+      "formation": "4-3-3"
+    },
+    {
+      "homeAway": "away",
+      "winner": false,
+      "team": {
+        "id": "104",
+        "abbreviation": "ROMA",
+        "displayName": "AS Roma",
+        "color": "990a2c",
+        "alternateColor": "F5F3E5",
+        "logos": [
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "default"
+            ],
+            "lastUpdated": "2024-01-04T17:49Z"
+          },
+          {
+            "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/104.png",
+            "width": 500,
+            "height": 500,
+            "alt": "",
+            "rel": [
+              "full",
+              "dark"
+            ],
+            "lastUpdated": "2024-01-04T17:53Z"
+          }
+        ]
+      },
+      "roster": [
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "99",
+          "athlete": {
+            "id": "238798",
+            "uid": "s:600~a:238798",
+            "guid": "43c69751-32d8-bdfb-456c-c8889d59b074",
+            "lastName": "Svilar",
+            "fullName": "Mile Svilar",
+            "displayName": "Mile Svilar",
+            "shortName": "M. Svilar",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/238798/mile-svilar",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/238798/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Goalkeeper",
+            "displayName": "Goalkeeper",
+            "abbreviation": "G"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "1",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "saves",
+              "displayName": "Saves",
+              "shortDisplayName": "SV",
+              "description": "The number of times a goalkeeper makes a save.",
+              "abbreviation": "SV",
+              "value": 4,
+              "displayValue": "4"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "5",
+          "athlete": {
+            "id": "242593",
+            "uid": "s:600~a:242593",
+            "guid": "f63d4bfa-53d5-7cd3-d956-5a2ae4078750",
+            "lastName": "Ndicka",
+            "fullName": "Evan Ndicka",
+            "displayName": "Evan Ndicka",
+            "shortName": "E. Ndicka",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/242593/evan-ndicka",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/242593/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Defender",
+            "displayName": "Center Defender",
+            "abbreviation": "CD"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "5",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 5,
+              "displayValue": "5"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 2,
+              "displayValue": "2"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "22",
+          "athlete": {
+            "id": "222529",
+            "uid": "s:600~a:222529",
+            "guid": "49f55832-e931-86ac-1fc6-02f4441b0db5",
+            "lastName": "Hermoso",
+            "fullName": "Mario Hermoso",
+            "displayName": "Mario Hermoso",
+            "shortName": "M. Hermoso",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/222529/mario-hermoso",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/222529/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Left Defender",
+            "displayName": "Center Left Defender",
+            "abbreviation": "CD-L"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "4",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 3,
+              "displayValue": "3"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "23",
+          "athlete": {
+            "id": "212597",
+            "uid": "s:600~a:212597",
+            "guid": "d7ca4d62-8476-fade-efd5-b83132423e72",
+            "lastName": "Mancini",
+            "fullName": "Gianluca Mancini",
+            "displayName": "Gianluca Mancini",
+            "shortName": "G. Mancini",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/212597/gianluca-mancini",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/212597/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Right Defender",
+            "displayName": "Center Right Defender",
+            "abbreviation": "CD-R"
+          },
+          "subbedIn": false,
+          "subbedOut": true,
+          "formationPlace": "6",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 3,
+              "displayValue": "3"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 0,
+              "displayValue": "0"
+            }
+          ],
+          "subbedOutFor": {
+            "jersey": "26",
+            "athlete": {
+              "id": "271555",
+              "displayName": "Leonardo Balerdi",
+              "links": [
+                {
+                  "language": "en-US",
+                  "rel": [
+                    "playercard",
+                    "desktop",
+                    "athlete"
+                  ],
+                  "href": "https://www.espn.com/soccer/player/_/id/271555/leonardo-balerdi",
+                  "text": "Player Card",
+                  "shortText": "Player Card",
+                  "isExternal": false,
+                  "isPremium": false
+                }
+              ]
+            }
+          },
+          "plays": [
+            {
+              "clock": {
+                "displayValue": "74'"
+              },
+              "scoringPlay": false,
+              "substitution": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false
+            }
+          ]
+        },
+        {
+          "active": true,
+          "starter": true,
+          "jersey": "4",
+          "athlete": {
+            "id": "169213",
+            "uid": "s:600~a:169213",
+            "guid": "60adb72b-f48c-ed19-fe81-e6548d1eb2b0",
+            "lastName": "Cristante",
+            "fullName": "Bryan Cristante",
+            "displayName": "Bryan Cristante",
+            "shortName": "B. Cristante",
+            "links": [
+              {
+                "language": "en-US",
+                "rel": [
+                  "playercard",
+                  "desktop",
+                  "athlete"
+                ],
+                "href": "https://www.espn.com/soccer/player/_/id/169213/bryan-cristante",
+                "text": "Player Card",
+                "shortText": "Player Card",
+                "isExternal": false,
+                "isPremium": false
+              }
+            ],
+            "jerseyImages": [
+              {
+                "href": "https://stitcher.espn.com/sports/soccer/leagues/uefa.champions/events/401915444/athletes/169213/jersey.png?darkMode=false",
+                "rel": [
+                  "full",
+                  "default"
+                ],
+                "width": 1440,
+                "height": 1440
+              }
+            ]
+          },
+          "position": {
+            "name": "Center Left Midfielder",
+            "displayName": "Center Left Midfielder",
+            "abbreviation": "CM-L"
+          },
+          "subbedIn": false,
+          "subbedOut": false,
+          "formationPlace": "8",
+          "media": {},
+          "stats": [
+            {
+              "name": "appearances",
+              "displayName": "Appearances",
+              "shortDisplayName": "APP",
+              "description": "The number of times a player has made an appearance in a match.",
+              "abbreviation": "APP",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsCommitted",
+              "displayName": "Fouls Committed",
+              "shortDisplayName": "FC",
+              "description": "The number of fouls comitted by a player or team.",
+              "abbreviation": "FC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "foulsSuffered",
+              "displayName": "Fouls Suffered",
+              "shortDisplayName": "FA",
+              "description": "The number of fouls suffered by a player or team.",
+              "abbreviation": "FA",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "ownGoals",
+              "displayName": "Own Goals",
+              "shortDisplayName": "OG",
+              "description": "The number of own goals conceded.",
+              "abbreviation": "OG",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "redCards",
+              "displayName": "Red Cards",
+              "shortDisplayName": "RC",
+              "description": "The number of red cards that have been issued.",
+              "abbreviation": "RC",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "subIns",
+              "displayName": "Substitute Appearances",
+              "shortDisplayName": "SUBIN",
+              "description": "The number of times a player has come on a sub in a match.",
+              "abbreviation": "SUB",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "yellowCards",
+              "displayName": "Yellow Cards",
+              "shortDisplayName": "YC",
+              "description": "The number of yellow cards accumulated.",
+              "abbreviation": "YC",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "goalsConceded",
+              "displayName": "Goals Against",
+              "shortDisplayName": "GA",
+              "description": "The number of goals allowed by the goalkeeper.",
+              "abbreviation": "GA",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "shotsFaced",
+              "displayName": "Shots Faced",
+              "shortDisplayName": "SHF",
+              "description": "The number of shots on target a goalkeeper has faced.",
+              "abbreviation": "SHF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "goalAssists",
+              "displayName": "Assists",
+              "shortDisplayName": "A",
+              "description": "The number of assists.",
+              "abbreviation": "A",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "offsides",
+              "displayName": "Offsides",
+              "shortDisplayName": "OF",
+              "description": "The number of times a player or team gets caught offside.",
+              "abbreviation": "OF",
+              "value": 0,
+              "displayValue": "0"
+            },
+            {
+              "name": "shotsOnTarget",
+              "displayName": "Shots On Goal",
+              "shortDisplayName": "SOG",
+              "description": "The number of shots that are on goal.",
+              "abbreviation": "SOG",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "totalGoals",
+              "displayName": "Total Goals",
+              "shortDisplayName": "G",
+              "description": "The number of goals scored against the opposing team.",
+              "abbreviation": "G",
+              "value": 1,
+              "displayValue": "1"
+            },
+            {
+              "name": "totalShots",
+              "displayName": "Shots",
+              "shortDisplayName": "SHOT",
+              "description": "The number of shots attempted.",
+              "abbreviation": "SHOT",
+              "value": 1,
+              "displayValue": "1"
+            }
+          ],
+          "plays": [
+            {
+              "clock": {
+                "displayValue": "39'"
+              },
+              "scoringPlay": true,
+              "substitution": false,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "didScore": true
+            },
+            {
+              "clock": {
+                "displayValue": "86'"
+              },
+              "scoringPlay": false,
+              "substitution": false,
+              "redCard": false,
+              "yellowCard": true,
+              "penaltyKick": false,
+              "ownGoal": false
+            }
+          ]
+        }
+      ],
+      "uniform": {
+        "type": "home",
+        "color": "990000"
+      },
+      "formation": "3-4-2-1"
+    }
+  ],
+  "header": {
+    "id": "401915444",
+    "uid": "s:600~l:775~e:401915444",
+    "season": {
+      "year": 2026,
+      "current": true,
+      "type": 14534,
+      "name": "2026-27 UEFA Champions League, League Phase"
+    },
+    "timeValid": true,
+    "competitions": [
+      {
+        "id": "401915444",
+        "uid": "s:600~l:775~e:401915444~c:401915444",
+        "date": "2026-09-10T16:45Z",
+        "neutralSite": false,
+        "conferenceCompetition": false,
+        "boxscoreAvailable": true,
+        "commentaryAvailable": true,
+        "liveAvailable": false,
+        "onWatchESPN": false,
+        "recent": false,
+        "wallclockAvailable": true,
+        "boxscoreSource": "full",
+        "playByPlaySource": "full",
+        "competitors": [
+          {
+            "id": "436",
+            "uid": "s:600~t:436",
+            "order": 0,
+            "homeAway": "home",
+            "winner": false,
+            "team": {
+              "id": "436",
+              "guid": "427034fd-c063-f84d-c95c-c9150a4ad495",
+              "uid": "s:600~t:436",
+              "location": "Fenerbahce",
+              "name": "Fenerbahce",
+              "abbreviation": "FEN",
+              "displayName": "Fenerbahce",
+              "shortDisplayName": "Fenerbahce",
+              "color": "ffff00",
+              "alternateColor": "ffffff",
+              "logos": [
+                {
+                  "href": "https://a.espncdn.com/i/teamlogos/soccer/500/436.png",
+                  "width": 500,
+                  "height": 500,
+                  "alt": "",
+                  "rel": [
+                    "full",
+                    "default"
+                  ],
+                  "lastUpdated": "2018-06-05T12:14Z"
+                }
+              ],
+              "groups": {
+                "name": "League Phase"
+              },
+              "links": [
+                {
+                  "rel": [
+                    "clubhouse",
+                    "desktop",
+                    "team"
+                  ],
+                  "href": "https://www.espn.com/soccer/club/_/id/436/fenerbahce",
+                  "text": "Clubhouse"
+                }
+              ],
+              "form": "WDDLW"
+            },
+            "score": "1",
+            "linescores": [
+              {
+                "displayValue": "0"
+              },
+              {
+                "displayValue": "1"
+              }
+            ],
+            "record": [
+              {
+                "type": "total",
+                "summary": "0-1-0",
+                "displayValue": "0-1-0"
+              },
+              {
+                "type": "points",
+                "summary": "1",
+                "displayValue": "1"
+              }
+            ],
+            "possession": false
+          },
+          {
+            "id": "104",
+            "uid": "s:600~t:104",
+            "order": 1,
+            "homeAway": "away",
+            "winner": false,
+            "team": {
+              "id": "104",
+              "guid": "154c1cfa-e721-b7dd-9a1b-9b9762936b76",
+              "uid": "s:600~t:104",
+              "location": "AS Roma",
+              "name": "AS Roma",
+              "abbreviation": "ROMA",
+              "displayName": "AS Roma",
+              "shortDisplayName": "AS Roma",
+              "color": "990a2c",
+              "alternateColor": "F5F3E5",
+              "logos": [
+                {
+                  "href": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+                  "width": 500,
+                  "height": 500,
+                  "alt": "",
+                  "rel": [
+                    "full",
+                    "default"
+                  ],
+                  "lastUpdated": "2024-01-04T17:49Z"
+                },
+                {
+                  "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/104.png",
+                  "width": 500,
+                  "height": 500,
+                  "alt": "",
+                  "rel": [
+                    "full",
+                    "dark"
+                  ],
+                  "lastUpdated": "2024-01-04T17:53Z"
+                }
+              ],
+              "groups": {
+                "name": "League Phase"
+              },
+              "links": [
+                {
+                  "rel": [
+                    "clubhouse",
+                    "desktop",
+                    "team"
+                  ],
+                  "href": "https://www.espn.com/soccer/club/_/id/104/as-roma",
+                  "text": "Clubhouse"
+                }
+              ],
+              "form": "DWDWW"
+            },
+            "score": "1",
+            "linescores": [
+              {
+                "displayValue": "1"
+              },
+              {
+                "displayValue": "0"
+              }
+            ],
+            "record": [
+              {
+                "type": "total",
+                "summary": "0-1-0",
+                "displayValue": "0-1-0"
+              },
+              {
+                "type": "points",
+                "summary": "1",
+                "displayValue": "1"
+              }
+            ],
+            "possession": false
+          }
+        ],
+        "notes": [],
+        "status": {
+          "type": {
+            "id": "28",
+            "name": "STATUS_FULL_TIME",
+            "state": "post",
+            "completed": true,
+            "description": "Full Time",
+            "detail": "FT",
+            "shortDetail": "FT"
+          }
+        },
+        "broadcasts": [
+          {
+            "type": {
+              "id": "1",
+              "shortName": "TV"
+            },
+            "market": {
+              "id": "1",
+              "type": "National"
+            },
+            "media": {
+              "shortName": "CBSSN"
+            },
+            "lang": "en",
+            "region": "us",
+            "isNational": true
+          },
+          {
+            "type": {
+              "id": "4",
+              "shortName": "STREAMING"
+            },
+            "market": {},
+            "media": {
+              "shortName": "Paramount+"
+            },
+            "lang": "en",
+            "region": "us",
+            "isNational": false
+          }
+        ],
+        "details": [
+          {
+            "clock": {
+              "value": 2286,
+              "displayValue": "39'"
+            },
+            "scoringPlay": true,
+            "team": {
+              "id": "104",
+              "uid": "s:600~t:104",
+              "location": "AS Roma",
+              "name": "AS Roma",
+              "abbreviation": "ROMA",
+              "displayName": "AS Roma"
+            },
+            "participants": [
+              {
+                "athlete": {
+                  "id": "169213",
+                  "displayName": "Bryan Cristante",
+                  "shortName": "B. Cristante",
+                  "links": [
+                    {
+                      "language": "en-US",
+                      "rel": [
+                        "playercard",
+                        "desktop",
+                        "athlete"
+                      ],
+                      "href": "https://www.espn.com/soccer/player/_/id/169213/bryan-cristante",
+                      "text": "Player Card",
+                      "shortText": "Player Card"
+                    }
+                  ]
+                }
+              },
+              {
+                "athlete": {
+                  "id": "259481",
+                  "displayName": "Donyell Malen",
+                  "shortName": "D. Malen",
+                  "links": [
+                    {
+                      "language": "en-US",
+                      "rel": [
+                        "playercard",
+                        "desktop",
+                        "athlete"
+                      ],
+                      "href": "https://www.espn.com/soccer/player/_/id/259481/donyell-malen",
+                      "text": "Player Card",
+                      "shortText": "Player Card"
+                    }
+                  ]
+                }
+              }
+            ],
+            "addedClock": {
+              "value": 0,
+              "displayValue": ""
+            },
+            "redCard": false,
+            "penaltyKick": false,
+            "ownGoal": false
+          },
+          {
+            "clock": {
+              "value": 2858,
+              "displayValue": "48'"
+            },
+            "scoringPlay": true,
+            "team": {
+              "id": "436",
+              "uid": "s:600~t:436",
+              "location": "Fenerbahce",
+              "name": "Fenerbahce",
+              "abbreviation": "FEN",
+              "displayName": "Fenerbahce"
+            },
+            "participants": [
+              {
+                "athlete": {
+                  "id": "320982",
+                  "displayName": "Archie Brown",
+                  "shortName": "A. Brown",
+                  "links": [
+                    {
+                      "language": "en-US",
+                      "rel": [
+                        "playercard",
+                        "desktop",
+                        "athlete"
+                      ],
+                      "href": "https://www.espn.com/soccer/player/_/id/320982/archie-brown",
+                      "text": "Player Card",
+                      "shortText": "Player Card"
+                    }
+                  ]
+                }
+              },
+              {
+                "athlete": {
+                  "id": "276221",
+                  "displayName": "Mason Greenwood",
+                  "shortName": "M. Greenwood",
+                  "links": [
+                    {
+                      "language": "en-US",
+                      "rel": [
+                        "playercard",
+                        "desktop",
+                        "athlete"
+                      ],
+                      "href": "https://www.espn.com/soccer/player/_/id/276221/mason-greenwood",
+                      "text": "Player Card",
+                      "shortText": "Player Card"
+                    }
+                  ]
+                }
+              }
+            ],
+            "addedClock": {
+              "value": 0,
+              "displayValue": ""
+            },
+            "redCard": false,
+            "penaltyKick": false,
+            "ownGoal": false
+          }
+        ],
+        "groups": {
+          "id": "1",
+          "name": "Group A",
+          "abbreviation": "A"
+        },
+        "isFinal": false,
+        "isThirdPlace": false,
+        "altGameNote": "UEFA Champions League, League Phase",
+        "boxscoreMinutes": false,
+        "shotMapAvailable": true
+      }
+    ],
+    "links": [
+      {
+        "rel": [
+          "summary",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/match/_/gameId/401915444/as-roma-fenerbahce",
+        "text": "Summary",
+        "shortText": "Summary",
+        "isExternal": false,
+        "isPremium": false
+      }
+    ],
+    "league": {
+      "id": "775",
+      "uid": "s:600~l:775",
+      "name": "UEFA Champions League",
+      "abbreviation": "UEFA Champions League",
+      "shortName": "UEFA Champions League",
+      "midsizeName": "UEFA.CHAMPIONS",
+      "slug": "uefa.champions",
+      "isTournament": true,
+      "links": [
+        {
+          "rel": [
+            "index",
+            "desktop",
+            "league"
+          ],
+          "href": "https://www.espn.com/soccer/league/_/name/uefa.champions",
+          "text": "Index"
+        }
+      ],
+      "logos": [
+        {
+          "href": "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png",
+          "rel": [
+            "full",
+            "default"
+          ]
+        },
+        {
+          "href": "https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2.png",
+          "rel": [
+            "full",
+            "dark"
+          ]
+        }
+      ]
+    },
+    "linksv4": [
+      {
+        "rel": [
+          "summary",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/match/_/gameId/401915444/as-roma-fenerbahce",
+        "text": "Gamecast",
+        "shortText": "Summary",
+        "isExternal": false,
+        "isPremium": false
+      },
+      {
+        "rel": [
+          "teamstats",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/team-stats/_/gameId/401915444",
+        "text": "Team Stats",
+        "shortText": "Team Stats",
+        "isExternal": false,
+        "isPremium": false
+      },
+      {
+        "rel": [
+          "playerstats",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/player-stats/_/gameId/401915444",
+        "text": "Player Stats",
+        "shortText": "Player Stats",
+        "isExternal": false,
+        "isPremium": false
+      },
+      {
+        "rel": [
+          "commentary",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/commentary/_/gameId/401915444",
+        "text": "Commentary",
+        "shortText": "Commentary",
+        "isExternal": false,
+        "isPremium": false
+      },
+      {
+        "rel": [
+          "videos",
+          "desktop",
+          "event"
+        ],
+        "href": "https://www.espn.com/soccer/video/_/gameId/401915444",
+        "text": "Videos",
+        "shortText": "Videos",
+        "isExternal": false,
+        "isPremium": false
+      }
+    ]
+  },
+  "wallclockAvailable": true,
+  "meta": {
+    "gp_topic": "gp-soccer-uefa.champions-401915444",
+    "gameSwitcherEnabled": true,
+    "picker_topic": "picker-soccer-uefa.champions",
+    "lastUpdatedAt": "2026-09-10T18:36:59Z",
+    "firstPlayWallClock": "2026-09-10T16:46:47Z",
+    "lastPlayWallClock": "2026-09-10T18:36:59Z",
+    "gameState": "post",
+    "syncUrl": "https://client.espncdn.com/fauxcast/stats/775/401915444/en/us/"
+  },
+  "__probeNote": {
+    "truncatedLinkArraysToOneEntry": 16,
+    "what": "ESPN summary response, verbatim except as recorded here",
+    "originalTopLevelKeys": [
+      "boxscore",
+      "format",
+      "gameInfo",
+      "lastFiveGames",
+      "leaders",
+      "broadcasts",
+      "pickcenter",
+      "odds",
+      "hasOdds",
+      "rosters",
+      "news",
+      "videos",
+      "header",
+      "keyEvents",
+      "commentary",
+      "wallclockAvailable",
+      "meta",
+      "standings"
+    ],
+    "droppedWholeSections": [
+      "news",
+      "videos",
+      "standings",
+      "lastFiveGames",
+      "pickcenter",
+      "broadcasts",
+      "commentary",
+      "keyEvents",
+      "format"
+    ],
+    "droppedPerAthleteHotZones": 0,
+    "truncatedArrays": [
+      "rosters[team=436].roster: 22 -> 5 (starters kept first)",
+      "rosters[team=104].roster: 22 -> 5 (starters kept first)",
+      "leaders[team=436].leaders: 4 -> 2",
+      "leaders[team=104].leaders: 4 -> 2"
+    ],
+    "requestUrl": "https://site.web.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/summary?event=401915444",
+    "httpStatus": 200,
+    "originalResponseBytes": 439094,
+    "fetchedAt": "2026-09-23T00:13:46.607Z"
+  }
+}

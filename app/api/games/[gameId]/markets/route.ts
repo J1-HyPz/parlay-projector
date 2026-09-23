@@ -190,6 +190,15 @@ export async function POST(
       legs: slip.legs,
       /** Legs removed as incompatible with one already chosen. */
       dropped: slip.dropped,
+      /**
+       * Why each was removed.
+       *
+       * A bare count reads as a fault. The reasons are genuinely different —
+       * the same bet twice, a player-and-scoreline pairing whose joint
+       * probability is unmeasured, or a contest with no simulations behind it —
+       * and the reader chose the leg, so they are told which applied.
+       */
+      dropped_reasons: slip.dropped_reasons,
       unknown,
       independent_probability: slip.assessment.independent,
       combined_probability: slip.assessment.joint,
