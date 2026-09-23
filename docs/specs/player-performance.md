@@ -1,6 +1,7 @@
 # Spec — Player performance
 
-**Status: built for the pilot.** Baseball's starting-pitcher strikeouts has
+**Status: built for the pilot, with one phase deliberately incomplete —
+see §7.1 point 5.** Baseball's starting-pitcher strikeouts has
 been through every phase including §7.6's gate, which it passed — the numbers
 are in §7.6 and in `docs/projection-engine.md`. American football's model is
 built and **switched off** at `PLAYER_MARKET_LEAGUES` pending its own
@@ -405,11 +406,21 @@ settlement dependency rather than a redeploy convenience.
 4. **Cached as the rest of `lib/cache` is**, and a failure degrades to *no
    player selections* rather than breaking the fixture. A single unreadable
    game costs that game, not the competition.
-5. **Long-run player history archived under `$DATA_DIR`**, in the layout
-   §4.3 of the v2 spec established: one small file per competition per season,
-   never an empty one, completed seasons only. Two reasons rather than one — it
-   survives redeploys, and it is what stops §5.8's single point of failure
-   voiding open legs during an outage.
+5. **Long-run player history archived under `$DATA_DIR`** — *not built, and
+   deliberately so once the pilot's shape was known.* The reasoning it was
+   written on was the football one: rating a squad from box scores is twenty
+   requests a fixture, so losing that cache on a redeploy is expensive. The
+   pilot is **two gamelog requests a fixture**, cached for a week, so a redeploy
+   costs almost nothing to recover from and an archive would carry its own
+   staleness problem for no gain.
+
+   It stays in this spec because the reasoning reverses the moment a
+   box-score-shaped market ships — American football is exactly that — and
+   because it is still the honest mitigation for §5.8, which is unaddressed:
+   settlement reads box scores, and an ESPN outage lasting the whole 24-hour
+   finalisation window would void open player legs. Today that risk is carried
+   rather than removed, and the accuracy report would show it as a void spike
+   with no visible cause.
 
 **Fixtures.** Real payloads, in `tests/fixtures/espn/`:
 `boxscore-{nfl,nba,mlb,nhl,ncaaf}.json`, `boxscore-soccer-{epl,ucl}.json`,
