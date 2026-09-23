@@ -206,11 +206,33 @@ export const NFL_PLAYER_STATS: readonly PlayerStatConfig[] = [
  * starts is an ordinary sample here where it would be two seasons of a
  * receiver's career.
  *
- * `dispersion` is deliberately absent, which means Poisson until it is
- * measured. It is the value most likely to need changing: a pitcher's
- * strikeouts inherit variance from how long he lasts, and a distribution that
- * cannot widen would price both tails as more certain than the record supports
- * — the failure baseball's own scoring model already had once.
+ * **Strikeouts are not Poisson, and `dispersion` is measured rather than
+ * assumed.** This was asked before anything shipped, because it asks something
+ * no rate can answer: a Poisson process fixes variance at the mean, and
+ * baseball's own *scoring* measured 2.27 and needed its distribution changed
+ * rather than its constants. Within player, across 5,841 appearances from the
+ * 2024 and 2025 seasons, strikeouts per start measure **1.16**.
+ *
+ * The value fitted is **1.35**, higher than the measurement, and the gap is the
+ * interesting part. Baseball's scoring figure had to be fitted *down* because a
+ * pooled variance double-counts how much fixtures differ from one another. This
+ * one is measured within player, so it carries no such double-count — but the
+ * model's own rate is an *estimate* from eight to thirty starts, and the
+ * uncertainty in that estimate adds to the predictive spread on top of the
+ * process variance. Order of magnitude, a decayed sample of eight to ten starts
+ * contributes roughly another 0.1, which is consistent with 1.35 without
+ * establishing it.
+ *
+ * Swept rather than taken from either figure. Bias crosses zero between 1.35 and
+ * 1.5, and Brier and log loss are already flat from 1.25, so 1.35 is where both
+ * criteria land — the same reasoning the ballpark weight and MMA's `eloK` used.
+ *
+ * | dispersion | bias | Brier | log loss | paired t |
+ * |---|---|---|---|---|
+ * | 1 (Poisson) | +0.0214 | 0.2019 | 0.5906 | -2.11 |
+ * | 1.16 (measured) | +0.0104 | 0.2014 | 0.5888 | -2.37 |
+ * | **1.35 (shipped)** | **+0.0012** | **0.2012** | **0.5880** | **-2.60** |
+ * | 1.5 | -0.0037 | 0.2012 | 0.5880 | -2.74 |
  */
 export const MLB_PITCHER_STATS: readonly PlayerStatConfig[] = [
   {
@@ -222,13 +244,14 @@ export const MLB_PITCHER_STATS: readonly PlayerStatConfig[] = [
     minGames: 8,
     targetGames: 20,
     minSpread: 0,
+    dispersion: 1.35,
   },
 ];
 
 export const PLAYER_MODEL_VERSION = 'player-v1-nfl';
 
 /** The pilot carries its own version, since it is a different model family. */
-export const PITCHER_MODEL_VERSION = 'player-v1-mlb-k';
+export const PITCHER_MODEL_VERSION = 'player-v1-mlb-k-disp';
 
 /** One statistic's rating for one player. */
 export interface PlayerStatRating {
